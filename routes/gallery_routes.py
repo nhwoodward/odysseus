@@ -1780,9 +1780,11 @@ def setup_gallery_routes() -> APIRouter:
             q = db.query(GalleryImage).filter(GalleryImage.id.in_(ids))
             if user:
                 q = q.filter(GalleryImage.owner == user)
-            q.update({"album_id": album_id}, synchronize_session=False)
+            # Report the rows actually moved (owner-scoped), not the requested
+            # count — foreign/stale ids are silently filtered out otherwise.
+            updated = q.update({"album_id": album_id}, synchronize_session=False)
             db.commit()
-            return {"ok": True, "count": len(ids)}
+            return {"ok": True, "count": updated, "requested": len(ids)}
         finally:
             db.close()
 

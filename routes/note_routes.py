@@ -886,6 +886,7 @@ def setup_note_routes(task_scheduler=None):
             _allow_null = False
         db = SessionLocal()
         try:
+            _reordered = 0
             for i, nid in enumerate(ids):
                 q = db.query(Note).filter(Note.id == nid)
                 if user is not None:
@@ -896,8 +897,11 @@ def setup_note_routes(task_scheduler=None):
                 note = q.first()
                 if note:
                     note.sort_order = i
+                    _reordered += 1
             db.commit()
-            return {"ok": True, "count": len(ids)}
+            # Report notes actually reordered (owner-scoped), not the requested
+            # count — foreign/stale ids are silently skipped otherwise.
+            return {"ok": True, "count": _reordered, "requested": len(ids)}
         finally:
             db.close()
 
