@@ -206,11 +206,12 @@ class MemoryManager:
             if "category" not in entry:
                 entry["category"] = "fact"
         
-        # Use atomic write
-        tmp_file = self.memory_file + ".tmp"
-        with open(tmp_file, "w", encoding="utf-8") as f:
-            json.dump(entries, f, ensure_ascii=False, indent=2)
-        os.replace(tmp_file, self.memory_file)
+        # Atomic + owner-only (0600) + fsync'd via the shared writer. A plain
+        # tmp+replace left memory.json world-readable (umask 0644) and un-fsync'd
+        # — and memory entries can hold sensitive user text. ensure_ascii=False
+        # keeps non-ASCII readable on disk (round-trips identically on load).
+        from core.atomic_io import atomic_write_json
+        atomic_write_json(self.memory_file, entries, indent=2, ensure_ascii=False)
     
     def add_entry(self, text: str, source: str = "user", category: str = "fact", owner: str = None) -> Dict:
         """Add a new memory entry."""

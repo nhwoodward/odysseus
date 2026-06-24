@@ -1295,8 +1295,8 @@ def _migrate_assign_legacy_owner():
                     m["owner"] = admin_user
                     changed = True
             if changed:
-                with open(mem_path, "w", encoding="utf-8") as f:
-                    _json.dump(memories, f, ensure_ascii=False, indent=2)
+                from core.atomic_io import atomic_write_json
+                atomic_write_json(mem_path, memories, indent=2, ensure_ascii=False)
                 logger.info(f"Assigned {sum(1 for _ in memories)} legacy memories in memory.json to '{admin_user}'")
     except Exception as e:
         logger.warning(f"memory.json legacy migration failed: {e}")
@@ -1310,8 +1310,8 @@ def _migrate_assign_legacy_owner():
             if "_users" not in prefs and prefs:
                 # Flat format → nest under admin user
                 new_prefs = {"_users": {admin_user: prefs}}
-                with open(prefs_path, "w", encoding="utf-8") as f:
-                    _json.dump(new_prefs, f, indent=2)
+                from core.atomic_io import atomic_write_json
+                atomic_write_json(prefs_path, new_prefs, indent=2)
                 logger.info(f"Migrated user_prefs.json to per-user format under '{admin_user}'")
     except Exception as e:
         logger.warning(f"user_prefs.json migration failed: {e}")

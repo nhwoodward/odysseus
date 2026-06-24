@@ -33,16 +33,19 @@ def _open_private(tmp: str):
     return os.fdopen(fd, "w", encoding="utf-8")
 
 
-def atomic_write_json(path: str, data: Any, *, indent: Optional[int] = None) -> None:
+def atomic_write_json(path: str, data: Any, *, indent: Optional[int] = None, ensure_ascii: bool = True) -> None:
     """Atomically persist `data` as JSON at `path` (owner-only perms).
 
     The temp file uses the live PID as a suffix so two processes saving the
     same file (e.g. unit tests) don't collide on the rename target.
+    ``ensure_ascii`` is forwarded to :func:`json.dump` (default True, matching
+    ``json``); pass False to keep non-ASCII text readable on disk — the file
+    still round-trips identically via ``json.load``.
     """
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     tmp = f"{path}.tmp.{os.getpid()}"
     with _open_private(tmp) as f:
-        json.dump(data, f, indent=indent)
+        json.dump(data, f, indent=indent, ensure_ascii=ensure_ascii)
         f.flush()
         os.fsync(f.fileno())
     os.replace(tmp, path)
