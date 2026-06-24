@@ -632,11 +632,14 @@ import * as Modals from './modalManager.js';
     const live = ta.value;
     if (live === doc.content) return;
     try {
-      await fetch(`${API_BASE}/api/document/${activeDocId}`, {
+      const _r = await fetch(`${API_BASE}/api/document/${activeDocId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: live }),
       });
+      // Only mark the in-memory content as saved on a real 2xx — otherwise a
+      // failed pre-export save would hide that the export used unsaved text.
+      if (!_r.ok) throw new Error(`Pre-export save failed (HTTP ${_r.status})`);
       doc.content = live;
     } catch (e) {
       console.warn('Pre-export save failed:', e);
@@ -9766,6 +9769,9 @@ import * as Modals from './modalManager.js';
       const res = await fetch(`${API_BASE}/api/document/${activeDocId}/restore/${num}`, {
         method: 'POST',
       });
+      // Don't let an error body (401 redirect HTML, 500) overwrite the editor
+      // and clear the version stash — that's silent loss of the current text.
+      if (!res.ok) throw new Error(`Restore failed (HTTP ${res.status})`);
       const doc = await res.json();
       populateEditor(doc);
       // Clear stash — restored content IS the new latest

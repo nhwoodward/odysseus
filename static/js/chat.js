@@ -3864,11 +3864,14 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
 
       const keepCount = msgIndex;
       try {
-        await fetch(`${API_BASE}/api/session/${sessionId}/truncate`, {
+        const _tRes = await fetch(`${API_BASE}/api/session/${sessionId}/truncate`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ keep_count: keepCount })
         });
+        // If the server didn't truncate (500, 401 redirect HTML, 404), don't
+        // mutate the client view — it would diverge from server history.
+        if (!_tRes.ok) throw new Error(`Truncate failed (HTTP ${_tRes.status})`);
 
         // Remove DOM elements from msgIndex onward
         for (let i = allMsgs.length - 1; i >= msgIndex; i--) {
@@ -3954,11 +3957,13 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
         // Regenerate flows intentionally trim history to this point before
         // resubmitting. The plain "Resend message" action must not do this.
         const keepCount = msgIndex;
-        await fetch(`${API_BASE}/api/session/${sessionId}/truncate`, {
+        const _tRes = await fetch(`${API_BASE}/api/session/${sessionId}/truncate`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ keep_count: keepCount })
         });
+        // Bail if the server didn't truncate, so the DOM stays in sync with it.
+        if (!_tRes.ok) throw new Error(`Truncate failed (HTTP ${_tRes.status})`);
 
         // Drop the AI replies after the user message but KEEP the user bubble
         // itself (so its photo stays visible). Then suppress the new user
@@ -4070,11 +4075,13 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
     const keepCount = userIndex;
 
     try {
-      await fetch(`${API_BASE}/api/session/${sessionId}/truncate`, {
+      const _tRes = await fetch(`${API_BASE}/api/session/${sessionId}/truncate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ keep_count: keepCount })
       });
+      // Don't diverge the client from server history on a failed truncate.
+      if (!_tRes.ok) throw new Error(`Truncate failed (HTTP ${_tRes.status})`);
 
       for (let i = allMsgs.length - 1; i > aiIndex; i--) {
         allMsgs[i].remove();

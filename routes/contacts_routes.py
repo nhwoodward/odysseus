@@ -64,10 +64,15 @@ def _carddav_configured(cfg: Optional[Dict] = None) -> bool:
 
 def _validate_carddav_url(url: str) -> str:
     cleaned = (url if isinstance(url, str) else "").strip().rstrip("/")
-    ok, reason = check_outbound_url(
-        cleaned,
-        block_private=os.getenv("CARDDAV_BLOCK_PRIVATE_IPS", "false").lower() == "true",
+    # Block private/loopback IPs by DEFAULT (SSRF), matching the CalDAV path
+    # (ODYSSEUS_ALLOW_PRIVATE_CALDAV). Opt back in for self-hosted CardDAV on a
+    # LAN via ODYSSEUS_ALLOW_PRIVATE_CARDDAV=1. The legacy
+    # CARDDAV_BLOCK_PRIVATE_IPS=false is still honoured as an explicit opt-out.
+    _allow_private = (
+        os.getenv("ODYSSEUS_ALLOW_PRIVATE_CARDDAV", "0").lower() in {"1", "true", "yes"}
+        or os.getenv("CARDDAV_BLOCK_PRIVATE_IPS", "true").lower() == "false"
     )
+    ok, reason = check_outbound_url(cleaned, block_private=not _allow_private)
     if not ok:
         raise ValueError(f"Rejected CardDAV URL: {reason}")
     return cleaned
