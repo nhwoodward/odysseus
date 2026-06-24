@@ -2013,6 +2013,14 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
                 if (_isBg) continue;
                 if (currentHolder && json.id) currentHolder.dataset.dbId = json.id;
 
+              } else if (json.type === 'persist_warning') {
+                // The reply was already streamed, but the DB persist failed — it
+                // won't survive a reload. Surface it instead of silent success
+                // (no-silent-data-loss: H4). Skip for background streams.
+                if (_isBg) continue;
+                try { uiModule?.showToast?.(json.message || 'This reply could not be saved and may not appear after reloading.'); } catch (e) { /* toast unavailable */ }
+                if (currentHolder) { try { currentHolder.dataset.persistFailed = '1'; } catch (e) {} }
+
               } else if (json.type === 'tool_start') {
                 if (_isBg) continue;
                 _cancelThinkingTimer();

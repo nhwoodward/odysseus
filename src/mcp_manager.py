@@ -551,6 +551,12 @@ class McpManager:
             identity = conn.get("identity", "")
             label = f"{server_name} ({identity})" if identity else server_name
 
+            # Fail-closed sentinel: a None disabled set means this server's
+            # disabled_tools row was corrupt — block ALL of its tools rather
+            # than silently re-enabling the operator's disabled set.
+            if disabled is None:
+                continue
+
             for tool in tools:
                 if tool["name"] in disabled:
                     continue
@@ -581,7 +587,9 @@ class McpManager:
                     "qualified_name": f"mcp__{server_id}__{tool['name']}",
                     "description": tool.get("description", ""),
                     "input_schema": tool.get("input_schema") or {},
-                    "is_disabled": tool["name"] in disabled,
+                    # None = fail-closed sentinel (corrupt disabled_tools): all
+                    # tools for this server are disabled.
+                    "is_disabled": disabled is None or tool["name"] in disabled,
                 })
         return result
 
@@ -626,7 +634,9 @@ class McpManager:
     def get_tool_descriptions_for_prompt(self, disabled_map: Optional[Dict[str, set]] = None) -> str:
         """Generate text describing MCP tools for the agent system prompt. Cached."""
         cache_key = (
-            frozenset((k, frozenset(v)) for k, v in (disabled_map or {}).items()),
+            # None value = fail-closed sentinel (corrupt disabled_tools); keep
+            # it distinct in the key without crashing on frozenset(None).
+            frozenset((k, None if v is None else frozenset(v)) for k, v in (disabled_map or {}).items()),
             len(self._tools),
             self._generation,
         )

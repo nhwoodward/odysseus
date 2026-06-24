@@ -1201,7 +1201,7 @@ def setup_chat_routes(
                                 }
                                 yield f'data: {json.dumps({"type": "metrics", "data": last_metrics})}\n\n'
                             if full_response:
-                                _saved_id = save_assistant_response(
+                                _saved = save_assistant_response(
                                     sess, session_manager, session, full_response, last_metrics,
                                     character_name=ctx.preset.character_name,
                                     web_sources=web_sources,
@@ -1211,8 +1211,10 @@ def setup_chat_routes(
                                     do_research=effective_do_research,
                                     incognito=incognito,
                                 )
-                                if _saved_id:
-                                    yield f'data: {json.dumps({"type": "message_saved", "id": _saved_id})}\n\n'
+                                if _saved.get("id"):
+                                    yield f'data: {json.dumps({"type": "message_saved", "id": _saved["id"]})}\n\n'
+                                if _saved.get("persist_failed"):
+                                    yield f'data: {json.dumps({"type": "persist_warning", "message": "This reply could not be saved — it may not appear after reloading."})}\n\n'
                                 run_post_response_tasks(
                                     sess, session_manager, session, message, full_response,
                                     last_metrics, ctx.uprefs, memory_manager, memory_vector, webhook_manager,
@@ -1333,7 +1335,7 @@ def setup_chat_routes(
                             yield chunk
                         elif chunk == "data: [DONE]\n\n":
                             if full_response:
-                                _saved_id = save_assistant_response(
+                                _saved = save_assistant_response(
                                     sess, session_manager, session, full_response, last_metrics,
                                     character_name=ctx.preset.character_name,
                                     web_sources=web_sources,
@@ -1341,8 +1343,10 @@ def setup_chat_routes(
                                     used_memories=ctx.used_memories,
                                     incognito=incognito,
                                 )
-                                if _saved_id:
-                                    yield f'data: {json.dumps({"type": "message_saved", "id": _saved_id})}\n\n'
+                                if _saved.get("id"):
+                                    yield f'data: {json.dumps({"type": "message_saved", "id": _saved["id"]})}\n\n'
+                                if _saved.get("persist_failed"):
+                                    yield f'data: {json.dumps({"type": "persist_warning", "message": "This reply could not be saved — it may not appear after reloading."})}\n\n'
                                 run_post_response_tasks(
                                     sess, session_manager, session, message, full_response,
                                     last_metrics, ctx.uprefs, memory_manager, memory_vector, webhook_manager,
