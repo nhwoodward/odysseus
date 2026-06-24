@@ -28,6 +28,20 @@ jobs:
       # Byte-compile sources — catches syntax errors without installing deps.
       - run: python -m compileall -q app.py core routes src services scripts tests
 
+  blind-except-ratchet:
+    name: Blind exception-handler ratchet
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        with:
+          python-version: "3.11"
+      # Fails only if a PR adds NEW blind (silently-swallowing) except handlers
+      # beyond the recorded baseline. Stdlib-only; no deps to install.
+      - run: python scripts/audit_blind_excepts.py
+
   node-syntax:
     name: JS syntax (node --check)
     runs-on: ubuntu-latest
