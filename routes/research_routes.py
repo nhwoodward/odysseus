@@ -337,7 +337,11 @@ def setup_research_routes(research_handler, session_manager=None) -> APIRouter:
             if data.get("owner") != user:
                 raise HTTPException(404, "Research not found")
             data["archived"] = bool(archived)
-            path.write_text(json.dumps(data), encoding="utf-8")
+            # Atomic write: a crash mid-write would corrupt the report JSON,
+            # after which every owner check fails json.loads and the report
+            # silently vanishes from the Library.
+            from core.atomic_io import atomic_write_json
+            atomic_write_json(str(path), data)
         except HTTPException:
             raise
         except Exception as e:

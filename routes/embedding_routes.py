@@ -99,14 +99,19 @@ def _load_custom_endpoint() -> dict:
         if os.path.exists(_ENDPOINT_FILE):
             data = json.loads(Path(_ENDPOINT_FILE).read_text(encoding="utf-8"))
             return data if isinstance(data, dict) else {}
-    except Exception:
-        pass
+    except (json.JSONDecodeError, OSError) as e:
+        # Don't silently fall back to the default local model — a corrupt config
+        # would silently change which embeddings are used (different vectors).
+        logger.warning("Custom embedding endpoint config unreadable (%s); using default", e)
     return {}
 
 
 def _save_custom_endpoint(data: dict):
     Path(_ENDPOINT_FILE).parent.mkdir(parents=True, exist_ok=True)
-    Path(_ENDPOINT_FILE).write_text(json.dumps(data, indent=2), encoding="utf-8")
+    # Atomic: a partial write leaves a corrupt config that the loader above
+    # would then have to discard.
+    from core.atomic_io import atomic_write_json
+    atomic_write_json(str(_ENDPOINT_FILE), data, indent=2)
 
 
 def setup_embedding_routes():

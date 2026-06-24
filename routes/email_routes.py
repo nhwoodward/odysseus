@@ -2633,7 +2633,28 @@ def setup_email_routes():
                 return {"success": True, "queued": False, "message": f"Email sent to {req.to}", **result}
             return result
 
-        background_tasks.add_task(_deliver)
+        def _deliver_bg():
+            # The user already got an optimistic {"queued": True}. _deliver
+            # swallows SMTP errors into a {"success": False} dict that this
+            # background path used to discard — so a real send failure left no
+            # trace. Escalate to ERROR and emit an event the UI can surface.
+            try:
+                res = _deliver()
+            except Exception as e:
+                res = {"success": False, "error": str(e)}
+            if not (res or {}).get("success"):
+                logger.error(
+                    "Background email send to %s failed (was reported queued): %s",
+                    req.to, (res or {}).get("error"),
+                )
+                try:
+                    from src.event_bus import fire_event
+                    fire_event("email_send_failed", owner)
+                except Exception:
+                    pass
+            return res
+
+        background_tasks.add_task(_deliver_bg)
         return {
             "success": True,
             "queued": True,

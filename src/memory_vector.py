@@ -101,10 +101,16 @@ class MemoryVectorStore:
 
         return collections
 
-    def add(self, memory_id: str, text: str):
-        """Add a single memory entry to the vector index."""
+    def add(self, memory_id: str, text: str) -> bool:
+        """Add a single memory entry to the vector index.
+
+        Returns True only when the entry is present in every lane. A per-lane
+        failure returns False so the caller knows the memory was saved to JSON
+        but is not fully searchable (it would otherwise drift silently).
+        """
         if not self._healthy:
-            return
+            return False
+        lanes_failed = 0
         for lane in self._lanes:
             try:
                 existing = lane.collection.get(ids=[memory_id])
@@ -117,7 +123,9 @@ class MemoryVectorStore:
                     metadatas=[{"source": "memory"}],
                 )
             except Exception as e:
-                logger.warning("memory add failed in %s lane for %s: %s", lane.name, memory_id, e)
+                lanes_failed += 1
+                logger.error("memory add failed in %s lane for %s: %s", lane.name, memory_id, e, exc_info=True)
+        return lanes_failed == 0
 
     def remove(self, memory_id: str):
         """Remove a memory entry. O(1) — no rebuild needed."""
