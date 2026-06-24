@@ -29,6 +29,14 @@ def create_directories():
     """Create necessary directories if they don't exist."""
     for directory in (DATA_DIR, PERSONAL_DIR, RUNBOOK_DIR, UPLOAD_DIR):
         os.makedirs(directory, exist_ok=True)
+        # Lock state dirs to the owner: they hold auth.json (password hashes,
+        # TOTP secrets), sessions.json (live tokens), and uploads. Without this,
+        # the default umask leaves them group/world-traversable on multi-user
+        # hosts. Log (don't swallow) a chmod failure so it's diagnosable.
+        try:
+            os.chmod(directory, 0o700)
+        except OSError as e:
+            logger.warning("Could not chmod %s to 0o700: %s", directory, e)
         
 def initialize_managers(base_dir: str, rag_manager=None) -> Dict[str, Any]:
     """

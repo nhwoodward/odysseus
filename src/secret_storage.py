@@ -25,6 +25,7 @@ from pathlib import Path
 from cryptography.fernet import Fernet, InvalidToken
 
 from core.platform_compat import safe_chmod
+from core.atomic_io import atomic_write_bytes
 from src.constants import APP_KEY_FILE
 
 logger = logging.getLogger(__name__)
@@ -36,13 +37,18 @@ _fernet: Fernet | None = None
 
 def _load_or_create_key() -> bytes:
     if _KEY_PATH.exists():
+        # Older versions wrote .app_key with the process umask (often 0o644,
+        # i.e. group/world-readable). Re-restrict on read so existing installs
+        # heal without regenerating the key (which would orphan every encrypted
+        # DB row). Best-effort: safe_chmod is a no-op on Windows.
+        safe_chmod(_KEY_PATH, 0o600)
         return _KEY_PATH.read_bytes()
     _KEY_PATH.parent.mkdir(parents=True, exist_ok=True)
     key = Fernet.generate_key()
-    _KEY_PATH.write_bytes(key)
-    # POSIX: lock the key to 0o600. Windows: no-op (the user-profile data dir is
-    # already ACL-restricted); safe_chmod swallows both cases.
-    safe_chmod(_KEY_PATH, 0o600)
+    # Write the key at 0600 atomically: no world-readable window (a plain
+    # write_bytes + chmod race) and no truncated-on-crash file. atomic_write_bytes
+    # also re-restricts the file on every write.
+    atomic_write_bytes(str(_KEY_PATH), key)
     logger.info(f"Generated new app key at {_KEY_PATH}")
     return key
 

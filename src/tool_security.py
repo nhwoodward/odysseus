@@ -49,6 +49,12 @@ NON_ADMIN_BLOCKED_TOOLS = {
     "stop_served_model",
     "cancel_download",
     "adopt_served_model",
+    # Read/delete saved deep-research and start new research jobs. The research
+    # store is shared across users with per-file owner tags, so a non-admin must
+    # not reach these directly — manage_research is additionally owner-scoped in
+    # do_manage_research as defense-in-depth.
+    "manage_research",
+    "trigger_research",
     # Spawns an autonomous Claude Code with shell/file access in the container.
     "delegate_to_claude_code",
 }

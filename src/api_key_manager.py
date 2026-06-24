@@ -5,6 +5,7 @@ from typing import Dict
 from cryptography.fernet import Fernet, InvalidToken
 
 from core.platform_compat import safe_chmod
+from core.atomic_io import atomic_write_bytes, atomic_write_json
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +14,7 @@ class APIKeyManager:
         self.data_dir = data_dir
         self.api_keys_file = os.path.join(data_dir, "api_keys.json")
         self.key_file = os.path.join(data_dir, ".key")
-        
+
     def get_or_create_key(self) -> bytes:
         """Get or create encryption key for API keys"""
         if os.path.exists(self.key_file):
@@ -25,12 +26,10 @@ class APIKeyManager:
                 return f.read()
         else:
             key = Fernet.generate_key()
-            with open(self.key_file, 'wb') as f:
-                f.write(key)
-            # This key decrypts every stored provider credential, so restrict it
-            # to the owner (0o600) — it must not be group/world-readable. No-op
-            # on Windows (files there are ACL-restricted to the user already).
-            safe_chmod(self.key_file, 0o600)
+            # This key decrypts every stored provider credential, so write it
+            # at 0600 atomically — no world-readable write-then-chmod window, no
+            # truncated-on-crash file. (Re-restricts on every write too.)
+            atomic_write_bytes(self.key_file, key)
             return key
     
     def encrypt_api_key(self, api_key: str) -> str:
@@ -84,8 +83,10 @@ class APIKeyManager:
         """
         keys = self._load_raw()
         keys[provider] = self.encrypt_api_key(api_key)
-        with open(self.api_keys_file, 'w', encoding="utf-8") as f:
-            json.dump(keys, f)
+        # Atomically persist at 0600: a plain open("w") + json.dump truncated
+        # mid-crash and honoured the umask (often world-readable), and this file
+        # was never chmod'd at all. atomic_write_json closes both.
+        atomic_write_json(self.api_keys_file, keys)
 
     def load(self) -> Dict[str, str]:
         """Load and decrypt API keys"""
