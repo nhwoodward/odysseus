@@ -153,6 +153,7 @@ export function historyToMessages(h: HistoryMsg[]): ChatMessage[] {
         tokens_out: (md.output_tokens ?? md.tokens_out) as number | undefined,
         tokens_total: (md.total_tokens ?? md.tokens_total) as number | undefined,
         context_tokens: (md.context_tokens ?? md.prompt_tokens) as number | undefined,
+        context_percent: (md.context_percent ?? md.context_pct) as number | undefined,
         cost: md.cost as number | undefined,
         tok_per_sec: (md.tokens_per_second ?? md.tok_per_sec ?? md.tokens_per_sec) as number | undefined,
         prep_seconds: (md.prep_seconds ?? md.prep_time) as number | undefined,
@@ -266,7 +267,7 @@ export function useChat(sessionId?: string) {
     const ev = e as Record<string, unknown>
     if (typeof ev.delta === "string") {
       const d = ev.delta as string
-      if (ev.thinking) { patchAi((m) => ({ ...m, reasoning: (m.reasoning || "") + d })); return }
+      if (ev.thinking) { patchAi((m) => ({ ...m, reasoning: (m.reasoning || "") + d, lastTickAt: Date.now() })); return }
       // Accumulate raw text + detect a `create_document` fence so the doc opens
       // live in the side panel and the fence is stripped from the chat bubble.
       rawRef.current += d
@@ -280,7 +281,7 @@ export function useChat(sessionId?: string) {
         // Once a turn has gone multi-round (a tool ran), append text to the
         // current round so it renders interleaved; otherwise keep flat.
         const rounds = m.rounds ? appendToLastRound(m.rounds, d) : m.rounds
-        return { ...m, content: m.content + d, artifact: artifact || m.artifact, rounds }
+        return { ...m, content: m.content + d, artifact: artifact || m.artifact, rounds, lastTickAt: Date.now() }
       })
       return
     }
@@ -295,7 +296,7 @@ export function useChat(sessionId?: string) {
         patchAi((m) => ({ ...m, artifact: { title, language, content: m.artifact?.content || "", closed: false } }))
         break
       }
-      case "doc_stream_delta": { const c = (ev.content as string) || ""; usePanel.getState().setDocContent(c); patchAi((m) => ({ ...m, artifact: m.artifact ? { ...m.artifact, content: c } : { title: "Document", content: c, closed: false } })); break }
+      case "doc_stream_delta": { const c = (ev.content as string) || ""; usePanel.getState().setDocContent(c); patchAi((m) => ({ ...m, artifact: m.artifact ? { ...m.artifact, content: c } : { title: "Document", content: c, closed: false }, lastTickAt: Date.now() })); break }
       case "doc_update": {
         if (ev.doc_id) usePanel.getState().setDocId(ev.doc_id as string)
         const c = ev.content as string | undefined
@@ -333,7 +334,7 @@ export function useChat(sessionId?: string) {
           screenshot: (ev.screenshot as string) ?? t.screenshot, diff: (ev.diff as ToolEvent["diff"]) ?? t.diff,
         })
         const t = [...(m.tools || [])]; if (t.length) t[t.length - 1] = patch(t[t.length - 1])
-        return { ...m, tools: t, rounds: patchLastTool(m.rounds, patch) }
+        return { ...m, tools: t, rounds: patchLastTool(m.rounds, patch), lastTickAt: Date.now() }
       }); break
       case "tool_progress": patchAi((m) => {
         const tail = (ev.tail as string) || (ev.progress_text as string) || ""; const el = ev.elapsed_s as number | undefined
@@ -341,7 +342,7 @@ export function useChat(sessionId?: string) {
         const progress = [el != null ? `${el}s` : "", lastLine].filter(Boolean).join(" · ") || undefined
         const patch = (t: ToolEvent): ToolEvent => ({ ...t, progress, running: true })
         const t = [...(m.tools || [])]; if (t.length) t[t.length - 1] = patch(t[t.length - 1])
-        return { ...m, tools: t, rounds: patchLastTool(m.rounds, patch) }
+        return { ...m, tools: t, rounds: patchLastTool(m.rounds, patch), lastTickAt: Date.now() }
       }); break
       // Round delimiter: open a fresh round so the next round's text/tools render
       // in their own block (and keep the flat content paragraph-separated).
@@ -369,13 +370,21 @@ export function useChat(sessionId?: string) {
       case "ui_control": applyUiControl(ev.data); break
       case "metrics": {
         // Backend emits input_tokens/output_tokens/tokens_per_second (nested under
-        // `data`); keep the old names as fallbacks for safety.
+        // `data`); keep the old names as fallbacks for safety. Pass through the
+        // full field set (incl. context_percent) so the live metrics match the
+        // richer metrics reconstructed from saved history on reload.
         const dm = (ev.data as Record<string, unknown>) || ev
         patchAi((m) => ({ ...m, metrics: {
-          tokens_in: (dm.input_tokens ?? dm.tokens_in) as number,
-          tokens_out: (dm.output_tokens ?? dm.tokens_out) as number,
-          cost: dm.cost as number,
-          tok_per_sec: (dm.tokens_per_second ?? dm.tok_per_sec ?? dm.tokens_per_sec) as number,
+          tokens_in: (dm.input_tokens ?? dm.tokens_in) as number | undefined,
+          tokens_out: (dm.output_tokens ?? dm.tokens_out) as number | undefined,
+          tokens_total: (dm.total_tokens ?? dm.tokens_total) as number | undefined,
+          context_tokens: (dm.context_tokens ?? dm.prompt_tokens) as number | undefined,
+          context_percent: (dm.context_percent ?? dm.context_pct) as number | undefined,
+          cost: dm.cost as number | undefined,
+          tok_per_sec: (dm.tokens_per_second ?? dm.tok_per_sec ?? dm.tokens_per_sec) as number | undefined,
+          prep_seconds: (dm.prep_seconds ?? dm.prep_time) as number | undefined,
+          model_wait_seconds: (dm.model_wait_seconds ?? dm.model_wait) as number | undefined,
+          response_seconds: (dm.response_seconds ?? dm.total_seconds ?? dm.elapsed) as number | undefined,
         } })); break
       }
       case "workspace_rejected": {
@@ -386,7 +395,7 @@ export function useChat(sessionId?: string) {
       }
       case "error": patchAi((m) => ({ ...m, notice: { kind: "error", text: String(ev.text || ev.error || "Stream error") } })); break
       case "research_progress":
-        patchAi((m) => ({ ...m, research: researchPhase(ev.data as Record<string, unknown>) })); break
+        patchAi((m) => ({ ...m, research: researchPhase(ev.data as Record<string, unknown>), lastTickAt: Date.now() })); break
       case "research_done": {
         const rsid = (ev.data as { session_id?: string })?.session_id || sid
         try {
@@ -493,7 +502,7 @@ export function useChat(sessionId?: string) {
           try {
             // Resume replays the detached run from event zero, so reset only the
             // current assistant bubble before applying the replayed events.
-            patchAi((m) => ({ role: "assistant", content: "", reasoning: "", tools: [], rounds: undefined, sources: [], streaming: true, model: m.model }))
+            patchAi((m) => ({ role: "assistant", content: "", reasoning: "", tools: [], rounds: undefined, sources: [], streaming: true, model: m.model, streamStartAt: Date.now(), lastTickAt: Date.now() }))
             await streamResume(sid, (e: SseEvent) => handleEvent(e, sid), ctrl.signal)
           } catch (resumeErr) {
             if ((resumeErr as Error)?.name !== "AbortError") {
@@ -589,13 +598,15 @@ export function useChat(sessionId?: string) {
         groupName: participant.groupName,
         groupParticipantId: participant.id,
         groupRunId: runId,
+        streamStartAt: Date.now(),
+        lastTickAt: Date.now(),
       }])
       try {
         const content = await streamGroupReply(
           participant,
           payload,
           { useRag: composer.useRag, attachmentIds },
-          (delta) => patchGroupMessage(runId, participant.id, (m) => ({ ...m, content: m.content + delta })),
+          (delta) => patchGroupMessage(runId, participant.id, (m) => ({ ...m, content: m.content + delta, lastTickAt: Date.now() })),
           ctrl.signal,
         )
         patchGroupMessage(runId, participant.id, (m) => ({ ...m, content: content || m.content || "_(no response)_", streaming: false }))
@@ -681,7 +692,7 @@ export function useChat(sessionId?: string) {
     const optimisticAttachments = opts.attachments?.length
       ? opts.attachments
       : (attachmentIds || []).map((id) => ({ id, name: "Attachment" }))
-    setMessages((prev) => [...prev, { role: "user", content: text, attachments: optimisticAttachments }, { role: "assistant", content: "", reasoning: "", tools: [], sources: [], streaming: true }])
+    setMessages((prev) => [...prev, { role: "user", content: text, attachments: optimisticAttachments }, { role: "assistant", content: "", reasoning: "", tools: [], sources: [], streaming: true, streamStartAt: Date.now(), lastTickAt: Date.now() }])
     await streamReply(text, sid, { model, endpointId, attachmentIds, sendAs, forceWeb: opts.forceWeb })
   }, [streaming, composer, sendGroup, navigate, qc, dropIncognito, streamReply])
 
@@ -705,7 +716,7 @@ export function useChat(sessionId?: string) {
     if (!user || user.role !== "user") return
     const attachmentIds = (user.attachments || []).map((a) => a.id).filter((id): id is string => !!id)
     if (!user.content.trim() && !attachmentIds.length) return
-    setMessages((prev) => [...prev.slice(0, userIndex + 1), { role: "assistant", content: "", reasoning: "", tools: [], sources: [], streaming: true }])
+    setMessages((prev) => [...prev.slice(0, userIndex + 1), { role: "assistant", content: "", reasoning: "", tools: [], sources: [], streaming: true, streamStartAt: Date.now(), lastTickAt: Date.now() }])
     await streamReply(user.content, sid, { model: composer.model || undefined, endpointId: composer.endpointId || undefined, attachmentIds })
   }, [streaming, messages, composer.model, composer.endpointId, streamReply])
 
@@ -728,7 +739,7 @@ export function useChat(sessionId?: string) {
         body: JSON.stringify({ keep_count: userIndex }),
       })
     } catch { /* best-effort; the resend still replaces the local turn */ }
-    setMessages((prev) => [...prev.slice(0, userIndex), { role: "user", content: newText, attachments }, { role: "assistant", content: "", reasoning: "", tools: [], sources: [], streaming: true }])
+    setMessages((prev) => [...prev.slice(0, userIndex), { role: "user", content: newText, attachments }, { role: "assistant", content: "", reasoning: "", tools: [], sources: [], streaming: true, streamStartAt: Date.now(), lastTickAt: Date.now() }])
     await streamReply(newText, sid, { model: composer.model || undefined, endpointId: composer.endpointId || undefined, attachmentIds })
   }, [streaming, messages, composer.model, composer.endpointId, streamReply])
 
@@ -864,7 +875,7 @@ export function useChat(sessionId?: string) {
         const s = await fetch(`/api/chat/stream_status/${sid}`, { credentials: "same-origin" })
         if (!s.ok || cancelled || sidRef.current !== sid) return
         resumeRef.current = sid
-        setMessages((prev) => prev[prev.length - 1]?.streaming ? prev : [...prev, { role: "assistant", content: "", reasoning: "", tools: [], sources: [], streaming: true }])
+        setMessages((prev) => prev[prev.length - 1]?.streaming ? prev : [...prev, { role: "assistant", content: "", reasoning: "", tools: [], sources: [], streaming: true, streamStartAt: Date.now(), lastTickAt: Date.now() }])
         setStreaming(true)
         rawRef.current = ""; artifactRef.current = null
         try {

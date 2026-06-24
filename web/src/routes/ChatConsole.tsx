@@ -17,10 +17,30 @@ import { ShareMenu } from "@/components/chat/ShareMenu"
 import { ProjectPicker } from "@/components/chat/ProjectPicker"
 import { Mascot } from "@/components/ui/Mascot"
 import { apiJson } from "@/lib/api"
+import { toast } from "@/stores/toast"
 import { cn } from "@/lib/utils"
 import type { ChatMessage } from "@/types"
 
 const LAST_CHAT_SESSION_KEY = "odysseus-last-chat-session"
+
+// Background-completion notification (#11): when a stream finishes while the
+// tab was hidden (the user switched away mid-response), surface an OS-level
+// Notification so they know the answer is ready — toast fallback if
+// notifications are unavailable/denied. Mirrors ResearchRoute's notifyComplete;
+// permission is requested lazily on first fire.
+function notifyChatComplete(title: string | undefined) {
+  const name = title || "this chat"
+  const fire = () => {
+    try {
+      const n = new Notification("Response ready", { body: `Finished: ${name}`, tag: "odysseus-chat" })
+      n.onclick = () => { window.focus(); n.close() }
+    } catch { toast("Response ready", "success") }
+  }
+  if (typeof Notification === "undefined") { toast("Response ready", "success"); return }
+  if (Notification.permission === "granted") { fire(); return }
+  if (Notification.permission === "denied") { toast("Response ready", "success"); return }
+  Notification.requestPermission().then((p) => { if (p === "granted") fire(); else toast("Response ready", "success") }).catch(() => toast("Response ready", "success"))
+}
 
 function ExportMenu({ sid, messages }: { sid: string; messages: ChatMessage[] }) {
   const [open, setOpen] = useState(false)
@@ -80,6 +100,24 @@ export function ChatConsole() {
   // Reset transient view state when switching threads.
   // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional reset on thread change
   useEffect(() => { setEditingIndex(null); setAtBottom(true) }, [sessionId])
+
+  // Fire a background-completion notification when a stream finishes while the
+  // tab was hidden. `hiddenDuring` accumulates across the stream (set either at
+  // the start or via the visibilitychange listener below) and is reset on each
+  // new stream start.
+  const wasStreamingRef = useRef(false)
+  const hiddenDuringRef = useRef(false)
+  useEffect(() => {
+    if (streaming && !wasStreamingRef.current) hiddenDuringRef.current = false
+    if (streaming && document.hidden) hiddenDuringRef.current = true
+    if (!streaming && wasStreamingRef.current && hiddenDuringRef.current) notifyChatComplete(title)
+    wasStreamingRef.current = streaming
+  }, [streaming, title])
+  useEffect(() => {
+    const onVis = () => { if (document.hidden && streaming) hiddenDuringRef.current = true }
+    document.addEventListener("visibilitychange", onVis)
+    return () => document.removeEventListener("visibilitychange", onVis)
+  }, [streaming])
   useEffect(() => {
     if (sessionId) window.localStorage.setItem(LAST_CHAT_SESSION_KEY, sessionId)
   }, [sessionId])

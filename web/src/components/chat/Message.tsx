@@ -4,7 +4,10 @@ import { usePanel } from "@/stores/panel"
 import { Mascot } from "@/components/ui/Mascot"
 import { StreamingMarkdown, Markdown } from "./Markdown"
 import { ToolThread } from "./ToolThread"
-import { parseArtifact, cleanRoundText } from "@/lib/artifact"
+import { BrowserSiteCard } from "./BrowserPreview"
+import { parseArtifact, cleanRoundText, stripSourcesFence } from "@/lib/artifact"
+import { safeHref } from "@/lib/safeImage"
+import { useNow, formatElapsed } from "@/lib/useNow"
 import { useVoiceCaps, speak } from "@/api/voice"
 import { cn } from "@/lib/utils"
 import type { AskUserPrompt, ChatAttachment, ChatMessage, Artifact } from "@/types"
@@ -120,9 +123,23 @@ function SpeakButton({ text }: { text: string }) {
 }
 
 function Reasoning({ text, live }: { text: string; live: boolean }) {
-  // Collapsed by default (even while thinking) — click to reveal the live stream.
+  // Breathe with the stream: auto-open on the first thinking token, auto-close
+  // when the turn finishes — but never fight a manual toggle (the 21st.dev
+  // Reasoning `isStreaming` pattern). `autoOpened` tracks whether the current
+  // open state was our doing, so a user who collapsed it mid-thought isn't
+  // yanked back open, and a user who re-expanded it after it settled stays open.
   const [open, setOpen] = useState(false)
+  const [autoOpened, setAutoOpened] = useState(false)
   const bodyRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    // Auto-open/close is an intentional sync of the panel state to the
+    // streaming flag (with a manual-override guard) — the same exception the
+    // codebase already makes for thread-reset state in ChatConsole.
+    /* eslint-disable react-hooks/set-state-in-effect */
+    if (live && !autoOpened) { setOpen(true); setAutoOpened(true) }
+    else if (!live && autoOpened) { setOpen(false); setAutoOpened(false) }
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [live, autoOpened])
   useEffect(() => { if (live && open && bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight }, [text, live, open])
   return (
     <div className="animate-fade-in rounded-lg border bg-card text-xs">
@@ -131,7 +148,33 @@ function Reasoning({ text, live }: { text: string; live: boolean }) {
         <Brain className={cn("size-3.5", live && "animate-pulse-soft")} />
         <span className={cn(live && "shimmer-text")}>{live ? "Thinking…" : "Reasoning"}</span>
       </button>
-      {open && <div ref={bodyRef} className="max-h-64 overflow-y-auto whitespace-pre-wrap border-t px-3 py-2 leading-relaxed text-muted-foreground">{text}</div>}
+      {open && <div ref={bodyRef} className="max-h-64 overflow-y-auto border-t px-3 py-2 text-xs leading-relaxed"><Markdown>{text}</Markdown></div>}
+    </div>
+  )
+}
+
+// Stall threshold: if no progress event arrives for this long mid-stream, swap
+// the label from "Thinking…" to "Still working…" so a frozen stream still
+// communicates intent instead of looking dead.
+const STALL_MS = 8000
+
+// Live activity signal for a streaming turn: mascot + shimmer label + an elapsed
+// timer that ticks the whole stream, plus a stall watchdog. The "Thinking…"
+// label shows only before any content arrives (after that the stream itself is
+// the signal) — EXCEPT when stalled, where "Still working…" reassurance wins.
+function ThinkingBar({ m, hasBody, doc, hasReasoning, hasResearch, hasTools }: {
+  m: ChatMessage; hasBody: boolean; doc: boolean; hasReasoning: boolean; hasResearch: boolean; hasTools: boolean
+}) {
+  const preContent = !hasBody && !doc && !hasReasoning && !hasResearch && !hasTools
+  const now = useNow(!!m.streaming)
+  const elapsed = m.streamStartAt ? formatElapsed(now - m.streamStartAt) : ""
+  const stalled = !!m.streaming && m.lastTickAt != null && now - m.lastTickAt > STALL_MS
+  const showLabel = preContent || stalled
+  return (
+    <div className="flex animate-fade-in items-center gap-2.5 pt-0.5 text-sm text-muted-foreground">
+      <Mascot size={9} title="Working" />
+      {showLabel && <span className="shimmer-text">{stalled ? "Still working…" : "Thinking…"}</span>}
+      {elapsed && <span className="text-[11px] tabular-nums text-muted-foreground/70">{elapsed}</span>}
     </div>
   )
 }
@@ -231,11 +274,15 @@ export function Message({ m, onRegenerate, onEdit, onDelete, onFork, onRewrite, 
   if (editing) return <MessageEditor initial={m.content} assistant onSubmit={onEditSubmit} onCancel={onEditCancel} />
   // Strip the create_document fence out of the bubble — it streams into the
   // side panel as an artifact instead of showing as raw code in the chat.
-  const { display, artifact } = parseArtifact(m.content)
+  const { display: _display, artifact } = parseArtifact(m.content)
+  // When structured sources are surfaced as the Sources button, the model's
+  // raw ```sources fence is a redundant code block — strip it from the flat
+  // reply too (the round path handles this inside cleanRoundText).
+  const display = m.sources?.length ? stripSourcesFence(_display) : _display
   // Agent turns reconstruct the interleaved text → tools → text layout from
   // per-round data (live or saved). A plain reply has no rounds and renders flat.
   const useRounds = !!m.rounds && (m.rounds.length > 1 || m.rounds.some((r) => r.tools.length > 0))
-  const cleaned = useRounds ? m.rounds!.map((r) => ({ tools: r.tools, ...cleanRoundText(r.text) })) : null
+  const cleaned = useRounds ? m.rounds!.map((r) => ({ tools: r.tools, ...cleanRoundText(r.text, { hasSources: !!m.sources?.length }) })) : null
   const doc = m.artifact || artifact || cleaned?.map((c) => c.artifact).find(Boolean)
   const bodyText = useRounds ? cleaned!.map((c) => c.display).filter(Boolean).join("\n\n") : display
   const hasBody = useRounds ? cleaned!.some((c) => c.display || c.tools.length > 0) : !!display
@@ -254,6 +301,11 @@ export function Message({ m, onRegenerate, onEdit, onDelete, onFork, onRewrite, 
           {c.tools.length > 0 && <ToolThread tools={c.tools} defaultOpen />}
         </div>
       )) : (m.tools && m.tools.length > 0 && <ToolThread tools={m.tools} />)}
+      {/* Recover a website the agent built in an ephemeral browser tab (injected
+         via the builtin browser MCP, never saved as a document) so it surfaces
+         in the thread instead of vanishing with the closed tab. `m.tools` is the
+         complete tool set in every code path (rounds partition the same array). */}
+      <BrowserSiteCard tools={m.tools} />
       {m.research && m.streaming && (
         <div className="flex animate-fade-in items-center gap-2.5 rounded-lg border bg-card px-3 py-2.5 text-sm">
           <Telescope className="size-4 shrink-0 text-muted-foreground" />
@@ -273,19 +325,32 @@ export function Message({ m, onRegenerate, onEdit, onDelete, onFork, onRewrite, 
         </div>
       )}
       {m.sources && m.sources.length > 0 && (
-        <button onClick={() => usePanel.getState().show("sources", { title: `Sources · ${m.sources!.length}`, payload: m.sources })}
-          className="mt-1 inline-flex animate-fade-in items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
-          <BookOpen className="size-3.5" /> {m.sources.length} source{m.sources.length === 1 ? "" : "s"}
-        </button>
+        <details className="mt-1 animate-fade-in rounded-lg border bg-card text-xs group">
+          <summary className="flex cursor-pointer list-none items-center gap-1.5 px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground">
+            <ChevronRight className="size-3 transition-transform duration-200 group-open:rotate-90" />
+            <BookOpen className="size-3.5" />
+            <span>{m.sources.length} source{m.sources.length === 1 ? "" : "s"}</span>
+          </summary>
+          <ol className="space-y-1 border-t px-3 py-2">
+            {m.sources.map((s, i) => {
+              const href = safeHref(s.url)
+              return (
+              <li key={i} className="flex items-start gap-1.5">
+                <span className="text-muted-foreground/60">{i + 1}.</span>
+                {href
+                  ? <a href={href} target="_blank" rel="noreferrer" title={s.snippet} className="min-w-0 truncate text-foreground hover:underline">{s.title || href}</a>
+                  : <span className="min-w-0 truncate text-muted-foreground">{s.title || "(no url)"}</span>}
+              </li>
+              )
+            })}
+          </ol>
+        </details>
       )}
       {/* The animated mascot is the "assistant is working" indicator — it stays
-         under the message for the whole stream. The "Thinking…" label shows only
-         before any content / reasoning / tools have arrived. */}
+         under the message for the whole stream, with an elapsed timer and a
+         stall watchdog ("Still working…" if the stream goes quiet). */}
       {m.streaming && (
-        <div className="flex animate-fade-in items-center gap-2.5 pt-0.5 text-sm text-muted-foreground">
-          <Mascot size={9} title="Working" />
-          {!hasBody && !doc && !m.reasoning && !m.research && (!m.tools || m.tools.length === 0) && <span className="shimmer-text">Thinking…</span>}
-        </div>
+        <ThinkingBar m={m} hasBody={hasBody} doc={!!doc} hasReasoning={!!m.reasoning} hasResearch={!!m.research} hasTools={!!m.tools?.length} />
       )}
       {!m.streaming && (m.model || mt || m.content) && (
         <div className="flex flex-wrap items-center gap-2 pt-0.5 text-[11px] text-muted-foreground">
@@ -303,7 +368,7 @@ export function Message({ m, onRegenerate, onEdit, onDelete, onFork, onRewrite, 
           {mt?.tokens_in != null && <span>· {mt.tokens_in} in</span>}
           {mt?.tokens_out != null && <span>· {mt.tokens_out} out</span>}
           {mt?.tokens_total != null && <span>· {mt.tokens_total} total</span>}
-          {mt?.context_tokens != null && <span>· {mt.context_tokens} context</span>}
+          {mt?.context_percent != null ? <span>· {Math.round(mt.context_percent)}% context</span> : mt?.context_tokens != null && <span>· {mt.context_tokens} context</span>}
           {mt?.tok_per_sec != null && <span>· {Math.round(mt.tok_per_sec)} tok/s</span>}
           {mt?.cost != null && <span>· ${Number(mt.cost).toFixed(4)}</span>}
           {mt?.prep_seconds != null && <span>· prep {Number(mt.prep_seconds).toFixed(1)}s</span>}

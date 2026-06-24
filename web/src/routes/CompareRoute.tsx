@@ -51,6 +51,7 @@ import {
 } from "@/api/compare"
 import { streamChat } from "@/lib/sse"
 import { Markdown } from "@/components/chat/Markdown"
+import { safeImageSrc } from "@/lib/safeImage"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { toast } from "@/stores/toast"
@@ -249,6 +250,11 @@ async function streamPane(
   onError: (msg: string) => void,
   controller: AbortController,
   timeoutSeconds: number,
+  // Append display-only markdown (tool steps / generated images) to the pane
+  // body WITHOUT feeding the grading `output` buffer — onDelta is reserved for
+  // the model's answer text. Lets agent-mode tool steps and image-model panes
+  // render instead of being silently dropped.
+  onAppend?: (md: string) => void,
 ) {
   const fd = new FormData()
   fd.set("message", prompt)
@@ -285,6 +291,17 @@ async function streamPane(
       else if (e.type === "metrics") {
         const dm = (ev.data as Record<string, unknown>) || ev
         onMetrics({ tokens_out: (dm.output_tokens ?? dm.tokens_out) as number, tok_per_sec: (dm.tokens_per_second ?? dm.tok_per_sec) as number, cost: dm.cost as number, context_percent: (dm.context_percent ?? dm.context_pct) as number })
+      } else if (e.type === "tool_start") {
+        const name = String(ev.tool || ev.tool_name || "tool")
+        const cmd = String(ev.command || ev.tool_input || "").split("\n")[0].slice(0, 200)
+        onAppend?.(`\n\n> 🔧 **${markdownEscape(name)}**${cmd ? ` — \`${markdownEscape(cmd)}\`` : ""}\n`)
+      } else if (e.type === "tool_output") {
+        const ok = ev.exit_code == null || ev.exit_code === 0
+        const out = (String(ev.output || ev.tool_output || "").split("\n").filter(Boolean)[0] || "").slice(0, 160)
+        onAppend?.(`\n\n> ↳ ${ok ? "✓" : "✗"}${out ? ` ${markdownEscape(out)}` : ""}\n`)
+      } else if (e.type === "image_url" || typeof ev.image_url === "string") {
+        const url = safeImageSrc(ev.image_url)
+        if (url) onAppend?.(`\n\n![${markdownEscape(String(ev.image_prompt || "image"))}](${url})\n`)
       } else if (e.type === "error") {
         onError((ev.text as string) || (ev.error as string) || "Model error")
       }
@@ -845,7 +862,7 @@ export function CompareRoute() {
     await streamPane(sessionId, prompt, mode, (d) => {
       output += d
       updatePane(paneId, (pane) => ({ ...pane, body: pane.body + d }))
-    }, (metrics) => patchPane(paneId, { met: metrics }), (message) => patchPane(paneId, { err: message }), controller, timeoutSeconds)
+    }, (metrics) => patchPane(paneId, { met: metrics }), (message) => patchPane(paneId, { err: message }), controller, timeoutSeconds, (md) => updatePane(paneId, (pane) => ({ ...pane, body: pane.body + md })))
     patchPane(paneId, { elapsedMs: nowMs() - started })
     const expected = expectedAnswerRef.current
     if (expected) patchPane(paneId, { grade: gradeResponse(output, expected) })

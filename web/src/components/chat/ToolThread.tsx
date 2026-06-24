@@ -1,7 +1,39 @@
 import { useState } from "react"
 import { ChevronRight, Terminal, Loader2, Check, X } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { ToolEvent } from "@/types"
+import { safeImageSrc } from "@/lib/safeImage"
+import { useNow, formatElapsed } from "@/lib/useNow"
+import type { ToolEvent, ToolDiff } from "@/types"
+
+// One hunk of a unified diff, colored per line like the legacy UI
+// (chatRenderer.js: diff-add / diff-del / diff-ctx / diff-meta / diff-hunk).
+function DiffView({ diff, open, onToggle }: { diff: ToolDiff; open: boolean; onToggle: () => void }) {
+  const stat = [
+    diff.new_file ? "new" : "",
+    diff.added ? `+${diff.added}` : "",
+    diff.removed ? `−${diff.removed}` : "",
+  ].filter(Boolean).join("  ")
+  const rows = (diff.text || "").split("\n").map((line, i) => {
+    let cls = "text-muted-foreground"
+    let text = line
+    if (line.startsWith("+++") || line.startsWith("---")) cls = "text-muted-foreground/50"
+    else if (line.startsWith("@@")) cls = "text-blue-500"
+    else if (line.startsWith("+")) { cls = "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"; text = line.slice(1) }
+    else if (line.startsWith("-")) { cls = "bg-rose-500/10 text-rose-700 dark:text-rose-400"; text = line.slice(1) }
+    else if (line.startsWith(" ")) text = line.slice(1)
+    return <span key={i} className={cn("block whitespace-pre-wrap px-1", cls)}>{text || " "}</span>
+  })
+  return (
+    <div className="mt-1">
+      <button onClick={onToggle} className="flex w-full items-center gap-1.5 text-[11px] text-muted-foreground transition-colors hover:text-foreground">
+        <ChevronRight className={cn("size-3 transition-transform duration-200", open && "rotate-90")} />
+        <span className="font-mono">{diff.file || "diff"}</span>
+        {stat && <span className="text-muted-foreground/60">{stat}</span>}
+      </button>
+      {open && <pre className="mt-1 max-h-64 overflow-auto rounded bg-muted p-1 text-[11px] leading-relaxed">{rows}</pre>}
+    </div>
+  )
+}
 
 function ToolRow({ t }: { t: ToolEvent }) {
   const err = t.exitCode != null && t.exitCode !== 0
@@ -9,8 +41,14 @@ function ToolRow({ t }: { t: ToolEvent }) {
   // Doc-edit tools carry their FIND/REPLACE body as the command; its first line
   // is a `<<<FIND>>>` marker — raw tool syntax that shouldn't surface. Hide it.
   const cmd = rawCmd.startsWith("<<<") ? "" : rawCmd
-  const image = t.imageUrl || t.screenshot
+  const image = safeImageSrc(t.imageUrl) || safeImageSrc(t.screenshot)
   const diff = t.diff?.text
+  const [outOpen, setOutOpen] = useState(false)
+  const [diffOpen, setDiffOpen] = useState(false)
+  // Live elapsed timer on the running step — captured at mount (tool_start
+  // adds the row, so mount ≈ step start) and frozen once it settles.
+  const [start] = useState(() => Date.now())
+  const now = useNow(!!t.running)
   return (
     <div className="animate-fade-in">
       <div className="flex items-center gap-1.5">
@@ -20,16 +58,39 @@ function ToolRow({ t }: { t: ToolEvent }) {
             ? <X className="size-3.5 shrink-0 text-destructive" />
             : <Check className="size-3.5 shrink-0 text-emerald-500" />}
         <span className="font-medium text-foreground">{t.name}</span>
-        {cmd && !diff && <span className="min-w-0 truncate font-mono text-[11px] text-muted-foreground">{cmd.split("\n")[0].slice(0, 90)}</span>}
+        {t.running && <span className="text-[11px] tabular-nums text-muted-foreground/70">{formatElapsed(now - start)}</span>}
       </div>
+      {/* Full command (multiline) — shown only when there's no diff to say it
+          better. Collapsed to one line as a peek, expand for the whole thing. */}
+      {cmd && !diff && (
+        <details className="mt-1 group">
+          <summary className={cn("cursor-pointer select-none font-mono text-[11px] text-muted-foreground transition-colors hover:text-foreground", "flex items-center gap-1")}>
+            <ChevronRight className="size-3 shrink-0 transition-transform duration-200 group-open:rotate-90" />
+            <span className="truncate">{cmd.split("\n")[0]}</span>
+          </summary>
+          <pre className="mt-1 max-h-48 overflow-auto rounded bg-muted p-2 text-[11px] leading-relaxed">{cmd}</pre>
+        </details>
+      )}
       {t.running && t.progress && <div className="mt-1 truncate pl-5 font-mono text-[11px] text-muted-foreground">{t.progress}</div>}
-      {/* File-write/edit diff — re-rendered from the persisted tool event. */}
-      {diff && <pre className="mt-1 max-h-48 overflow-auto rounded bg-muted p-2 text-[11px] leading-relaxed">
-        {(t.diff?.file ? `${t.diff.file}\n` : "") + diff.split("\n").map((l) => l).join("\n").slice(0, 4000)}
-      </pre>}
-      {t.output && !diff && <pre className="mt-1 max-h-48 overflow-auto rounded bg-muted p-2 text-[11px] leading-relaxed">{String(t.output).slice(0, 4000)}</pre>}
-      {/* Generated image / browser screenshot. */}
-      {image && <img src={image} alt={t.imagePrompt || t.name} className="mt-1 max-h-64 rounded border" />}
+      {diff && <DiffView diff={t.diff!} open={diffOpen} onToggle={() => setDiffOpen((o) => !o)} />}
+      {t.output && !diff && (
+        <div className="mt-1">
+          <button onClick={() => setOutOpen((o) => !o)} className="flex items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground">
+            <ChevronRight className={cn("size-3 transition-transform duration-200", outOpen && "rotate-90")} />
+            <span>Output</span>
+          </button>
+          {outOpen && <pre className="mt-1 max-h-48 overflow-auto rounded bg-muted p-2 text-[11px] leading-relaxed">{String(t.output).slice(0, 4000)}</pre>}
+        </div>
+      )}
+      {/* Generated image / browser screenshot — sanitized src + prompt caption. */}
+      {image && (
+        <figure className="mt-1.5">
+          <img src={image} alt={t.imagePrompt || t.name} className="max-h-64 rounded border" />
+          {(t.imagePrompt || t.name) && (
+            <figcaption className="mt-1 truncate text-[10px] text-muted-foreground">{t.imagePrompt || t.name}</figcaption>
+          )}
+        </figure>
+      )}
     </div>
   )
 }

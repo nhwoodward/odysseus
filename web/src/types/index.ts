@@ -49,10 +49,17 @@ export interface ChatMessage {
   modelActual?: string; artifact?: Artifact;
   attachments?: ChatAttachment[]; messageId?: string;
   askUser?: AskUserPrompt; notice?: AgentNotice;
+  // Live-stream pacing fields (not persisted). streamStartAt = when the stream
+  // began (drives the elapsed timer); lastTickAt = ms of the most recent
+  // progress event (drives the stall watchdog — "Still working…" if it goes
+  // quiet). Both set live in useChat and stripped on reload (historyToMessages
+  // never reads them).
+  streamStartAt?: number; lastTickAt?: number;
   plan?: string; // live agent plan checklist (markdown), from plan_update events
   edited?: boolean;
   metrics?: {
     tokens_in?: number; tokens_out?: number; tokens_total?: number; context_tokens?: number;
+    context_percent?: number;
     cost?: number; tok_per_sec?: number; prep_seconds?: number; model_wait_seconds?: number;
     response_seconds?: number;
   };
