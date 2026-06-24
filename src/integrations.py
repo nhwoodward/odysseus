@@ -578,7 +578,9 @@ def migrate_from_settings() -> None:
     # Clear migrated keys
     settings.pop("miniflux_url", None)
     settings.pop("miniflux_api_key", None)
-    with open(settings_path, "w", encoding="utf-8") as f:
-        json.dump(settings, f, indent=2)
+    # Atomic write: a plain truncate+dump that crashes mid-write would leave
+    # settings.json truncated/corrupt (data loss). atomic_write_json writes a
+    # 0600 temp and os.replace's it.
+    atomic_write_json(str(settings_path), settings, indent=2)
 
     log.info("Migrated Miniflux integration from settings.json")
