@@ -71,6 +71,18 @@ class WebSearchTool:
                 "elapsed_s": 30,
                 "tail": "Search completed; preparing sources.",
             })
+        # Empty output here is ambiguous between "the web genuinely has nothing"
+        # and "every provider failed." Returning exit_code 0 makes the model
+        # treat a search outage as authoritative "no results" and answer
+        # confidently wrong. Surface it as a soft failure so it retries/says so.
+        if not text or not text.strip():
+            return {
+                "error": f"web_search returned no results for {query[:200]!r} — "
+                         "this may mean the query has no hits OR the search "
+                         "providers are unavailable. Do not assume the topic "
+                         "doesn't exist; retry or tell the user search is unavailable.",
+                "exit_code": 1,
+            }
         output = text[:MAX_OUTPUT_CHARS] if len(text) > MAX_OUTPUT_CHARS else text
         if sources:
             output += "\n\n<!-- SOURCES:" + json.dumps(sources) + " -->"

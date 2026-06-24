@@ -2357,7 +2357,16 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             return [TextContent(type="text", text=f"Unknown tool: {name}")]
 
     except Exception as e:
-        return [TextContent(type="text", text=f"Error: {e}")]
+        # Make failures unmistakable to the model. A bare "Error: ..." (or an
+        # empty list from a sub-helper that swallowed an IMAP/auth error) reads
+        # like "no data", so the assistant says "you have no unread emails" when
+        # the mailbox connection actually failed. Flag it as a hard tool error.
+        return [TextContent(
+            type="text",
+            text=(f"EMAIL TOOL FAILED ({name}): {e}. This is a tool/connection "
+                  "error, NOT an empty mailbox — do not tell the user they have "
+                  "no mail. Report that the email operation failed."),
+        )]
     finally:
         _CURRENT_OWNER.reset(owner_token)
 
