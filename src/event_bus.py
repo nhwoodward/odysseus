@@ -18,6 +18,11 @@ logger = logging.getLogger(__name__)
 
 _task_scheduler = None
 
+# Strong references to in-flight event handlers. asyncio.create_task only keeps
+# a WEAK reference to the task, so without this an event handler can be garbage-
+# collected mid-flight and the triggered automation silently never runs.
+_pending_tasks: set = set()
+
 
 def set_task_scheduler(scheduler):
     """Wire up the scheduler reference (called from app.py on startup)."""
@@ -37,7 +42,10 @@ def fire_event(event_name: str, owner: Optional[str] = None):
     """
     try:
         loop = asyncio.get_running_loop()
-        loop.create_task(_handle_event(event_name, owner))
+        task = loop.create_task(_handle_event(event_name, owner))
+        # Hold a strong ref until the handler finishes so it can't be GC'd.
+        _pending_tasks.add(task)
+        task.add_done_callback(_pending_tasks.discard)
     except RuntimeError:
         # No running loop — run in a new one (shouldn't happen in FastAPI)
         asyncio.run(_handle_event(event_name, owner))

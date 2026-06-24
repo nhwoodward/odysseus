@@ -1035,9 +1035,12 @@ async def do_manage_memory(content: str, session_id: Optional[str] = None, owner
             return {"error": f"Memory '{memory_id}' not found"}
         _memory_manager.save(memories)
 
-        # Update vector index
+        # Update vector index. add() early-returns when the id already exists,
+        # so on an EDIT the old embedding would persist and recall keeps matching
+        # the pre-edit wording. Remove the stale vector first, then re-add.
         if _memory_vector and hasattr(_memory_vector, 'healthy') and _memory_vector.healthy:
             try:
+                _memory_vector.remove(full_id)
                 _memory_vector.add(full_id, new_text)
             except Exception:
                 pass
