@@ -2545,6 +2545,13 @@ async def do_app_api(content: str, owner: Optional[str] = None) -> Dict:
         return {"error": "path is required (e.g. '/api/cookbook/gpus')", "exit_code": 1}
     if not path.startswith("/"):
         path = "/" + path
+    # Normalize before the blocklist so traversal/duplicate-slash tricks like
+    # "/api/cookbook/../auth/login" or "//api/auth" can't slip past the prefix
+    # checks (httpx/Starlette would otherwise resolve them server-side).
+    import posixpath
+    path = posixpath.normpath(path)
+    if path.startswith("//"):  # normpath preserves a leading double slash
+        path = "/" + path.lstrip("/")
     if any(path.startswith(p) for p in _APP_API_BLOCKLIST_PREFIXES):
         return {"error": f"Path blocked for safety: {path}. Sensitive endpoints are off-limits via app_api.", "exit_code": 1}
 

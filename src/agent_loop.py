@@ -52,7 +52,13 @@ def _load_mcp_disabled_map() -> Dict[str, set]:
                     if names:
                         disabled_map[srv.id] = set(names)
                 except (json.JSONDecodeError, TypeError):
-                    pass
+                    # Fail-open is dangerous here: a corrupt value silently
+                    # re-enables tools the user disabled. Make it observable.
+                    logger.warning(
+                        "Corrupt disabled_tools for MCP server %s; its disabled "
+                        "tools will be treated as ENABLED until fixed",
+                        getattr(srv, "id", "?"),
+                    )
     finally:
         db.close()
     return disabled_map

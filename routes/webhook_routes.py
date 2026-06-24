@@ -258,8 +258,11 @@ def setup_webhook_routes(
         if session_id and session_manager:
             try:
                 sess = session_manager.get_session(session_id)
-            except (KeyError, Exception):
+            except KeyError:
                 raise HTTPException(404, "Session not found")
+            # Any other error is a real backend fault — let it surface as a 500
+            # instead of masquerading as "session not found" (which makes
+            # integrations recreate sessions or hide outages).
             # SECURITY: verify the API-token's user owns this session — without
             # this any token holder could resume any user's chat by passing its
             # ID. The token's user is on request.state.user (set by API-token

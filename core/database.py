@@ -2035,23 +2035,42 @@ def _migrate_encrypt_email_passwords():
                 "SELECT id, imap_password, smtp_password FROM email_accounts"
             )).fetchall()
             migrated = 0
+            still_plaintext = 0
             for row in rows:
                 rid, imap_pw, smtp_pw = row
-                updates = {}
-                if imap_pw and not is_encrypted(imap_pw):
-                    updates["imap_password"] = encrypt(imap_pw)
-                if smtp_pw and not is_encrypted(smtp_pw):
-                    updates["smtp_password"] = encrypt(smtp_pw)
-                if updates:
-                    sets = ", ".join(f"{k} = :{k}" for k in updates)
-                    params = {**updates, "id": rid}
-                    conn.execute(text(f"UPDATE email_accounts SET {sets} WHERE id = :id"), params)
-                    migrated += 1
+                # Guard each row independently: one un-encryptable row must not
+                # abort the whole batch and silently leave other rows plaintext.
+                try:
+                    updates = {}
+                    if imap_pw and not is_encrypted(imap_pw):
+                        updates["imap_password"] = encrypt(imap_pw)
+                    if smtp_pw and not is_encrypted(smtp_pw):
+                        updates["smtp_password"] = encrypt(smtp_pw)
+                    if updates:
+                        sets = ", ".join(f"{k} = :{k}" for k in updates)
+                        params = {**updates, "id": rid}
+                        conn.execute(text(f"UPDATE email_accounts SET {sets} WHERE id = :id"), params)
+                        migrated += 1
+                except Exception:
+                    still_plaintext += 1
+                    logger.error(
+                        "Failed to encrypt password(s) on email account row %s; "
+                        "credentials remain PLAINTEXT at rest", rid, exc_info=True,
+                    )
             if migrated:
                 conn.commit()
                 logger.info(f"Encrypted plaintext passwords on {migrated} email account row(s)")
+            if still_plaintext:
+                # Loud, not a warning: this defeats the at-rest threat model.
+                logger.error(
+                    "%d email account row(s) still hold PLAINTEXT passwords after "
+                    "the encryption migration; investigate secret_storage/key setup",
+                    still_plaintext,
+                )
     except Exception as e:
-        logger.warning(f"Password migration failed (will retry next start): {e}")
+        # ERROR (was warning): a persistent failure here means secrets are not
+        # being encrypted at rest — operators must see it.
+        logger.error(f"Password encryption migration failed (will retry next start): {e}", exc_info=True)
 
 
 def _migrate_add_calendar_is_utc():
