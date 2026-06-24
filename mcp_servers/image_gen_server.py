@@ -130,7 +130,10 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 img_path.write_bytes(base64.b64decode(img["b64_json"]))
                 image_url = f"{_pub_base}/api/generated-image/{filename}"
 
-                # Save to gallery
+                # Save to gallery. Stamp the caller's owner (injected into
+                # arguments by the tool dispatcher) so the row is reachable in
+                # the owner-filtered gallery — without it, under multi-user auth
+                # every agent image becomes an orphaned, invisible row.
                 try:
                     from src.database import SessionLocal, GalleryImage
                     db = SessionLocal()
@@ -141,11 +144,14 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                         model=model_id,
                         size=size,
                         quality=payload.get("quality", "medium"),
+                        owner=(arguments.get("owner") or None),
                     ))
                     db.commit()
                     db.close()
-                except Exception:
-                    pass
+                except Exception as _gallery_err:
+                    # Don't silently drop the gallery row: surface on stderr (the
+                    # MCP protocol owns stdout) so the failure is diagnosable.
+                    print(f"image_gen: gallery DB save failed: {_gallery_err}", file=sys.stderr)
 
             elif img.get("url"):
                 image_url = img["url"]

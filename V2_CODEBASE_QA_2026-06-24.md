@@ -83,3 +83,31 @@ Examined directly (no subagents) after the spend cap. Headline: **no new HIGH/cr
 4. **Silent data-loss**: land **PR #3** (gets H4 + memory/persist hardening), then the email Trash-delete + `write_file` truncation.
 5. **Agent-loop fail-closed**: wrap per-tool dispatch; fail-closed on corrupt MCP `disabled_tools`.
 6. **Finish QA on the 12 un-reviewed subsystems** once the spend cap resets.
+
+---
+
+## Part 3 — independent agent-depth re-run of the 11 reviewer-triaged subsystems
+The reviewer-led pass (Part 2) judged these "no further data-loss/gating-bypass bugs." An independent **full multi-agent depth re-run** (11 finders → adversarial verify → synth) **contradicted that**: it confirmed **23 findings (2 HIGH, 12 medium, 9 low), 0 refuted**, all reproduced file:line-exact against current source and none covered by the existing hardening. **Lesson: the single-pass review under-counted; agent-depth caught real data-loss the manual sweep missed.**
+
+### HIGH (2) — both FIXED this session
+- ✅ **Agent images saved `owner=None` → invisible in owner-filtered gallery (multi-user data-loss)** — `mcp_servers/image_gen_server.py`. Fixed: stamp `owner` on the `GalleryImage` insert (owner injected at the MCP dispatch in `src/tool_execution.py`), and stop swallowing the gallery-save DB error (→ stderr).
+- ✅ **`document.js` autosave parses `res.json()` without `res.ok` → silent edit loss** — `static/js/document.js:8266`. Fixed: throw on non-2xx before committing in-memory content; surface the failure even in silent autosave.
+
+### MEDIUM (12) — open
+- `src/caldav_sync.py:462-475` — CalDAV pull prunes the whole window on an empty-but-successful REPORT (transient empty 200 wipes the cache).
+- `routes/contacts_routes.py:65-73` — CardDAV URL validation defaults to allowing private/loopback IPs (fail-open SSRF; inconsistent with CalDAV's block-by-default).
+- `src/memory_vector.py:104-120` (via `src/ai_interaction.py:1039-1043`) — agent memory edit leaves a stale embedding (no remove before re-add).
+- `src/research_handler.py:597,631,695,712` + `routes/research_routes.py:338` — research JSON saved with non-atomic `write_text` + swallow-reads → lost report on crash/concurrent write.
+- `routes/personal_routes.py:220-229` — direct personal-docs upload indexes Office/EPUB as UTF-8 mojibake instead of extracting text.
+- `src/event_bus.py:39-40` — `fire_event()` spawns an unreferenced asyncio task → event-triggered automations can be GC'd and silently lost (webhook_manager's `_spawn_tracked` is the fix pattern).
+- `routes/task_routes.py:729-752` (+ `create_task`) — unvalidated `scheduled_time` → `compute_next_run` returns None → recurring task silently never fires again.
+- `routes/mcp_routes.py:229-230` — Google OAuth **client-secret** file written world-readable (no 0600).
+- `routes/mcp_routes.py:568-570` — Google OAuth **token** file (access+refresh) written world-readable (no 0600).
+- `mcp_servers/image_gen_server.py` — bare except swallowed the gallery-save failure (**fixed alongside the HIGH above**).
+- `static/js/chat.js:3867,3957,4073` — history truncate (edit/regen/resend) proceeds without `res.ok` → client/server history diverge.
+- `static/js/document.js:9759` — `restoreVersion()` reads `res.json()` without `res.ok` (error body can overwrite editor + drop stash).
+
+### LOW (9) — open
+`routes/contacts_routes.py` local-contacts read-modify-write race · `src/memory.py` corrupt memory.json silently replaced with empty store · `src/deep_research.py:573-575` misleading "unknown error" on disabled search · `routes/upload_routes.py:132-137,185-190` missing `.bak` fallback · `routes/document_routes.py:1598-1657` temp-PDF leak on error · `routes/history_routes.py:183-196` legacy delete-by-index can delete wrong messages · `src/integrations.py` non-atomic settings.json migration · `src/service_health.py:357-448` failed source load reported as "disabled" and hidden from verdict · `static/js/document.js:635` `_saveActiveDocBeforeExport` marks saved despite skipping `res.ok`.
+
+Full report: `scratchpad/qa_depth_rerun.md`. **Recommended next:** batch the OAuth-file-perms + research-atomic-write mediums into the existing secret-perms/atomic cluster; then the data-loss mediums (CalDAV prune, event_bus strong-ref, task-time validation); then the frontend `res.ok` sweep (also addressed structurally by the v2 agent-timeline/no-silent-failures UX initiative).

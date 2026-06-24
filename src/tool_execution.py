@@ -886,6 +886,13 @@ async def _execute_tool_block_impl(
                 args = json.loads(content) if content.strip().startswith("{") else {}
             except (json.JSONDecodeError, TypeError):
                 args = {}
+            # The built-in image_gen server stamps the gallery row's owner from
+            # this arg. Without it, agent-generated images are saved owner=None
+            # and become invisible in the owner-filtered gallery (multi-user
+            # data loss). Targeted to image_gen so we don't leak owner to other
+            # (incl. third-party) MCP servers.
+            if tool == "mcp__image_gen__generate_image" and owner and "owner" not in args:
+                args["owner"] = owner
             desc = f"mcp: {tool}"
             result = await mcp.call_tool(tool, args)
         else:

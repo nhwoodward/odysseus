@@ -8268,6 +8268,11 @@ import * as Modals from './modalManager.js';
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: textarea.value }),
       });
+      // Check res.ok BEFORE parsing/committing: a non-2xx (expired-session
+      // redirect HTML, 413, 500) must not be treated as a successful save. The
+      // in-memory content is only marked saved after a real 2xx, so a failed
+      // autosave can't be silently lost on reload.
+      if (!res.ok) throw new Error(`Save failed (HTTP ${res.status})`);
       const doc = await res.json();
       const badge = document.getElementById('doc-version-badge');
       if (badge) { const _v = doc.version_count || 1; badge.textContent = `v${_v}`; badge.style.display = _v > 1 ? '' : 'none'; }
@@ -8280,7 +8285,9 @@ import * as Modals from './modalManager.js';
       if (!silent && uiModule) uiModule.showToast('Document saved');
     } catch (e) {
       console.error('Failed to save document:', e);
-      if (!silent && uiModule) uiModule.showError('Failed to save document');
+      // Surface even on silent autosave: silent data-loss is the bug here — the
+      // user must know their latest edits are NOT persisted.
+      if (uiModule) uiModule.showError('Autosave failed — your latest changes are NOT saved. Check your connection/login.');
     }
   }
 
