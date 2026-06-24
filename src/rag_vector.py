@@ -184,12 +184,13 @@ class VectorRAG:
             return False
 
         doc_id = _generate_doc_id(text, metadata.get("owner") or "")
-        wrote = False
+        lanes_ok = 0
+        lanes_failed = 0
         for lane in self._lanes:
             try:
                 existing = lane.collection.get(ids=[doc_id])
                 if existing["ids"]:
-                    wrote = True
+                    lanes_ok += 1
                     continue
                 lane.collection.add(
                     ids=[doc_id],
@@ -197,10 +198,18 @@ class VectorRAG:
                     documents=[text],
                     metadatas=[metadata],
                 )
-                wrote = True
+                lanes_ok += 1
             except Exception as e:
-                logger.warning("add_document failed in %s lane: %s", lane.name, e)
-        return wrote
+                lanes_failed += 1
+                # ERROR (was warning): a per-lane failure leaves the document
+                # missing from that lane while other lanes hold it — silent
+                # search drift. Re-adding is idempotent (existing-id pre-check).
+                logger.error("add_document failed in %s lane: %s", lane.name, e, exc_info=True)
+        if lanes_failed:
+            # Honest signal so the caller's indexed/failed accounting reflects
+            # the partial write instead of reporting success.
+            return False
+        return lanes_ok > 0
 
     def add_documents_batch(self, docs: List[tuple]) -> Dict[str, Any]:
         if not self.healthy:

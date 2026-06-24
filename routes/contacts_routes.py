@@ -879,7 +879,12 @@ def setup_contacts_routes():
         if not name and emails:
             name = emails[0].split("@")[0]
         ok = _update_contact(uid, name, emails, phones, address)
-        return {"success": ok}
+        if not ok:
+            # The CardDAV PUT failed (logged in the helper). Don't report HTTP
+            # 200 success — the edit was discarded and would silently revert on
+            # the next sync.
+            raise HTTPException(502, "Failed to save contact to the address book server")
+        return {"success": True}
 
     @router.delete("/{uid}")
     async def delete_contact(uid: str, _admin: str = Depends(require_admin)):
@@ -887,6 +892,8 @@ def setup_contacts_routes():
         if not uid:
             return {"success": False, "error": "UID required"}
         ok = _delete_contact(uid)
-        return {"success": ok}
+        if not ok:
+            raise HTTPException(502, "Failed to delete contact on the address book server")
+        return {"success": True}
 
     return router

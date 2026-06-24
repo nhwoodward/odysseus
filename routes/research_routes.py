@@ -337,7 +337,11 @@ def setup_research_routes(research_handler, session_manager=None) -> APIRouter:
             if data.get("owner") != user:
                 raise HTTPException(404, "Research not found")
             data["archived"] = bool(archived)
-            path.write_text(json.dumps(data), encoding="utf-8")
+            # Atomic write: a crash mid-write would corrupt the report JSON,
+            # after which every owner check fails json.loads and the report
+            # silently vanishes from the Library.
+            from core.atomic_io import atomic_write_json
+            atomic_write_json(str(path), data)
         except HTTPException:
             raise
         except Exception as e:
@@ -394,12 +398,19 @@ def setup_research_routes(research_handler, session_manager=None) -> APIRouter:
                 if auth_mgr is not None and getattr(auth_mgr, "is_configured", False):
                     try:
                         privs = auth_mgr.get_privileges(tool_owner) or {}
-                        if not privs.get("can_use_research", True):
-                            raise HTTPException(403, f"Your account is not allowed to can use research.")
                     except HTTPException:
                         raise
                     except Exception:
-                        pass
+                        # Fail CLOSED: if the privilege store can't be read we must
+                        # not silently grant research access to the tool owner.
+                        logger.warning(
+                            "Privilege lookup failed for %s; denying research access",
+                            tool_owner,
+                            exc_info=True,
+                        )
+                        raise HTTPException(403, "Unable to verify research permission; access denied.")
+                    if not privs.get("can_use_research", True):
+                        raise HTTPException(403, "Your account is not allowed to use research.")
                 user = tool_owner
         session_id = f"rp-{uuid.uuid4().hex[:12]}"
 

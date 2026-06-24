@@ -204,10 +204,16 @@ class SessionManager:
         session._history = session.history
         session.message_count = len(session.history)
 
-        self._persist_message(session_id, message)
+        return self._persist_message(session_id, message)
 
-    def _persist_message(self, session_id: str, message: ChatMessage):
-        """Persist a single message to the database."""
+    def _persist_message(self, session_id: str, message: ChatMessage) -> bool:
+        """Persist a single message to the database.
+
+        Returns True only when the message was actually committed. A genuine
+        persistence failure returns False and stamps ``metadata['_persist_failed']``
+        on the in-memory message so the live turn isn't silently treated as
+        saved (it would otherwise vanish on reload with no signal).
+        """
         db = SessionLocal()
         try:
             db_session = db.query(DbSession).filter(DbSession.id == session_id).first()
@@ -217,7 +223,7 @@ class SessionManager:
                 # any stale cached session so later writes fail closed too.
                 self.sessions.pop(session_id, None)
                 logger.warning("Dropping message for deleted session %s", session_id)
-                return
+                return False
 
             msg_id = str(uuid.uuid4())
             msg_time = datetime.utcnow()
@@ -257,10 +263,21 @@ class SessionManager:
             message.metadata['_db_id'] = msg_id
 
             logger.debug(f"Persisted message to session {session_id}")
+            return True
 
         except Exception as e:
-            logger.error(f"Error persisting message: {e}")
+            # Was silently swallowed: the message stayed in memory looking saved
+            # but never hit the DB, so it vanished on reload. Keep the live turn,
+            # but mark it failed and report the failure to the caller.
+            logger.error(f"Error persisting message: {e}", exc_info=True)
             db.rollback()
+            try:
+                if message.metadata is None:
+                    message.metadata = {}
+                message.metadata['_persist_failed'] = True
+            except Exception:
+                pass
+            return False
         finally:
             db.close()
 

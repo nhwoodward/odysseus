@@ -974,7 +974,12 @@ def format_tool_result(description: str, result: Dict) -> str:
         elif action == "update":
             parts.append(f"Document updated: \"{result.get('title', '')}\" (v{result['version']})")
         elif action == "edit":
-            parts.append(f'Document edited: "{result.get("title", "")}" (v{result.get("version", "?")}, {result.get("applied", 0)} edit(s) applied)')
+            # Surface skipped edits: weaker models otherwise treat the success as
+            # full application and never re-issue the FIND blocks that missed.
+            _ed_skipped = result.get("skipped", 0) or 0
+            _ed_msg = f'Document edited: "{result.get("title", "")}" (v{result.get("version", "?")}, {result.get("applied", 0)} edit(s) applied'
+            _ed_msg += f', {_ed_skipped} NOT matched/skipped)' if _ed_skipped else ')'
+            parts.append(_ed_msg)
     elif "error" in result:
         parts.append(f"**Error:** {result['error']}")
 

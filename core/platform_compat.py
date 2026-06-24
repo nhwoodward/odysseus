@@ -21,6 +21,9 @@ from pathlib import Path
 import sys
 from typing import List, Optional
 import platform
+import logging
+
+logger = logging.getLogger(__name__)
 
 IS_WINDOWS = os.name == "nt"
 IS_POSIX = not IS_WINDOWS
@@ -50,7 +53,10 @@ def safe_chmod(path, mode: int) -> bool:
     try:
         os.chmod(path, mode)
         return True
-    except OSError:
+    except OSError as e:
+        # Callers use this to lock secret/key files to 0o600. A silent failure
+        # could leave a Fernet key world-readable, so make it observable.
+        logger.warning("Could not chmod %s to %o: %s", path, mode, e)
         return False
 
 

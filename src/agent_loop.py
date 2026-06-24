@@ -52,7 +52,13 @@ def _load_mcp_disabled_map() -> Dict[str, set]:
                     if names:
                         disabled_map[srv.id] = set(names)
                 except (json.JSONDecodeError, TypeError):
-                    pass
+                    # Fail-open is dangerous here: a corrupt value silently
+                    # re-enables tools the user disabled. Make it observable.
+                    logger.warning(
+                        "Corrupt disabled_tools for MCP server %s; its disabled "
+                        "tools will be treated as ENABLED until fixed",
+                        getattr(srv, "id", "?"),
+                    )
     finally:
         db.close()
     return disabled_map
@@ -2500,6 +2506,7 @@ async def stream_agent_loop(
         round_response = ""
         round_reasoning = ""  # reasoning_content deltas (DeepSeek-thinking, vLLM --reasoning-parser)
         native_tool_calls = []  # populated if model uses function calling
+        _round_stream_errored = False  # set when the upstream sends an in-band error mid-stream
         # Reset doc streaming state per round
         _doc_acc = ""
         _doc_opened = False
@@ -2764,7 +2771,17 @@ async def stream_agent_loop(
                     elif data.get("error"):
                         err_msg = data.get("error", "unknown")
                         logger.error(f"Agent round {round_num}: stream error: {err_msg}")
-                        yield f'data: {json.dumps({"delta": chr(10) + chr(10) + "*[Stream error: " + str(err_msg) + "]*"})}\n\n'
+                        # The model died mid-stream. This used to render a
+                        # cosmetic italic note and fall through, so a truncated
+                        # round was treated as a complete answer. Mark the round
+                        # failed, record the interruption in the saved response,
+                        # and stop consuming the broken stream.
+                        _round_stream_errored = True
+                        _err_note = chr(10) + chr(10) + "*[Response interrupted — stream error: " + str(err_msg) + "]*"
+                        round_response += _err_note
+                        full_response += _err_note
+                        yield f'data: {json.dumps({"delta": _err_note})}\n\n'
+                        break
                 except json.JSONDecodeError:
                     if round_num == 1:
                         yield chunk
@@ -2782,6 +2799,12 @@ async def stream_agent_loop(
             _round_first_event_logged,
             _round_first_token_logged,
         )
+        if _round_stream_errored:
+            # The stream failed mid-round. Don't execute possibly half-parsed
+            # tool calls or start another round on a broken connection — end the
+            # turn with the interruption already surfaced to the user.
+            break
+
         tool_blocks, used_native = _resolve_tool_blocks(
             round_response,
             native_tool_calls,
@@ -3256,7 +3279,9 @@ async def stream_agent_loop(
                 if action == "create":
                     output_text = f'Document created: "{title}" (v{ver})'
                 elif action == "edit":
-                    output_text = f'Document edited: "{title}" (v{ver}, {result.get("applied", 0)} edit(s))'
+                    _ed_sk = result.get("skipped", 0) or 0
+                    output_text = f'Document edited: "{title}" (v{ver}, {result.get("applied", 0)} edit(s)'
+                    output_text += f', {_ed_sk} NOT matched/skipped)' if _ed_sk else ')'
                 elif action == "update":
                     output_text = f'Document updated: "{title}" (v{ver})'
             elif "stdout" in result:

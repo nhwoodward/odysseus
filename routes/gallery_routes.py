@@ -336,11 +336,18 @@ def setup_gallery_routes() -> APIRouter:
                     fmt = "PNG"
                 rotated.save(buf, format=fmt, **save_kwargs)
                 content = buf.getvalue()
-                img_path.write_bytes(content)
-                img.file_hash = hashlib.sha256(content).hexdigest()
-                img.file_size = len(content)
-                img.width, img.height = rotated.size
+                new_w, new_h = rotated.size
+            # Persist the DB row FIRST; only overwrite the original file once the
+            # recomputed metadata is committed, then swap atomically. Writing the
+            # file before the commit (as before) would destroy the original with
+            # no rollback if the commit failed.
+            img.file_hash = hashlib.sha256(content).hexdigest()
+            img.file_size = len(content)
+            img.width, img.height = new_w, new_h
             db.commit()
+            tmp_path = img_path.with_name(img_path.name + ".tmp")
+            tmp_path.write_bytes(content)
+            os.replace(tmp_path, img_path)
             return {"ok": True, "width": img.width, "height": img.height}
         finally:
             db.close()
@@ -1773,9 +1780,11 @@ def setup_gallery_routes() -> APIRouter:
             q = db.query(GalleryImage).filter(GalleryImage.id.in_(ids))
             if user:
                 q = q.filter(GalleryImage.owner == user)
-            q.update({"album_id": album_id}, synchronize_session=False)
+            # Report the rows actually moved (owner-scoped), not the requested
+            # count — foreign/stale ids are silently filtered out otherwise.
+            updated = q.update({"album_id": album_id}, synchronize_session=False)
             db.commit()
-            return {"ok": True, "count": len(ids)}
+            return {"ok": True, "count": updated, "requested": len(ids)}
         finally:
             db.close()
 
