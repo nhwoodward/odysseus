@@ -1,6 +1,6 @@
 import {
   MessageSquare, GitCompareArrows, Image, Brain, Telescope,
-  Calendar, Mail, StickyNote, ListChecks, FileText, FolderOpen, Database, FlaskConical, Sparkles, FolderKanban,
+  Calendar, Mail, StickyNote, ListChecks, FileText, FolderOpen, Database, FlaskConical, Sparkles, FolderKanban, Plug,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
@@ -26,4 +26,5 @@ export const WORKSPACE: NavItem[] = [
   { to: "/knowledge", icon: Database, label: "Knowledge" },
   { to: "/cookbook", icon: FlaskConical, label: "Cookbook" },
   { to: "/skills", icon: Sparkles, label: "Skills" },
+  { to: "/connectors", icon: Plug, label: "Connectors" },
 ]

@@ -98,6 +98,17 @@ def test_owner_isolation_preserves_existing_disabled_tools():
     assert dmap.get("srvA") == {"delete_page"}
 
 
+def test_idor_only_owner_or_admin_may_manage():
+    """A non-admin may manage only their OWN connection — never a shared/admin
+    (owner=None) server or another user's row. Pins the IDOR fix."""
+    from routes.connector_routes import _may_manage
+    assert _may_manage("alice", "alice", False) is True          # own row
+    assert _may_manage("bob", "alice", False) is False           # other user's row
+    assert _may_manage(None, "alice", False) is False            # shared/admin-global ← the fix
+    assert _may_manage(None, "alice", True) is True              # admin manages anything
+    assert _may_manage("bob", "alice", True) is True             # admin manages anything
+
+
 def test_no_owner_means_no_isolation_layer():
     from src.agent_loop import _load_mcp_disabled_map
     _seed([{"id": "srvB", "name": "B", "transport": "http", "owner": "bob", "catalog_id": "x"}])

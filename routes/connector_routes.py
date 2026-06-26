@@ -56,6 +56,18 @@ def _is_admin(request: Request) -> bool:
         return False
 
 
+def _may_manage(server_owner: Optional[str], user: str, is_admin: bool) -> bool:
+    """Authorization rule for managing a connector row (disconnect / tools).
+
+    Admins may manage anything. Everyone else may manage ONLY their own
+    per-user connection (``owner == user``). Shared / admin-global rows
+    (``owner is None``) and other users' rows are denied to non-admins — this
+    is the IDOR / privilege-escalation guard."""
+    if is_admin:
+        return True
+    return server_owner is not None and server_owner == user
+
+
 def _persist_status(server_id: str, status: dict) -> None:
     """Mirror the live manager status onto the durable McpServer row so the UI
     can show state before the manager has (re)connected (e.g. after a restart)."""
@@ -112,13 +124,19 @@ def setup_connector_routes(mcp_manager: McpManager) -> APIRouter:
     router = APIRouter(prefix="/api/connectors", tags=["connectors"])
 
     def _owned_server(server_id: str, user: str, request: Request) -> McpServer:
-        """Return the server if the caller may manage it (owner or admin), else raise."""
+        """Return the server if the caller may manage it, else raise.
+
+        Non-admins may ONLY manage their own per-user connections (owner ==
+        user). Shared / admin-global servers (owner IS NULL) and other users'
+        rows are off-limits — guards against IDOR / privilege escalation (e.g.
+        a non-admin deleting a global admin MCP server, or retagging its tools,
+        by passing its id). Admins may manage anything."""
         db = SessionLocal()
         try:
             srv = db.query(McpServer).filter(McpServer.id == server_id).first()
             if not srv:
                 raise HTTPException(404, "Connection not found")
-            if srv.owner and srv.owner != user and not _is_admin(request):
+            if not _may_manage(srv.owner, user, _is_admin(request)):
                 raise HTTPException(403, "Not your connection")
             db.expunge(srv)
             return srv

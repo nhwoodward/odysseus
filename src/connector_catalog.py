@@ -50,7 +50,7 @@ CONNECTOR_CATALOG: Dict[str, Dict[str, Any]] = {
         "transport": "http", "url": "https://mcp.linear.app/mcp",
     },
     "github": {
-        "name": "GitHub", "category": "Developer", "icon": "Github",
+        "name": "GitHub", "category": "Developer", "icon": "Code",
         "description": "Browse repos, search code, and manage issues & pull requests.",
         "capabilities": ["read", "write"], "kind": "remote", "auth_type": "oauth",
         "transport": "http", "url": "https://api.githubcopilot.com/mcp/",
@@ -68,13 +68,13 @@ CONNECTOR_CATALOG: Dict[str, Dict[str, Any]] = {
         "transport": "http", "url": "https://mcp.sentry.dev/mcp",
     },
     "atlassian": {
-        "name": "Atlassian (Jira & Confluence)", "category": "Productivity", "icon": "Trello",
+        "name": "Atlassian (Jira & Confluence)", "category": "Productivity", "icon": "Boxes",
         "description": "Work with Jira issues and Confluence pages.",
         "capabilities": ["read", "write"], "kind": "remote", "auth_type": "oauth",
         "transport": "http", "url": "https://mcp.atlassian.com/v1/mcp",
     },
     "asana": {
-        "name": "Asana", "category": "Productivity", "icon": "CircleCheck",
+        "name": "Asana", "category": "Productivity", "icon": "ListChecks",
         "description": "Manage Asana tasks, projects, and portfolios.",
         "capabilities": ["read", "write"], "kind": "remote", "auth_type": "oauth",
         "transport": "http", "url": "https://mcp.asana.com/v2/mcp",
@@ -98,7 +98,7 @@ CONNECTOR_CATALOG: Dict[str, Dict[str, Any]] = {
         "transport": "http", "url": "https://mcp.box.com",
     },
     "vercel": {
-        "name": "Vercel", "category": "Developer", "icon": "Triangle",
+        "name": "Vercel", "category": "Developer", "icon": "Zap",
         "description": "Inspect deployments, build status, logs, and env vars.",
         "capabilities": ["read"], "kind": "remote", "auth_type": "oauth",
         "transport": "http", "url": "https://mcp.vercel.com",
