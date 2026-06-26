@@ -1,4 +1,4 @@
-import { render, screen, cleanup } from "@testing-library/react"
+import { render, screen, cleanup, fireEvent } from "@testing-library/react"
 import { afterEach, describe, it, expect, vi } from "vitest"
 
 vi.mock("@/api/connectors", () => ({
@@ -15,10 +15,13 @@ vi.mock("@/api/connectors", () => ({
   useConnections: () => ({
     data: [{ id: "abc", name: "Notion", catalog_id: "notion", transport: "http", status: "connected", tool_count: 5, needs_auth: false }],
   }),
+  useConnectorTools: () => ({ data: [{ server_id: "abc", name: "search_pages", is_disabled: false }] }),
   useConnectorMutations: () => ({
     connect: { mutateAsync: vi.fn(), isPending: false },
     connectCustom: { mutateAsync: vi.fn(), isPending: false },
     disconnect: { mutate: vi.fn(), isPending: false },
+    setTools: { mutate: vi.fn() },
+    setAvailability: { mutate: vi.fn() },
   }),
 }))
 
@@ -38,5 +41,12 @@ describe("ConnectorsRoute", () => {
     expect(screen.getByText("Connected")).toBeInTheDocument()
     // a local connector shows the "local" badge
     expect(screen.getByText("local")).toBeInTheDocument()
+  })
+
+  it("expands a connected source to per-tool toggles", () => {
+    render(<ConnectorsRoute />)
+    fireEvent.click(screen.getByTitle("Manage tools"))
+    expect(screen.getByText("search_pages")).toBeInTheDocument()
+    expect(screen.getByRole("switch")).toBeInTheDocument()
   })
 })

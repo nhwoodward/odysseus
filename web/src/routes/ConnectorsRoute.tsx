@@ -2,13 +2,14 @@ import { useMemo, useState } from "react"
 // (icon lookups use a direct map index — see ICONS — not a function call, to
 // satisfy react-hooks/static-components, mirroring components/ui/Toaster.)
 import {
-  Plug, Plus, Search, Loader2, Check, X, Trash2, ExternalLink, ArrowRight,
+  Plug, Plus, Search, Loader2, Check, X, Trash2, ExternalLink, ArrowRight, ChevronRight,
   FileText, ListChecks, Code, CreditCard, Bug, Boxes, Users, Palette, Box,
   Zap, Database, Cloud, FolderOpen, Globe, Brain, MessageSquare,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
-import { useConnectorCatalog, useConnections, useConnectorMutations } from "@/api/connectors"
+import { useConnectorCatalog, useConnections, useConnectorMutations, useConnectorTools } from "@/api/connectors"
 import type { CatalogEntry, Connection } from "@/api/connectors"
+import { Switch } from "@/components/ui/switch"
 import { Markdown } from "@/components/chat/Markdown"
 import { cn } from "@/lib/utils"
 
@@ -35,35 +36,68 @@ function statusChip(status: string, needsAuth: boolean) {
 
 const inp = "h-9 w-full rounded-md border bg-background px-3 text-sm outline-none focus-visible:border-ring"
 
-// A connected (or connecting) source the user owns.
+// A connected (or connecting) source the user owns. Expands to per-tool
+// enable/disable switches (parity with the legacy/settings MCP tool toggles).
 function ConnectionRow({ c, onDisconnect }: { c: Connection; onDisconnect: (id: string) => void }) {
+  const [open, setOpen] = useState(false)
   const chip = statusChip(c.status, c.needs_auth)
+  const expandable = c.status === "connected" && c.tool_count > 0
+  const { data: tools } = useConnectorTools(c.id, open && expandable)
+  const { setTools } = useConnectorMutations()
+  const toggle = (name: string, enabled: boolean) => {
+    const disabled = new Set((tools || []).filter((t) => t.is_disabled).map((t) => t.name))
+    if (enabled) disabled.delete(name)
+    else disabled.add(name)
+    setTools.mutate({ id: c.id, disabled: [...disabled] })
+  }
   return (
-    <div className="flex items-center gap-3 rounded-xl border bg-card p-3">
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"><Plug className="size-[18px]" /></span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-medium">{c.name}</span>
-        <span className="block truncate text-xs text-muted-foreground">{c.tool_count} tool{c.tool_count === 1 ? "" : "s"}{c.error ? ` · ${c.error}` : ""}</span>
-      </span>
-      {c.needs_auth && c.auth_url && (
-        <a href={c.auth_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs font-medium hover:bg-accent">
-          <ExternalLink className="size-3.5" />Authorize
-        </a>
+    <div className="rounded-xl border bg-card">
+      <div className="flex items-center gap-3 p-3">
+        {expandable ? (
+          <button onClick={() => setOpen((o) => !o)} title="Manage tools" className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground transition-colors hover:text-foreground">
+            <ChevronRight className={cn("size-4 transition-transform duration-200", open && "rotate-90")} />
+          </button>
+        ) : (
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"><Plug className="size-[18px]" /></span>
+        )}
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium">{c.name}</span>
+          <span className="block truncate text-xs text-muted-foreground">{c.tool_count} tool{c.tool_count === 1 ? "" : "s"}{c.error ? ` · ${c.error}` : ""}</span>
+        </span>
+        {c.needs_auth && c.auth_url && (
+          <a href={c.auth_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs font-medium hover:bg-accent">
+            <ExternalLink className="size-3.5" />Authorize
+          </a>
+        )}
+        <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium", chip.cls)}>{chip.label}</span>
+        <button onClick={() => onDisconnect(c.id)} title="Disconnect" className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-destructive">
+          <Trash2 className="size-4" />
+        </button>
+      </div>
+      {open && expandable && (
+        <div className="space-y-1 border-t px-3 py-2">
+          {!tools && <p className="py-1 text-xs text-muted-foreground">Loading tools…</p>}
+          {(tools || []).map((t) => (
+            <div key={t.name} className="flex items-center justify-between gap-2 py-0.5">
+              <span className="min-w-0 truncate text-sm" title={t.description}>{t.name}</span>
+              <Switch checked={!t.is_disabled} onCheckedChange={(v) => toggle(t.name, v)} />
+            </div>
+          ))}
+          {tools && tools.length === 0 && <p className="py-1 text-xs text-muted-foreground">No tools discovered.</p>}
+        </div>
       )}
-      <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium", chip.cls)}>{chip.label}</span>
-      <button onClick={() => onDisconnect(c.id)} title="Disconnect" className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-destructive">
-        <Trash2 className="size-4" />
-      </button>
     </div>
   )
 }
 
 // A catalog entry card with the Connect affordance (remote = OAuth, local = a
 // small field form).
-function CatalogCard({ entry, connectedCount, onConnected }: {
+function CatalogCard({ entry, connectedCount, onConnected, isAdmin, onSetAvailable }: {
   entry: CatalogEntry
   connectedCount: number
   onConnected: (authUrl?: string | null) => void
+  isAdmin?: boolean
+  onSetAvailable?: (val: boolean) => void
 }) {
   const { connect } = useConnectorMutations()
   const [open, setOpen] = useState(false)
@@ -139,6 +173,12 @@ function CatalogCard({ entry, connectedCount, onConnected }: {
         </div>
       )}
       {err && !open && <p className="mt-2 text-xs text-destructive">{err}</p>}
+      {isAdmin && (
+        <div className="mt-2.5 flex items-center justify-between gap-2 border-t pt-2.5">
+          <span className="text-[11px] text-muted-foreground">Available to users</span>
+          <Switch checked={entry.available !== false} onCheckedChange={(v) => onSetAvailable?.(v)} />
+        </div>
+      )}
     </div>
   )
 }
@@ -186,7 +226,7 @@ function CustomConnector({ onAdded }: { onAdded: () => void }) {
 export function ConnectorsRoute() {
   const { data: catalog, isLoading } = useConnectorCatalog()
   const { data: connections } = useConnections()
-  const { disconnect } = useConnectorMutations()
+  const { disconnect, setAvailability } = useConnectorMutations()
   const [q, setQ] = useState("")
 
   const conns = useMemo(() => connections || [], [connections])
@@ -197,6 +237,16 @@ export function ConnectorsRoute() {
   }, [conns])
 
   const entries = useMemo(() => catalog?.connectors || [], [catalog])
+  // Admins get an `available` flag on each catalog entry; use it to detect admin
+  // and to drive the per-card "Available to users" curation toggle.
+  const isAdmin = useMemo(() => entries.some((e) => e.available !== undefined), [entries])
+  const enabledIds = useMemo(() => entries.filter((e) => e.available === true).map((e) => e.id), [entries])
+  const setAvailable = (id: string, val: boolean) => {
+    const next = new Set(enabledIds)
+    if (val) next.add(id)
+    else next.delete(id)
+    setAvailability.mutate([...next])
+  }
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase()
     if (!term) return entries
@@ -239,7 +289,14 @@ export function ConnectorsRoute() {
             <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{cat}</h2>
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {items.map((e) => (
-                <CatalogCard key={e.id} entry={e} connectedCount={countByCatalog[e.id] || 0} onConnected={() => {}} />
+                <CatalogCard
+                  key={e.id}
+                  entry={e}
+                  connectedCount={countByCatalog[e.id] || 0}
+                  onConnected={() => {}}
+                  isAdmin={isAdmin}
+                  onSetAvailable={(v) => setAvailable(e.id, v)}
+                />
               ))}
             </div>
           </section>
