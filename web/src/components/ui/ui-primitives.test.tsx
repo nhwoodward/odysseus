@@ -1,0 +1,66 @@
+import { render, screen, fireEvent, cleanup } from "@testing-library/react"
+import { afterEach, describe, it, expect, vi } from "vitest"
+import { FolderOpen, Plus } from "lucide-react"
+import { Card, CardContent, CardTitle } from "./card"
+import { Input } from "./input"
+import { Badge } from "./badge"
+import { Skeleton } from "./skeleton"
+import { EmptyState } from "./empty-state"
+import { Dialog, DialogHeader, DialogBody } from "./dialog"
+
+afterEach(cleanup)
+
+describe("ui primitives", () => {
+  it("Card composes header/title/content", () => {
+    render(<Card><CardTitle>Hi</CardTitle><CardContent>Body</CardContent></Card>)
+    expect(screen.getByText("Hi")).toBeInTheDocument()
+    expect(screen.getByText("Body")).toBeInTheDocument()
+  })
+
+  it("Input forwards value + is a textbox", () => {
+    render(<Input placeholder="name" defaultValue="x" />)
+    expect(screen.getByPlaceholderText("name")).toHaveValue("x")
+  })
+
+  it("Badge renders text with a variant class", () => {
+    render(<Badge variant="success">Connected</Badge>)
+    const b = screen.getByText("Connected")
+    expect(b).toBeInTheDocument()
+    expect(b.className).toMatch(/emerald/)
+  })
+
+  it("Skeleton has the pulse class", () => {
+    render(<Skeleton className="h-4 w-10" />)
+    expect(document.querySelector(".animate-pulse")).toBeTruthy()
+  })
+
+  it("EmptyState shows icon/title/description + CTA, role=status", () => {
+    const onClick = vi.fn()
+    render(<EmptyState icon={FolderOpen} title="No items" description="Add one" action={{ label: "Add", icon: Plus, onClick }} />)
+    expect(screen.getByRole("status")).toBeInTheDocument()
+    expect(screen.getByText("No items")).toBeInTheDocument()
+    expect(screen.getByText("Add one")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: /add/i }))
+    expect(onClick).toHaveBeenCalled()
+  })
+
+  it("Dialog is a labelled modal that closes on Escape and backdrop", () => {
+    const onClose = vi.fn()
+    render(
+      <Dialog open onClose={onClose} label="Test dialog">
+        <DialogHeader title="Title" onClose={onClose} />
+        <DialogBody>content</DialogBody>
+      </Dialog>,
+    )
+    const dlg = screen.getByRole("dialog", { name: "Test dialog" })
+    expect(dlg).toHaveAttribute("aria-modal", "true")
+    expect(screen.getByText("content")).toBeInTheDocument()
+    fireEvent.keyDown(document, { key: "Escape" })
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it("Dialog renders nothing when closed", () => {
+    render(<Dialog open={false} onClose={() => {}}><div>hidden</div></Dialog>)
+    expect(screen.queryByText("hidden")).not.toBeInTheDocument()
+  })
+})
