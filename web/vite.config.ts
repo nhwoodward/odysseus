@@ -31,6 +31,16 @@ export default defineConfig({
         entryFileNames: 'assets/[name]-[hash].js',
         chunkFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash][extname]',
+        // Split heavy vendor libs into separate, independently-cacheable chunks
+        // (the markdown/math/highlight stack is large and changes rarely).
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return
+          if (/katex|highlight\.js|lowlight|react-markdown|rehype|remark|hast|mdast|micromark|unist|property-information|space-separated|comma-separated|character-entities|decode-named|html-url|trim-lines|web-namespaces|zwitch|bail|trough|vfile|devlop|estree|ccount|markdown-table|longest-streak|escape-string-regexp|mathml-tag-names/.test(id)) return 'markdown'
+          if (id.includes('react-router')) return 'router'
+          if (id.includes('@tanstack')) return 'query'
+          if (id.includes('framer-motion') || /node_modules\/motion/.test(id)) return 'motion'
+          if (id.includes('react-dom') || /node_modules\/react\//.test(id) || id.includes('scheduler')) return 'react'
+        },
       },
     },
   },
