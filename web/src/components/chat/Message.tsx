@@ -11,6 +11,7 @@ import { collectDeliverables } from "@/lib/agentRun"
 import { safeHref } from "@/lib/safeImage"
 import { useNow, formatElapsed } from "@/lib/useNow"
 import { useVoiceCaps, speak } from "@/api/voice"
+import { useEscapeClose } from "@/lib/useEscapeClose"
 import { cn } from "@/lib/utils"
 import type { AskUserPrompt, ChatAttachment, ChatMessage, Artifact } from "@/types"
 
@@ -232,11 +233,12 @@ function MessageActions({ assistant, onEdit, onDelete, onFork, onRewrite }: {
   onRewrite?: (instruction: string) => void;
 }) {
   const [open, setOpen] = useState(false)
+  useEscapeClose(open, () => setOpen(false))
   if (!onEdit && !onDelete && !onFork && !onRewrite) return null
   const act = (fn?: () => void) => { setOpen(false); fn?.() }
   const item = "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
   return <div className="relative">
-    <button onClick={() => setOpen((v) => !v)} title="More message actions" className={actionBtn}><MoreHorizontal className="size-3.5" /></button>
+    <button onClick={() => setOpen((v) => !v)} title="More message actions" aria-haspopup="menu" aria-expanded={open} className={actionBtn}><MoreHorizontal className="size-3.5" /></button>
     {open && <>
       <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
       <div className="absolute bottom-full right-0 z-30 mb-1 w-44 rounded-xl border bg-popover p-1 shadow-lg">

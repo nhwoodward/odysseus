@@ -3,11 +3,13 @@ import { Share2, Copy, Check, Link2Off, Loader2 } from "lucide-react"
 import { useShareLink, useShareMutations, shareUrl, type ShareResource } from "@/api/share"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/stores/toast"
+import { useEscapeClose } from "@/lib/useEscapeClose"
 import { cn } from "@/lib/utils"
 
 // Read-only share popover. Reused for chat sessions and document artifacts.
 export function ShareMenu({ resourceType, resourceId, label = "Share", placement = "down" }: { resourceType: ShareResource; resourceId: string; label?: string; placement?: "up" | "down" }) {
   const [open, setOpen] = useState(false)
+  useEscapeClose(open, () => setOpen(false))
   const [copied, setCopied] = useState(false)
   const { data: link, isLoading } = useShareLink(resourceType, resourceId, open)
   const { create, revoke } = useShareMutations(resourceType, resourceId)
@@ -21,7 +23,7 @@ export function ShareMenu({ resourceType, resourceId, label = "Share", placement
 
   return (
     <div className="relative">
-      <button onClick={() => setOpen((o) => !o)} title="Share a read-only link"
+      <button onClick={() => setOpen((o) => !o)} title="Share a read-only link" aria-haspopup="menu" aria-expanded={open}
         className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
         <Share2 className="size-3.5" />{label}
       </button>

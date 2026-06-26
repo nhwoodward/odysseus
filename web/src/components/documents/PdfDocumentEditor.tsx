@@ -6,6 +6,7 @@ import { prepareSignedReply, useDocMutations, type DocFull } from "@/api/documen
 import { buildEmailDraft } from "@/lib/emailDraft"
 import { parsePdfAnnotations, parsePdfFieldValues, updatePdfFieldValue, writePdfAnnotations, type PdfAnnotation } from "@/lib/pdfDocument"
 import { Button } from "@/components/ui/button"
+import { useEscapeClose } from "@/lib/useEscapeClose"
 import { cn } from "@/lib/utils"
 
 interface PdfField {
@@ -76,6 +77,7 @@ export function PdfDocumentEditor({
   const [err, setErr] = useState("")
   const [dropMode, setDropMode] = useState<DropMode>(null)
   const [signatureTarget, setSignatureTarget] = useState<SignatureTarget | null>(null)
+  useEscapeClose(!!signatureTarget, () => setSignatureTarget(null))
   const [signatureCaptureOpen, setSignatureCaptureOpen] = useState(false)
   const [sourceOpen, setSourceOpen] = useState(false)
   const [signedBusy, setSignedBusy] = useState(false)

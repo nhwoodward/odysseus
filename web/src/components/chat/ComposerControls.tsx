@@ -13,6 +13,7 @@ import { useComposer } from "@/stores/composer"
 import type { GroupMode, GroupParticipant } from "@/stores/composer"
 import { usePanel } from "@/stores/panel"
 import { toast } from "@/stores/toast"
+import { useEscapeClose } from "@/lib/useEscapeClose"
 import { Switch } from "@/components/ui/switch"
 import { BUILTIN_PERSONAS } from "@/lib/personas"
 import { getPersistentPersonaName, setPersistentPersonaSession } from "@/lib/persistentPersona"
@@ -35,11 +36,12 @@ export function SourcesMenu() {
   const navigate = useNavigate()
   const { data: connections } = useConnections()
   const [open, setOpen] = useState(false)
+  useEscapeClose(open, () => setOpen(false))
   const conns = connections || []
   const connected = conns.filter((s) => s.status === "connected")
   return (
     <div className="relative">
-      <button onClick={() => setOpen((o) => !o)} title="Connected sources" className="relative rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground">
+      <button onClick={() => setOpen((o) => !o)} title="Connected sources" aria-haspopup="menu" aria-expanded={open} className="relative rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground">
         <Plug className="size-4" />
         {connected.length > 0 && (
           <span className="absolute -right-0.5 -top-0.5 flex size-3.5 items-center justify-center rounded-full bg-primary text-[9px] font-semibold text-primary-foreground">{connected.length}</span>
@@ -88,6 +90,7 @@ export function ModelPicker() {
   const { data: def } = useDefaultChat()
   const c = useComposer()
   const [open, setOpen] = useState(false)
+  useEscapeClose(open, () => setOpen(false))
   const [query, setQuery] = useState("")
   const [favorites, setFavorites] = useState<string[]>(() => {
     try { return JSON.parse(window.localStorage.getItem("odysseus-model-favorites") || "[]") as string[] } catch { return [] }
@@ -140,7 +143,7 @@ export function ModelPicker() {
   }
   return (
     <div className="relative" data-tour="model-picker">
-      <button onClick={() => setOpen((o) => !o)} className={trigger}>
+      <button onClick={() => setOpen((o) => !o)} aria-haspopup="menu" aria-expanded={open} className={trigger}>
         <span className="max-w-[160px] truncate">{c.model || "Select model"}</span>
         <ChevronDown className="size-3.5" />
       </button>
@@ -190,6 +193,7 @@ export function ToolsMenu() {
   const { data: threadDocs } = useSessionDocuments(sessionId)
   const c = useComposer()
   const [open, setOpen] = useState(false)
+  useEscapeClose(open, () => setOpen(false))
   const [groupPick, setGroupPick] = useState("")
   const [groupPresetPick, setGroupPresetPick] = useState("")
   const [personaPick, setPersonaPick] = useState("")
@@ -474,7 +478,7 @@ export function ToolsMenu() {
   }
   return (
     <div className="relative" data-tour="tools-menu">
-      <button onClick={() => { if (!open) hydrateCustomConfig(); setOpen((o) => !o) }} className={cn(trigger, activeCount && "text-foreground")} title="Tools & options">
+      <button onClick={() => { if (!open) hydrateCustomConfig(); setOpen((o) => !o) }} aria-haspopup="menu" aria-expanded={open} className={cn(trigger, activeCount && "text-foreground")} title="Tools & options">
         <SlidersHorizontal className="size-4" />
         <span className="hidden sm:inline">Tools</span>
         {activeCount > 0 && <span className="rounded-full bg-primary/15 px-1.5 text-[10px] font-medium text-foreground">{activeCount}</span>}

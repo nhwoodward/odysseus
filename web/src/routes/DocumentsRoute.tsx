@@ -48,6 +48,7 @@ import { buildEmailDraft } from "@/lib/emailDraft"
 import { readImportedDocuments } from "@/lib/documentImport"
 import { isPdfBackedDocument } from "@/lib/pdfDocument"
 import { Button } from "@/components/ui/button"
+import { useEscapeClose } from "@/lib/useEscapeClose"
 import { cn } from "@/lib/utils"
 import type { DocItem } from "@/types"
 
@@ -341,6 +342,7 @@ function DocumentRow({
 }) {
   const preview = shortPreview(doc.preview)
   const [actionMenuOpen, setActionMenuOpen] = useState(false)
+  useEscapeClose(actionMenuOpen, () => setActionMenuOpen(false))
   const longPressTimerRef = useRef<number | null>(null)
   const longPressFiredRef = useRef(false)
   const row = () => {
@@ -408,7 +410,7 @@ function DocumentRow({
       </div>
       {!selectMode && (
         <div className="flex shrink-0 items-center gap-0.5">
-          <button type="button" onClick={(e) => { e.stopPropagation(); openActionMenu() }} title="Actions" className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground sm:hidden"><MoreHorizontal className="size-4" /></button>
+          <button type="button" onClick={(e) => { e.stopPropagation(); openActionMenu() }} title="Actions" aria-haspopup="menu" aria-expanded={actionMenuOpen} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground sm:hidden"><MoreHorizontal className="size-4" /></button>
           <div className="hidden items-center gap-0.5 sm:flex">
             {doc.session_id && <button type="button" onClick={(e) => { e.stopPropagation(); onOpenSource() }} title="Open in original chat" className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"><ExternalLink className="size-4" /></button>}
             <button type="button" onClick={(e) => { e.stopPropagation(); onClone() }} disabled={cloneBusy} title="Clone to selected chat" className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50"><Copy className="size-4" /></button>

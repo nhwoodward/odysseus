@@ -2,6 +2,7 @@ import { useState } from "react"
 import { FolderKanban, Check, Plus, X } from "lucide-react"
 import { useSessions } from "@/api/sessions"
 import { useProjects, useProjectActions } from "@/api/projects"
+import { useEscapeClose } from "@/lib/useEscapeClose"
 import { cn } from "@/lib/utils"
 
 // Assign the current chat to a project (folder) from the chat header.
@@ -10,6 +11,7 @@ export function ProjectPicker({ sessionId }: { sessionId: string }) {
   const { projects } = useProjects()
   const actions = useProjectActions()
   const [open, setOpen] = useState(false)
+  useEscapeClose(open, () => setOpen(false))
   const current = sessions?.find((s) => s.id === sessionId)?.folder || null
   const item = "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
 
@@ -24,7 +26,7 @@ export function ProjectPicker({ sessionId }: { sessionId: string }) {
 
   return (
     <div className="relative">
-      <button onClick={() => setOpen((o) => !o)} title="Add this chat to a project"
+      <button onClick={() => setOpen((o) => !o)} title="Add this chat to a project" aria-haspopup="menu" aria-expanded={open}
         className={cn("flex max-w-[160px] items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-colors",
           current ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
         <FolderKanban className="size-3.5 shrink-0" />

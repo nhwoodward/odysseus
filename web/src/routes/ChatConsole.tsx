@@ -18,6 +18,7 @@ import { ProjectPicker } from "@/components/chat/ProjectPicker"
 import { Mascot } from "@/components/ui/Mascot"
 import { apiJson } from "@/lib/api"
 import { toast } from "@/stores/toast"
+import { useEscapeClose } from "@/lib/useEscapeClose"
 import { cn } from "@/lib/utils"
 import type { ChatMessage } from "@/types"
 
@@ -44,12 +45,13 @@ function notifyChatComplete(title: string | undefined) {
 
 function ExportMenu({ sid, messages }: { sid: string; messages: ChatMessage[] }) {
   const [open, setOpen] = useState(false)
+  useEscapeClose(open, () => setOpen(false))
   const item = "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
   const exp = (fmt: string) => { window.open(`/api/session/${sid}/export?fmt=${fmt}`, "_blank"); setOpen(false) }
   const copy = async () => { try { await navigator.clipboard.writeText(messages.map((m) => `${m.role === "user" ? "You" : "Assistant"}: ${m.content}`).join("\n\n")) } catch { /* ignore */ } setOpen(false) }
   return (
     <div className="relative">
-      <button onClick={() => setOpen((o) => !o)} title="Export / more" className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"><MoreHorizontal className="size-4" /></button>
+      <button onClick={() => setOpen((o) => !o)} title="Export / more" aria-haspopup="menu" aria-expanded={open} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"><MoreHorizontal className="size-4" /></button>
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />

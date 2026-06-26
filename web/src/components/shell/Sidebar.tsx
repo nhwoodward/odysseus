@@ -9,6 +9,7 @@ import { usePrefs } from "@/api/prefs"
 import { PRIMARY, WORKSPACE } from "./nav"
 import type { Session } from "@/types"
 import { removePersistentPersonaSession } from "@/lib/persistentPersona"
+import { useEscapeClose } from "@/lib/useEscapeClose"
 import { cn } from "@/lib/utils"
 import { useNoteReminders } from "@/stores/noteReminders"
 
@@ -41,6 +42,7 @@ function Account({ collapsed }: { collapsed: boolean }) {
   const toggle = useComposer((s) => s.toggle)
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
+  useEscapeClose(open, () => setOpen(false))
   const name = status?.username || status?.user || "Account"
   const item = "flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
   return (
@@ -58,9 +60,9 @@ function Account({ collapsed }: { collapsed: boolean }) {
         </>
       )}
       {collapsed ? (
-        <button onClick={() => setOpen((o) => !o)} title={name} className="mx-auto flex size-9 items-center justify-center rounded-full bg-muted text-sm font-medium uppercase">{name[0]}</button>
+        <button onClick={() => setOpen((o) => !o)} title={name} aria-haspopup="menu" aria-expanded={open} className="mx-auto flex size-9 items-center justify-center rounded-full bg-muted text-sm font-medium uppercase">{name[0]}</button>
       ) : (
-        <button onClick={() => setOpen((o) => !o)} className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 hover:bg-accent">
+        <button onClick={() => setOpen((o) => !o)} aria-haspopup="menu" aria-expanded={open} className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 hover:bg-accent">
           <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium uppercase">{name[0]}</span>
           <span className="min-w-0 flex-1 truncate text-left text-sm font-medium">{name}</span>
           <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />

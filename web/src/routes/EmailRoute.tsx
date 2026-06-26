@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { ArrowLeft, PenSquare, Send, X, Reply, ReplyAll, Forward, Archive, MailOpen, Trash2, Search, Inbox, ChevronDown, Star, FolderInput, CheckCheck, Paperclip, Download, FileText, Sparkles, Filter, Bell, BellPlus, Clock, AlertCircle, Newspaper, Megaphone, RefreshCw, MoreVertical, ExternalLink, UserPlus, Ban, ShieldCheck, MessagesSquare, type LucideIcon } from "lucide-react"
 import { EmptyState } from "@/components/ui/empty-state"
+import { useEscapeClose } from "@/lib/useEscapeClose"
 import {
   useInbox, useEmail, useEmailActions, sendEmail, saveDraft,
   useFolders, useEmailSearch, useContacts, useAttachments,
@@ -791,10 +792,11 @@ function AttachmentRow({ uid, folder, accountId, att }: { uid: string; folder: s
 
 function MoveMenu({ folders, current, onMove }: { folders: string[]; current: string; onMove: (dest: string) => void }) {
   const [open, setOpen] = useState(false)
+  useEscapeClose(open, () => setOpen(false))
   const targets = folders.filter((f) => f !== current)
   return (
     <div className="relative">
-      <button onClick={() => setOpen((o) => !o)} title="Move to folder" className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"><FolderInput className="size-4" /></button>
+      <button onClick={() => setOpen((o) => !o)} title="Move to folder" aria-haspopup="menu" aria-expanded={open} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"><FolderInput className="size-4" /></button>
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
@@ -818,6 +820,7 @@ function ReminderMenu({
   onPick: (date: Date) => void
 }) {
   const [open, setOpen] = useState(false)
+  useEscapeClose(open, () => setOpen(false))
   const [custom, setCustom] = useState(() => {
     const tomorrow = new Date()
     tomorrow.setDate(tomorrow.getDate() + 1)
@@ -831,7 +834,7 @@ function ReminderMenu({
   }
   return (
     <div className="relative">
-      <button onClick={() => setOpen((o) => !o)} disabled={busy} title="Remind to reply" className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-50"><BellPlus className="size-4" /></button>
+      <button onClick={() => setOpen((o) => !o)} disabled={busy} title="Remind to reply" aria-haspopup="menu" aria-expanded={open} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-50"><BellPlus className="size-4" /></button>
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
@@ -874,6 +877,7 @@ function ReaderMoreMenu({
   busy?: string
 }) {
   const [open, setOpen] = useState(false)
+  useEscapeClose(open, () => setOpen(false))
   const itemClass = "flex w-full items-center gap-2 px-3 py-1.5 text-left hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
   const pick = (fn: () => void) => {
     fn()
@@ -886,6 +890,8 @@ function ReaderMoreMenu({
         disabled={disabled}
         onClick={() => setOpen((o) => !o)}
         title="More actions"
+        aria-haspopup="menu"
+        aria-expanded={open}
         className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
       >
         <MoreVertical className="size-4" />
@@ -1461,12 +1467,13 @@ function Compose({ onClose, initial }: { onClose: () => void; initial?: Prefill 
 
 function FolderMenu({ folders, current, onPick }: { folders: string[]; current: string; onPick: (f: string) => void }) {
   const [open, setOpen] = useState(false)
+  useEscapeClose(open, () => setOpen(false))
   const baseFolders = folders.length ? folders : [current === SCHEDULED_FOLDER ? "INBOX" : current]
   const list = baseFolders.includes(SCHEDULED_FOLDER) ? baseFolders : [...baseFolders, SCHEDULED_FOLDER]
   const CurrentIcon = current === SCHEDULED_FOLDER ? Clock : Inbox
   return (
     <div className="relative">
-      <button onClick={() => setOpen((o) => !o)} className="flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-semibold hover:bg-accent">
+      <button onClick={() => setOpen((o) => !o)} aria-haspopup="menu" aria-expanded={open} className="flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-semibold hover:bg-accent">
         <CurrentIcon className="size-4 text-muted-foreground" />
         <span>{folderLabel(current)}</span>
         <ChevronDown className="size-3.5 text-muted-foreground" />
@@ -1537,6 +1544,7 @@ function AccountStrip({ accounts, current, onPick }: { accounts: EmailAccount[];
 
 function EmailFilterPicker({ value, onChange }: { value: EmailListFilter; onChange: (value: EmailListFilter) => void }) {
   const [open, setOpen] = useState(false)
+  useEscapeClose(open, () => setOpen(false))
   const current = EMAIL_FILTERS.find((item) => item.value === value) || EMAIL_FILTERS[0]
   const Icon = current.icon
   return (
@@ -1545,6 +1553,8 @@ function EmailFilterPicker({ value, onChange }: { value: EmailListFilter; onChan
         type="button"
         onClick={() => setOpen((o) => !o)}
         title="Filter mail"
+        aria-haspopup="menu"
+        aria-expanded={open}
         className="inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
       >
         <Icon className="size-3.5" />
@@ -1681,6 +1691,7 @@ function EmailBulkBar({
   onCancel: () => void
 }) {
   const [open, setOpen] = useState(false)
+  useEscapeClose(open, () => setOpen(false))
   const disabled = selectedCount === 0 || !!busy
   return (
     <div className="flex shrink-0 flex-wrap items-center gap-2 border-b bg-muted/20 px-4 py-2 text-xs">
@@ -1694,6 +1705,8 @@ function EmailBulkBar({
           type="button"
           disabled={disabled}
           onClick={() => setOpen((o) => !o)}
+          aria-haspopup="menu"
+          aria-expanded={open}
           className="inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-muted-foreground hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
         >
           <CheckCheck className="size-3.5" />
@@ -1738,6 +1751,7 @@ function EmailListRowMenu({
   onOpenChange: (open: boolean) => void
   onAction: (item: EmailListItem, action: EmailListRowAction) => void
 }) {
+  useEscapeClose(open, () => onOpenChange(false))
   const read = emailIsRead(item)
   const disabled = !!busy
   const itemClass = "flex w-full items-center gap-2 px-3 py-1.5 text-left hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
@@ -1752,6 +1766,8 @@ function EmailListRowMenu({
         disabled={disabled}
         onClick={() => onOpenChange(!open)}
         title="Email actions"
+        aria-haspopup="menu"
+        aria-expanded={open}
         className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
       >
         <MoreVertical className="size-4" />
