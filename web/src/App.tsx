@@ -22,6 +22,7 @@ import { ResearchRoute } from "@/routes/ResearchRoute"
 import { ProjectsRoute } from "@/routes/ProjectsRoute"
 import { RagRoute } from "@/routes/RagRoute"
 import { PersonalRoute } from "@/routes/PersonalRoute"
+import { ConnectorsRoute } from "@/routes/ConnectorsRoute"
 import { useUi } from "@/stores/ui"
 
 const FONT_STACKS: Record<string, string> = {
@@ -72,6 +73,7 @@ function ThemedApp() {
           <Route path="/tasks" element={<TasksRoute />} />
           <Route path="/cookbook" element={<CookbookRoute />} />
           <Route path="/skills" element={<SkillsRoute />} />
+          <Route path="/connectors" element={<ConnectorsRoute />} />
           <Route path="/settings" element={<SettingsRoute />} />
           <Route path="*" element={<Navigate to="/chat" replace />} />
         </Routes>

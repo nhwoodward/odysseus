@@ -443,6 +443,18 @@ class McpServer(TimestampMixin, Base):
     oauth_config = Column(Text, nullable=True)   # JSON: provider, keys_file, token_file, scopes
     disabled_tools = Column(Text, nullable=True)  # JSON array of tool names to hide from LLM
     oauth_tokens = Column(EncryptedText, nullable=True)  # JSON {tokens, client_info} for generic MCP OAuth, encrypted at rest
+    # ── Connectors (per-user, catalog-driven) ──
+    # Per-user ownership. NULL = legacy/shared admin-global server (historical
+    # default, visible to everyone); non-null = a user's personal connection.
+    # Mirrors ModelEndpoint.owner so the same owner_filter() applies.
+    owner = Column(String, nullable=True, index=True)
+    # The connector-catalog entry id this connection was created from
+    # (src/connector_catalog.py). NULL for hand-added/custom servers.
+    catalog_id = Column(String, nullable=True, index=True)
+    # Durable connection status (the live McpManager only holds these in memory).
+    last_connected_at = Column(DateTime, nullable=True)
+    last_error = Column(Text, nullable=True)
+    needs_auth = Column(Boolean, nullable=True, default=False)
 
 
 class Comparison(TimestampMixin, Base):
@@ -1535,6 +1547,39 @@ def _migrate_add_mcp_oauth_tokens_column():
     except Exception as e:
         logging.getLogger(__name__).warning(f"oauth_tokens migration: {e}")
 
+def _migrate_add_mcp_connector_columns():
+    """Add per-user connector columns to mcp_servers (Connectors feature).
+
+    owner (per-user ownership; NULL = shared admin-global server, the historical
+    default), catalog_id (the connector-catalog entry a connection was created
+    from), and durable status columns last_connected_at / last_error /
+    needs_auth (the live manager only holds status in memory). Without owner, the
+    per-user connectors query `(owner == user) | (owner IS NULL)` fails on older
+    DBs. Mirrors model_endpoints.owner."""
+    new_cols = {
+        "owner": "VARCHAR",
+        "catalog_id": "VARCHAR",
+        "last_connected_at": "DATETIME",
+        "last_error": "TEXT",
+        "needs_auth": "BOOLEAN DEFAULT 0",
+    }
+    try:
+        with engine.connect() as conn:
+            cols = [r[1] for r in conn.execute(text("PRAGMA table_info(mcp_servers)"))]
+            if not cols:
+                return
+            for col_name, col_def in new_cols.items():
+                if col_name not in cols:
+                    conn.execute(text(f"ALTER TABLE mcp_servers ADD COLUMN {col_name} {col_def}"))
+            if "owner" not in cols:
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_mcp_servers_owner ON mcp_servers(owner)"))
+            if "catalog_id" not in cols:
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_mcp_servers_catalog_id ON mcp_servers(catalog_id)"))
+            conn.commit()
+            logging.getLogger(__name__).info("MCP connector columns migration complete")
+    except Exception as e:
+        logging.getLogger(__name__).warning(f"mcp connector columns migration: {e}")
+
 def _migrate_add_task_v2_columns():
     """Add cron_expression, then_task_id, webhook_token to scheduled_tasks."""
     new_cols = {
@@ -1842,6 +1887,7 @@ def init_db():
     _migrate_add_task_automation_columns()
     _migrate_add_disabled_tools()
     _migrate_add_mcp_oauth_tokens_column()
+    _migrate_add_mcp_connector_columns()
     _migrate_add_task_v2_columns()
     _migrate_add_notifications_enabled()
     _migrate_drop_ping_notes_tasks()
