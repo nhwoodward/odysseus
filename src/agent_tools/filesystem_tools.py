@@ -159,11 +159,25 @@ class WriteFileTool:
         from src.tool_execution import _resolve_tool_path, _resolve_search_root, _truncate
         lines = content.split("\n", 1)
         raw_path = lines[0].strip()
-        body = lines[1] if len(lines) > 1 else ""
+        has_body_line = len(lines) > 1
+        body = lines[1] if has_body_line else ""
         try:
             path = _resolve_tool_path(raw_path)
         except ValueError as e:
             return {"error": f"write_file: {e}", "exit_code": 1}
+        # Guard against silent truncation: a write_file with NO body line is
+        # almost certainly a malformed invocation, not an intent to clear an
+        # existing file. Refuse rather than overwrite real content with empty
+        # (the user/agent gets no signal today — the file just empties). An
+        # intentional empty write sends a blank second line (has_body_line=True,
+        # body=""); creating a brand-new empty file is also still allowed.
+        if not has_body_line and os.path.exists(path):
+            try:
+                _existing_size = os.path.getsize(path)
+            except OSError:
+                _existing_size = 0
+            if _existing_size > 0:
+                return {"error": f"write_file: {path}: no content provided — refusing to truncate existing {_existing_size}-byte file. Send an empty body line to clear it intentionally.", "exit_code": 1}
         try:
             def _write():
                 old = ""

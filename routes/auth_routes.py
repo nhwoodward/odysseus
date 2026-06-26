@@ -91,6 +91,29 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
     _signup_limiter = RateLimiter(max_requests=3, window_seconds=300)
     _setup_limiter = RateLimiter(max_requests=3, window_seconds=300)
 
+    def _client_key(request: Request) -> str:
+        """Per-client identity for rate-limiting.
+
+        Defaults to the direct peer IP. Behind a reverse proxy / tunnel
+        (cloudflared, nginx, Tailscale Funnel) the peer is the proxy, so EVERY
+        client collapses into one bucket — nullifying brute-force protection and
+        letting one client lock everyone out. Set TRUST_PROXY_HEADERS=1 to derive
+        the real client IP from proxy headers instead. Trusting those headers on a
+        DIRECT deployment would let a client spoof them to evade the limiter, so
+        this is off by default. Also guards request.client is None (some ASGI
+        setups), which previously 500'd the auth routes.
+        """
+        if os.getenv("TRUST_PROXY_HEADERS", "").strip().lower() in ("1", "true", "yes", "on"):
+            for h in ("cf-connecting-ip", "x-real-ip"):
+                v = (request.headers.get(h) or "").strip()
+                if v:
+                    return v
+            xff = (request.headers.get("x-forwarded-for") or "").strip()
+            if xff:
+                # right-most hop = the address the trusted proxy actually saw
+                return xff.split(",")[-1].strip()
+        return request.client.host if request.client else "unknown"
+
     def _get_current_user(request: Request) -> Optional[str]:
         token = request.cookies.get(SESSION_COOKIE)
         return auth_manager.get_username_for_token(token)
@@ -98,7 +121,7 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
     @router.post("/setup")
     async def first_run_setup(body: SetupRequest, request: Request):
         """Create initial admin account. Only works if no accounts exist."""
-        if not _setup_limiter.check(request.client.host):
+        if not _setup_limiter.check(_client_key(request)):
             raise HTTPException(429, "Too many requests — try again later")
         if auth_manager.is_configured:
             raise HTTPException(400, "Already configured")
@@ -112,7 +135,7 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
     @router.post("/signup")
     async def signup(body: SignupRequest, request: Request):
         """Create a new user account. Only works if signup is enabled by admin."""
-        if not _signup_limiter.check(request.client.host):
+        if not _signup_limiter.check(_client_key(request)):
             raise HTTPException(429, "Too many requests — try again later")
         if not auth_manager.is_configured:
             raise HTTPException(400, "Run setup first")
@@ -129,7 +152,7 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
 
     @router.post("/login")
     async def login(body: LoginRequest, request: Request, response: Response):
-        if not _login_limiter.check(request.client.host):
+        if not _login_limiter.check(_client_key(request)):
             raise HTTPException(429, "Too many requests — try again later")
         # Verify password first
         username = body.username.strip().lower()

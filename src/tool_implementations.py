@@ -3691,6 +3691,19 @@ async def do_manage_research(content: str, owner: Optional[str] = None) -> Dict:
         except Exception:
             return None
 
+    # Owner scoping: the research store is shared (data/deep_research/*.json) and
+    # each file carries an "owner" tag. Admins / single-user mode see everything;
+    # a regular user may only list/read/delete their OWN research. Mismatches are
+    # reported as "not found" so the tool never leaks the existence of another
+    # tenant's reports. (manage_research is also in NON_ADMIN_BLOCKED_TOOLS.)
+    from src.tool_security import owner_is_admin_or_single_user
+    _restrict = None if owner_is_admin_or_single_user(owner) else str(owner or "").strip().lower()
+
+    def _owned(d) -> bool:
+        if _restrict is None:
+            return True
+        return str((d or {}).get("owner", "")).strip().lower() == _restrict
+
     if action in ("read", "open", "view", "get"):
         if not rid:
             return {"error": "Provide the research id (from action='list')."}
@@ -3698,6 +3711,8 @@ async def do_manage_research(content: str, owner: Optional[str] = None) -> Dict:
         if not p.exists():
             return {"error": f"Research '{rid}' not found."}
         d = _load(p) or {}
+        if not _owned(d):
+            return {"error": f"Research '{rid}' not found."}
         summary = d.get("result") or d.get("raw_report") or d.get("summary") or d.get("report") or "(no report body)"
         srcs = d.get("sources", []) or []
         out = f"# {d.get('query', '(untitled)')}\n\n{summary}"
@@ -3711,13 +3726,13 @@ async def do_manage_research(content: str, owner: Optional[str] = None) -> Dict:
         if not rid:
             return {"error": "Provide the research id to delete (from action='list')."}
         p = data_dir / f"{rid}.json"
-        if p.exists():
-            try:
-                p.unlink()
-            except Exception as e:
-                return {"error": f"Failed to delete: {e}"}
-            return {"output": f"Deleted research '{rid}'.", "exit_code": 0}
-        return {"error": f"Research '{rid}' not found."}
+        if not p.exists() or not _owned(_load(p)):
+            return {"error": f"Research '{rid}' not found."}
+        try:
+            p.unlink()
+        except Exception as e:
+            return {"error": f"Failed to delete: {e}"}
+        return {"output": f"Deleted research '{rid}'.", "exit_code": 0}
 
     # default: list — clickable [query](#research-<id>) rows, most-recent first
     search = (args.get("search") or "").lower()
@@ -3726,6 +3741,8 @@ async def do_manage_research(content: str, owner: Optional[str] = None) -> Dict:
         for p in data_dir.glob("*.json"):
             d = _load(p)
             if not d:
+                continue
+            if not _owned(d):
                 continue
             q = d.get("query", "")
             if search and search not in q.lower():

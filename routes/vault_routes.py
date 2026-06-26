@@ -16,7 +16,8 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
 from core.middleware import require_admin
-from core.platform_compat import IS_WINDOWS, safe_chmod, which_tool
+from core.platform_compat import IS_WINDOWS, which_tool
+from core.atomic_io import atomic_write_json
 from src.constants import VAULT_FILE as _VAULT_FILE
 
 logger = logging.getLogger(__name__)
@@ -70,11 +71,12 @@ def _load_config() -> dict:
 
 
 def _save_config(cfg: dict):
-    VAULT_FILE.parent.mkdir(parents=True, exist_ok=True)
-    VAULT_FILE.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
-    # POSIX: restrict the BW_SESSION store to 0o600. Windows: no-op (profile dir
-    # is ACL-restricted already).
-    safe_chmod(str(VAULT_FILE), 0o600)
+    # Persist the BW_SESSION store atomically at 0600. A plain write_text +
+    # chmod race left a world-readable window and a crash mid-write could
+    # truncate it; atomic_write_json creates the temp file owner-only and
+    # os.replace's it into place. Windows is ACL-restricted already, so the
+    # 0600 mode there is effectively a no-op.
+    atomic_write_json(str(VAULT_FILE), cfg, indent=2)
 
 
 async def _run_bw(args: list, session: str = None, input_text: str = None,

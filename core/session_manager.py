@@ -259,7 +259,18 @@ class SessionManager:
             logger.debug(f"Persisted message to session {session_id}")
 
         except Exception as e:
-            logger.error(f"Error persisting message: {e}")
+            # Silent data-loss guard: the reply was already streamed to the user,
+            # but if the INSERT/commit fails it vanishes on reload. Stamp the
+            # in-memory message so the response layer can surface "not saved"
+            # instead of silently returning success. (Field name matches the
+            # fuller handling in the hardening PR so a later merge is clean.)
+            logger.error(f"Error persisting message to session {session_id} (role={getattr(message, 'role', '?')}): {e}")
+            try:
+                if message.metadata is None:
+                    message.metadata = {}
+                message.metadata['_persist_failed'] = True
+            except Exception:
+                pass
             db.rollback()
         finally:
             db.close()

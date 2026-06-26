@@ -1051,18 +1051,26 @@ def save_assistant_response(
 
     # Return the persisted message's DB id so the stream can wire it onto the
     # freshly-rendered bubble — lets the user edit/delete a just-streamed reply
-    # without reloading. Incognito returns None: those messages are ephemeral,
+    # without reloading. Incognito returns id=None: those messages are ephemeral,
     # so we don't hand out an edit/delete handle for them.
+    #
+    # Also surface persist failures: _persist_message stamps `_persist_failed`
+    # on the message metadata when the DB commit fails (the reply was already
+    # streamed, but won't survive reload). Returning it here lets the stream
+    # emit a persist_warning so the user/API isn't left with silent success.
     if incognito:
-        return None
+        return {"id": None, "persist_failed": False}
+    _db_id = None
+    _persist_failed = False
     try:
         _last = sess.history[-1]
         _meta = getattr(_last, "metadata", None)
         if isinstance(_meta, dict):
-            return _meta.get("_db_id")
+            _db_id = _meta.get("_db_id")
+            _persist_failed = bool(_meta.get("_persist_failed"))
     except (IndexError, AttributeError):
         pass
-    return None
+    return {"id": _db_id, "persist_failed": _persist_failed}
 
 
 def _is_session_stream_active(session_id: str) -> bool:

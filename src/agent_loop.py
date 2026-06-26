@@ -39,10 +39,17 @@ from src.agent_tools import (
 logger = logging.getLogger(__name__)
 
 
-def _load_mcp_disabled_map() -> Dict[str, set]:
-    """Load per-server disabled tool sets from the database."""
+def _load_mcp_disabled_map() -> Dict[str, Optional[set]]:
+    """Load per-server disabled tool sets from the database.
+
+    A ``None`` value for a server is a fail-closed sentinel: that server's
+    ``disabled_tools`` row was set but unparseable, so the intended disabled
+    list can't be recovered. Rather than silently re-enabling the operator's
+    disabled tools, the schema/prompt consumers block *all* of that server's
+    tools until the row is repaired.
+    """
     from core.database import McpServer, SessionLocal
-    disabled_map: Dict[str, set] = {}
+    disabled_map: Dict[str, Optional[set]] = {}
     db = SessionLocal()
     try:
         for srv in db.query(McpServer).all():
@@ -51,8 +58,16 @@ def _load_mcp_disabled_map() -> Dict[str, set]:
                     names = json.loads(srv.disabled_tools)
                     if names:
                         disabled_map[srv.id] = set(names)
-                except (json.JSONDecodeError, TypeError):
-                    pass
+                except (json.JSONDecodeError, TypeError) as e:
+                    # Fail CLOSED: a corrupt disabled_tools row must not silently
+                    # re-enable the tools the operator disabled. We can't recover
+                    # the intended list, so mark the whole server as fully
+                    # disabled (None sentinel) until the row is repaired.
+                    logger.warning(
+                        "MCP server %s has corrupt disabled_tools (%s); disabling all of its tools (fail-closed)",
+                        srv.id, e,
+                    )
+                    disabled_map[srv.id] = None
     finally:
         db.close()
     return disabled_map
@@ -1878,6 +1893,12 @@ async def stream_agent_loop(
         # hide them from the schemas AND reject them at runtime by qualified name.
         _mcp_block_map, _mcp_block_q = mcp_mgr.plan_mode_blocked_mcp()
         for _sid, _names in _mcp_block_map.items():
+            if _sid in _mcp_disabled_map and _mcp_disabled_map[_sid] is None:
+                # Fail-closed sentinel (corrupt disabled_tools row): all of this
+                # server's tools are already disabled, so plan-mode's write-tool
+                # subset is already covered. Preserve the sentinel instead of
+                # crashing on None.update(...).
+                continue
             _mcp_disabled_map.setdefault(_sid, set()).update(_names)
         disabled_tools.update(_mcp_block_q)
     prep_timings["request_setup"] = time.time() - _t0

@@ -1870,6 +1870,7 @@ def setup_email_routes():
         if account_id:
             _assert_owns_account(account_id, owner)
         deleted = 0
+        trash_failed = 0
         folders_checked = []
         try:
             cfg = _get_email_config(account_id, owner=owner)
@@ -1919,18 +1920,37 @@ def setup_email_routes():
                         for uid in sorted(uids, key=lambda b: int(b)):
                             if permanent:
                                 conn.uid("STORE", uid, "+FLAGS", "\\Deleted")
+                                deleted += 1
                             else:
                                 copy_st, _ = conn.uid("COPY", uid, _q("Trash"))
                                 if copy_st == "OK":
                                     conn.uid("STORE", uid, "+FLAGS", "\\Deleted")
+                                    deleted += 1
                                 else:
-                                    conn.uid("STORE", uid, "+FLAGS", "\\Deleted")
-                            deleted += 1
+                                    # Trash copy failed. Do NOT fall through to
+                                    # \Deleted — that would permanently remove the
+                                    # message with no recoverable copy (silent data
+                                    # loss). Leave it in place and report the skip
+                                    # so the caller knows not every reminder cleared.
+                                    trash_failed += 1
+                                    _uid_s = uid.decode("ascii", "replace") if isinstance(uid, (bytes, bytearray)) else str(uid)
+                                    logger.warning(
+                                        "Reminder %s in %s: Trash copy failed (%s); leaving in place",
+                                        _uid_s, folder_name, copy_st,
+                                    )
                         conn.expunge()
                     except Exception as e:
                         logger.warning(f"Skipped reminder cleanup in {folder_name!r}: {e}")
             _invalidate_list_cache(account_id)
-            return {"success": True, "deleted": deleted, "folders_checked": folders_checked}
+            result = {"success": True, "deleted": deleted, "folders_checked": folders_checked}
+            if trash_failed:
+                result["trash_failed"] = trash_failed
+                result["warning"] = f"{trash_failed} reminder(s) could not be moved to Trash and were left in place."
+                logger.warning(
+                    "delete_odysseus_reminder_emails: %d reminder(s) not moved to Trash (left in place)",
+                    trash_failed,
+                )
+            return result
         except Exception as e:
             logger.error(f"delete_odysseus_reminder_emails failed: {e}")
             return {"success": False, "error": "Mail operation failed"}

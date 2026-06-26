@@ -15,6 +15,7 @@ import time
 from pathlib import Path
 from typing import Optional, Dict
 
+from core.atomic_io import atomic_write_json
 from src.research_utils import strip_thinking, is_low_quality
 from src.constants import DEEP_RESEARCH_DIR
 
@@ -594,7 +595,7 @@ class ResearchHandler:
             try:
                 data = json.loads(path.read_text(encoding="utf-8"))
                 data["consumed"] = True
-                path.write_text(json.dumps(data), encoding="utf-8")
+                atomic_write_json(str(path), data)
             except Exception:
                 pass
 
@@ -628,7 +629,7 @@ class ResearchHandler:
                 # SECURITY: stamp owner so route handlers can filter by user.
                 "owner": entry.get("owner", ""),
             }
-            path.write_text(json.dumps(data), encoding="utf-8")
+            atomic_write_json(str(path), data)
             logger.info(f"Research result saved to {path}")
             try:
                 from src.event_bus import fire_event
@@ -692,7 +693,7 @@ class ResearchHandler:
             if image_url not in hidden:
                 hidden.append(image_url)
                 data["hidden_images"] = hidden
-                path.write_text(json.dumps(data), encoding="utf-8")
+                atomic_write_json(str(path), data)
                 logger.info(f"Hid image {image_url[:80]} for research {session_id}")
             return True
         except Exception as e:
@@ -709,7 +710,7 @@ class ResearchHandler:
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
             data["hidden_images"] = []
-            path.write_text(json.dumps(data), encoding="utf-8")
+            atomic_write_json(str(path), data)
             logger.info(f"Cleared hidden_images for research {session_id}")
             return True
         except Exception as e:

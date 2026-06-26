@@ -218,9 +218,16 @@ def setup_personal_routes(personal_docs_manager, rag_manager, rag_available):
                     f.write(content_bytes)
 
                 ext = os.path.splitext(safe_name)[1].lower()
+                from src.markitdown_runtime import MARKITDOWN_EXTS
                 if ext == ".pdf":
                     from src.personal_docs import extract_pdf_text
                     text = extract_pdf_text(file_path)
+                elif ext in MARKITDOWN_EXTS:
+                    # .docx/.xlsx/.pptx/.xls/.epub are binary — decoding as UTF-8
+                    # yields replacement-char mojibake and RAG returns nonsense.
+                    # Mirror personal_docs.load_personal_index: extract real text.
+                    from src.personal_docs import extract_office_text
+                    text = extract_office_text(file_path)
                 else:
                     text = content_bytes.decode("utf-8", errors="replace")
 

@@ -477,6 +477,13 @@ def setup_task_routes(task_scheduler) -> APIRouter:
                 croniter(req.cron_expression)
             except Exception:
                 raise HTTPException(400, "Invalid cron expression")
+        # Validate scheduled_time: a malformed HH:MM makes compute_next_run
+        # return None, leaving the task 'active' with next_run=None so it never
+        # fires again — a silent failure. Reject it up front (mirrors cron).
+        if req.trigger_type == "schedule" and req.schedule not in (None, "", "cron") and req.scheduled_time:
+            import re as _re
+            if not _re.match(r"^([01]?\d|2[0-3]):[0-5]\d$", req.scheduled_time.strip()):
+                raise HTTPException(400, "scheduled_time must be HH:MM (00:00-23:59)")
         if req.trigger_type == "event" and not req.trigger_event:
             raise HTTPException(400, "Event name is required for event-triggered tasks")
         if req.trigger_type == "event" and not req.trigger_count:
@@ -727,6 +734,10 @@ def setup_task_routes(task_scheduler) -> APIRouter:
                 task.schedule = req.schedule
                 schedule_changed = True
             if req.scheduled_time is not None:
+                if req.scheduled_time:
+                    import re as _re
+                    if not _re.match(r"^([01]?\d|2[0-3]):[0-5]\d$", req.scheduled_time.strip()):
+                        raise HTTPException(400, "scheduled_time must be HH:MM (00:00-23:59)")
                 task.scheduled_time = req.scheduled_time
                 schedule_changed = True
             if req.scheduled_day is not None:

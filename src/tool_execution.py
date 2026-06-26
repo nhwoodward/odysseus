@@ -521,6 +521,21 @@ async def execute_tool_block(
             progress_cb=progress_cb,
             tool_policy=tool_policy,
         )
+    except Exception as e:
+        # An unexpected exception from a single tool handler must NOT tear down
+        # the whole agent turn — that discards already-streamed text and every
+        # prior tool result this round. Convert it to a structured error result
+        # so the loop feeds it back to the model and the turn continues (the
+        # model can then retry or explain the failure). asyncio.CancelledError
+        # (client disconnect) is BaseException, so it is NOT caught here and
+        # still propagates. Log with exc_info so the failure is diagnosable
+        # rather than silent.
+        _tool = getattr(block, "tool_type", None) or "tool"
+        logger.exception("Unhandled exception executing tool %r: %s", _tool, e)
+        return (
+            f"{_tool}: error",
+            {"error": f"Tool execution failed unexpectedly: {e}", "exit_code": 1},
+        )
     finally:
         _active_workspace.reset(token)
 
@@ -871,6 +886,13 @@ async def _execute_tool_block_impl(
                 args = json.loads(content) if content.strip().startswith("{") else {}
             except (json.JSONDecodeError, TypeError):
                 args = {}
+            # The built-in image_gen server stamps the gallery row's owner from
+            # this arg. Without it, agent-generated images are saved owner=None
+            # and become invisible in the owner-filtered gallery (multi-user
+            # data loss). Targeted to image_gen so we don't leak owner to other
+            # (incl. third-party) MCP servers.
+            if tool == "mcp__image_gen__generate_image" and owner and "owner" not in args:
+                args["owner"] = owner
             desc = f"mcp: {tool}"
             result = await mcp.call_tool(tool, args)
         else:

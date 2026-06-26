@@ -12,6 +12,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel, Field
+from core.atomic_io import atomic_write_json
 from src.endpoint_resolver import resolve_endpoint
 from src.auth_helpers import _auth_disabled, get_current_user
 from src.constants import DEEP_RESEARCH_DIR
@@ -335,7 +336,7 @@ def setup_research_routes(research_handler, session_manager=None) -> APIRouter:
             if data.get("owner") != user:
                 raise HTTPException(404, "Research not found")
             data["archived"] = bool(archived)
-            path.write_text(json.dumps(data), encoding="utf-8")
+            atomic_write_json(str(path), data)
         except HTTPException:
             raise
         except Exception as e:

@@ -6,6 +6,7 @@ import uuid
 import urllib.parse
 import html
 from pathlib import Path
+from core.atomic_io import atomic_write_json
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse, HTMLResponse
 import logging
@@ -226,8 +227,10 @@ def setup_mcp_routes(mcp_manager: McpManager):
                             "token_uri": "https://accounts.google.com/o/oauth2/token",
                         }
                     }
-                    with open(filepath, "w", encoding="utf-8") as f:
-                        json.dump(creds, f, indent=2)
+                    # The client_secret is a credential — write owner-only (0600)
+                    # so other local users can't read it. atomic_write_json creates
+                    # the temp file at 0600 before os.replace.
+                    atomic_write_json(filepath, creds, indent=2)
                     logger.info(f"Wrote OAuth credentials to {filepath}")
                     parsed_env.pop("GOOGLE_CLIENT_ID", None)
                     parsed_env.pop("GOOGLE_CLIENT_SECRET", None)
@@ -564,10 +567,10 @@ def setup_mcp_routes(mcp_manager: McpManager):
             tokens = resp.json()
             logger.info(f"OAuth tokens received for server {server_id}")
 
-            # Save tokens to the file the MCP package expects
+            # Save tokens to the file the MCP package expects. access_token +
+            # refresh_token are credentials — write owner-only (0600) atomically.
             os.makedirs(os.path.dirname(token_file), exist_ok=True)
-            with open(token_file, "w", encoding="utf-8") as f:
-                json.dump(tokens, f, indent=2)
+            atomic_write_json(token_file, tokens, indent=2)
             logger.info(f"Saved OAuth tokens to {token_file}")
 
             # Attempt to connect the MCP server now
