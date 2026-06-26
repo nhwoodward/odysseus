@@ -4,8 +4,10 @@ import { usePanel } from "@/stores/panel"
 import { Mascot } from "@/components/ui/Mascot"
 import { StreamingMarkdown, Markdown } from "./Markdown"
 import { ToolThread } from "./ToolThread"
+import { AgentTimeline } from "./AgentTimeline"
 import { BrowserSiteCard } from "./BrowserPreview"
 import { parseArtifact, cleanRoundText, stripSourcesFence } from "@/lib/artifact"
+import { collectDeliverables } from "@/lib/agentRun"
 import { safeHref } from "@/lib/safeImage"
 import { useNow, formatElapsed } from "@/lib/useNow"
 import { useVoiceCaps, speak } from "@/api/voice"
@@ -295,12 +297,14 @@ export function Message({ m, onRegenerate, onEdit, onDelete, onFork, onRewrite, 
       )}
       {m.reasoning && <Reasoning text={m.reasoning} live={!!m.streaming && !m.content} />}
       {m.plan && <Plan text={m.plan} />}
-      {useRounds ? cleaned!.map((c, i) => (
-        <div key={i} className="space-y-3">
-          {c.display && <StreamingMarkdown content={c.display} streaming={!!m.streaming && i === cleaned!.length - 1} />}
-          {c.tools.length > 0 && <ToolThread tools={c.tools} defaultOpen />}
-        </div>
-      )) : (m.tools && m.tools.length > 0 && <ToolThread tools={m.tools} />)}
+      {useRounds ? (
+        <AgentTimeline
+          rounds={cleaned!}
+          streaming={!!m.streaming}
+          streamStartAt={m.streamStartAt}
+          deliverables={collectDeliverables(m)}
+        />
+      ) : (m.tools && m.tools.length > 0 && <ToolThread tools={m.tools} />)}
       {/* Recover a website the agent built in an ephemeral browser tab (injected
          via the builtin browser MCP, never saved as a document) so it surfaces
          in the thread instead of vanishing with the closed tab. `m.tools` is the
@@ -324,7 +328,10 @@ export function Message({ m, onRegenerate, onEdit, onDelete, onFork, onRewrite, 
           {m.notice.continuePrompt && onRespond && <button onClick={() => onRespond(m.notice!.continuePrompt!)} className="inline-flex shrink-0 items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium hover:bg-accent"><Play className="size-3" />Continue</button>}
         </div>
       )}
-      {m.sources && m.sources.length > 0 && (
+      {/* Agent turns surface sources as a chip in the AgentTimeline's
+         Deliverables strip (opens the side panel); the flat reply path keeps
+         the inline collapsible list here. */}
+      {!useRounds && m.sources && m.sources.length > 0 && (
         <details className="mt-1 animate-fade-in rounded-lg border bg-card text-xs group">
           <summary className="flex cursor-pointer list-none items-center gap-1.5 px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground">
             <ChevronRight className="size-3 transition-transform duration-200 group-open:rotate-90" />

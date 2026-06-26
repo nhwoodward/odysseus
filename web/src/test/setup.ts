@@ -29,3 +29,20 @@ Object.defineProperty(globalThis, 'IntersectionObserver', {
   configurable: true,
   value: MockIntersectionObserver,
 })
+
+// jsdom has no matchMedia; framer-motion (and reduced-motion checks) probe it.
+if (!globalThis.matchMedia) {
+  Object.defineProperty(globalThis, 'matchMedia', {
+    configurable: true,
+    value: (query: string): MediaQueryList => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }) as MediaQueryList,
+  })
+}
