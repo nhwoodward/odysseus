@@ -2,7 +2,7 @@
 // Brand marks for the connectors directory. simple-icons supplies normalized
 // 24x24 single-path SVGs + the official brand hex; Slack & Canva were removed
 // from simple-icons (trademark policy) so their last-published marks are inlined.
-import { siNotion, siLinear, siGithub, siStripe, siSentry, siAtlassian, siAsana, siHubspot, siBox, siVercel, siNeon, siCloudflare, siPaypal, siPostgresql, siBrave, siTodoist, siFigma, siAirtable, siClickup, siIntercom, siSquare, siWebflow, siWix, siPosthog, siSnowflake, siGoogledrive, siGooglemaps, siGitlab, siSqlite, siObsidian, siSpotify, siYoutube, siPuppeteer, siDiscord, siJira, siConfluence, siGooglecalendar, siGmail, siTrello, siSupabase, siMongodb, siShopify, siDatadog, siGrafana, siHuggingface, siPerplexity, siGooglesheets, siGoogledocs } from "simple-icons"
+import { siNotion, siLinear, siGithub, siStripe, siSentry, siAtlassian, siAsana, siHubspot, siBox, siVercel, siNeon, siCloudflare, siPaypal, siPostgresql, siBrave, siTodoist, siFigma, siWebflow, siWix, siIntercom, siSquare, siGooglemaps, siGitlab, siAirtable, siSupabase, siMongodb, siSqlite } from "simple-icons"
 
 export interface Brand {
   path: string
@@ -28,37 +28,16 @@ const SI: Record<string, Brand> = {
   brave: siBrave,
   todoist: siTodoist,
   figma: siFigma,
-  airtable: siAirtable,
-  clickup: siClickup,
-  intercom: siIntercom,
-  square: siSquare,
   webflow: siWebflow,
   wix: siWix,
-  posthog: siPosthog,
-  snowflake: siSnowflake,
-  googledrive: siGoogledrive,
+  intercom: siIntercom,
+  square: siSquare,
   googlemaps: siGooglemaps,
   gitlab: siGitlab,
-  sqlite: siSqlite,
-  obsidian: siObsidian,
-  spotify: siSpotify,
-  youtube: siYoutube,
-  puppeteer: siPuppeteer,
-  discord: siDiscord,
-  jira: siJira,
-  confluence: siConfluence,
-  googlecalendar: siGooglecalendar,
-  gmail: siGmail,
-  trello: siTrello,
+  airtable: siAirtable,
   supabase: siSupabase,
   mongodb: siMongodb,
-  shopify: siShopify,
-  datadog: siDatadog,
-  grafana: siGrafana,
-  huggingface: siHuggingface,
-  perplexity: siPerplexity,
-  googlesheets: siGooglesheets,
-  googledocs: siGoogledocs,
+  sqlite: siSqlite,
 }
 
 const EXTRA: Record<string, Brand> = {

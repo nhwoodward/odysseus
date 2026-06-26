@@ -205,6 +205,162 @@ CONNECTOR_CATALOG: Dict[str, Dict[str, Any]] = {
              "secret": True, "placeholder": "…"},
         ],
     },
+
+    # ── More remote MCP connectors (one-click OAuth; endpoints HTTP-probe-verified) ──
+    "figma": {
+        "name": "Figma", "category": "Design", "icon": "Palette", "brand": "figma", "featured": True,
+        "description": "Read Figma files, frames, and design context (Dev Mode).",
+        "capabilities": ["read"], "kind": "remote", "auth_type": "oauth",
+        "transport": "http", "url": "https://mcp.figma.com/mcp",
+    },
+    "webflow": {
+        "name": "Webflow", "category": "Design", "icon": "Palette", "brand": "webflow",
+        "description": "Manage Webflow sites, CMS collections, and items.",
+        "capabilities": ["read", "write"], "kind": "remote", "auth_type": "oauth",
+        "transport": "http", "url": "https://mcp.webflow.com/mcp",
+    },
+    "wix": {
+        "name": "Wix", "category": "Design", "icon": "Palette", "brand": "wix",
+        "description": "Manage Wix sites, stores, bookings, and CMS data.",
+        "capabilities": ["read", "write"], "kind": "remote", "auth_type": "oauth",
+        "transport": "http", "url": "https://mcp.wix.com/mcp",
+    },
+    "intercom": {
+        "name": "Intercom", "category": "CRM & Sales", "icon": "MessageSquare", "brand": "intercom",
+        "description": "Search Intercom conversations, contacts, and help articles.",
+        "capabilities": ["read", "write"], "kind": "remote", "auth_type": "oauth",
+        "transport": "http", "url": "https://mcp.intercom.com/mcp",
+    },
+    "square": {
+        "name": "Square", "category": "Payments", "icon": "CreditCard", "brand": "square",
+        "description": "Look up Square payments, orders, customers, and catalog.",
+        "capabilities": ["read", "write"], "kind": "remote", "auth_type": "oauth",
+        "transport": "http", "url": "https://mcp.squareup.com/mcp",
+    },
+    "monday": {
+        "name": "monday.com", "category": "Productivity", "icon": "ListChecks",
+        "description": "Manage monday.com boards, items, and updates.",
+        "capabilities": ["read", "write"], "kind": "remote", "auth_type": "oauth",
+        "transport": "http", "url": "https://mcp.monday.com/mcp",
+    },
+    "context7": {
+        "name": "Context7", "category": "Developer", "icon": "FileText",
+        "description": "Pull up-to-date, version-specific docs for libraries and frameworks.",
+        "capabilities": ["read"], "kind": "remote", "auth_type": "none",
+        "transport": "http", "url": "https://mcp.context7.com/mcp",
+    },
+
+    # ── More local (stdio / npx) connectors (npm packages verified) ───────────
+    "google_maps": {
+        "name": "Google Maps", "category": "Search", "icon": "Globe", "brand": "googlemaps",
+        "description": "Geocode, search places, and get directions via Google Maps.",
+        "capabilities": ["read"], "kind": "local", "auth_type": "api_key",
+        "transport": "stdio", "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-google-maps"],
+        "env": {"GOOGLE_MAPS_API_KEY": ""},
+        "help": "Create an API key in the Google Cloud console (Maps Platform) and paste it below.",
+        "fields": [
+            {"key": "GOOGLE_MAPS_API_KEY", "label": "Google Maps API key", "help": "Google Cloud → Maps Platform",
+             "secret": True, "placeholder": "AIza…"},
+        ],
+    },
+    "gitlab": {
+        "name": "GitLab", "category": "Developer", "icon": "Code", "brand": "gitlab",
+        "description": "Browse GitLab projects, issues, and merge requests.",
+        "capabilities": ["read", "write"], "kind": "local", "auth_type": "api_key",
+        "transport": "stdio", "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-gitlab"],
+        "env": {"GITLAB_PERSONAL_ACCESS_TOKEN": "", "GITLAB_API_URL": "https://gitlab.com/api/v4"},
+        "help": "GitLab → Settings → Access Tokens → create a token with the `api` scope.",
+        "fields": [
+            {"key": "GITLAB_PERSONAL_ACCESS_TOKEN", "label": "Personal access token", "help": "Scope: api",
+             "secret": True, "placeholder": "glpat-…"},
+        ],
+    },
+    "airtable": {
+        "name": "Airtable", "category": "Data", "icon": "Database", "brand": "airtable",
+        "description": "Read and write Airtable bases, tables, and records.",
+        "capabilities": ["read", "write"], "kind": "local", "auth_type": "api_key",
+        "transport": "stdio", "command": "npx", "args": ["-y", "airtable-mcp-server"],
+        "env": {"AIRTABLE_API_KEY": ""},
+        "help": "Create a personal access token at airtable.com/create/tokens.",
+        "fields": [
+            {"key": "AIRTABLE_API_KEY", "label": "Airtable token", "help": "From airtable.com/create/tokens",
+             "secret": True, "placeholder": "pat…"},
+        ],
+    },
+    "supabase": {
+        "name": "Supabase", "category": "Data", "icon": "Database", "brand": "supabase",
+        "description": "Manage Supabase projects and tables, and run SQL.",
+        "capabilities": ["read", "write"], "kind": "local", "auth_type": "api_key",
+        "transport": "stdio", "command": "npx",
+        "args": ["-y", "@supabase/mcp-server-supabase@latest"],
+        "env": {"SUPABASE_ACCESS_TOKEN": ""},
+        "help": "Create a personal access token at supabase.com/dashboard/account/tokens.",
+        "fields": [
+            {"key": "SUPABASE_ACCESS_TOKEN", "label": "Access token", "help": "Supabase → account tokens",
+             "secret": True, "placeholder": "sbp_…"},
+        ],
+    },
+    "mongodb": {
+        "name": "MongoDB", "category": "Data", "icon": "Database", "brand": "mongodb",
+        "description": "Query and manage MongoDB databases and collections.",
+        "capabilities": ["read", "write"], "kind": "local", "auth_type": "api_key",
+        "transport": "stdio", "command": "npx", "args": ["-y", "mongodb-mcp-server"],
+        "env": {"MDB_MCP_CONNECTION_STRING": ""},
+        "help": "Paste your MongoDB connection string (Atlas or self-hosted).",
+        "fields": [
+            {"key": "MDB_MCP_CONNECTION_STRING", "label": "Connection string", "help": "mongodb+srv://…",
+             "secret": True, "placeholder": "mongodb+srv://…"},
+        ],
+    },
+    "sqlite": {
+        "name": "SQLite", "category": "Data", "icon": "Database", "brand": "sqlite",
+        "description": "Query a local SQLite database file.",
+        "capabilities": ["read"], "kind": "local", "auth_type": "none",
+        "transport": "stdio", "command": "npx", "args": ["-y", "mcp-server-sqlite-npx", ""], "env": {},
+        "help": "Enter the absolute path to your `.db` / `.sqlite` file.",
+        "fields": [
+            {"key": "__arg2", "label": "Database file", "help": "Absolute path to the SQLite file",
+             "secret": False, "placeholder": "/data/app.db"},
+        ],
+    },
+    "exa": {
+        "name": "Exa Search", "category": "Search", "icon": "Search",
+        "description": "Neural web search and content retrieval via Exa.",
+        "capabilities": ["read"], "kind": "local", "auth_type": "api_key",
+        "transport": "stdio", "command": "npx", "args": ["-y", "exa-mcp-server"],
+        "env": {"EXA_API_KEY": ""},
+        "help": "Get an API key at dashboard.exa.ai.",
+        "fields": [
+            {"key": "EXA_API_KEY", "label": "Exa API key", "help": "From dashboard.exa.ai",
+             "secret": True, "placeholder": "…"},
+        ],
+    },
+    "tavily": {
+        "name": "Tavily", "category": "Search", "icon": "Search",
+        "description": "Real-time web search built for AI agents.",
+        "capabilities": ["read"], "kind": "local", "auth_type": "api_key",
+        "transport": "stdio", "command": "npx", "args": ["-y", "tavily-mcp"],
+        "env": {"TAVILY_API_KEY": ""},
+        "help": "Get an API key at app.tavily.com.",
+        "fields": [
+            {"key": "TAVILY_API_KEY", "label": "Tavily API key", "help": "From app.tavily.com",
+             "secret": True, "placeholder": "tvly-…"},
+        ],
+    },
+    "firecrawl": {
+        "name": "Firecrawl", "category": "Search", "icon": "Globe",
+        "description": "Scrape, crawl, and extract structured data from websites.",
+        "capabilities": ["read"], "kind": "local", "auth_type": "api_key",
+        "transport": "stdio", "command": "npx", "args": ["-y", "firecrawl-mcp"],
+        "env": {"FIRECRAWL_API_KEY": ""},
+        "help": "Get an API key at firecrawl.dev.",
+        "fields": [
+            {"key": "FIRECRAWL_API_KEY", "label": "Firecrawl API key", "help": "From firecrawl.dev",
+             "secret": True, "placeholder": "fc-…"},
+        ],
+    },
 }
 
 # Ordered categories for the gallery UI.
