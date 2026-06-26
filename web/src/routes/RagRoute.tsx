@@ -1,5 +1,6 @@
 import { useRef, useState } from "react"
 import { Database, Upload, Trash2, FileText, RefreshCw, Cpu, Download, Check, Plug } from "lucide-react"
+import { EmptyState } from "@/components/ui/empty-state"
 import {
   useRagStats, useRagDocuments, useEmbeddingModels, useEmbeddingEndpoint, useRagMutations,
   type RagFile, type EmbeddingModel,
@@ -113,7 +114,7 @@ function DocumentsSection() {
       <div className="mt-2">
         {isLoading ? <p className="text-sm text-muted-foreground">Loading documents…</p>
           : !data?.ok ? <p className="rounded-lg border bg-card p-3 text-sm text-muted-foreground">Document list unavailable (admin only).</p>
-          : files.length === 0 ? <p className="rounded-lg border bg-card p-3 text-sm text-muted-foreground">No documents indexed yet.</p>
+          : files.length === 0 ? <EmptyState icon={FileText} title="No documents indexed yet" description="Upload documents to make them searchable by the assistant." />
           : <div className="divide-y rounded-lg border bg-card">{files.map((f) => <DocRow key={f.path || f.name} doc={f} />)}</div>}
         {dirs.length > 0 && (
           <div className="mt-2 text-xs text-muted-foreground">Indexed directories: {dirs.join(", ")}</div>

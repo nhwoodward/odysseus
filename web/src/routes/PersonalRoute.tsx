@@ -2,6 +2,7 @@ import { useRef, useState } from "react"
 import {
   FolderOpen, FileText, Upload, RefreshCw, Trash2, Plus, ChevronRight, Folder, CornerLeftUp, FolderInput,
 } from "lucide-react"
+import { EmptyState } from "@/components/ui/empty-state"
 import {
   usePersonalIndex, usePersonalMutations, useWorkspaceBrowse,
   type BrowseDir,
@@ -193,7 +194,7 @@ export function PersonalRoute() {
             <FileText className="size-3.5" />Indexed files <span className="normal-case text-muted-foreground/70">· {files.length}</span>
           </h2>
           {isLoading ? <p className="text-sm text-muted-foreground">Loading…</p>
-            : files.length === 0 ? <p className="rounded-lg border bg-card p-3 text-sm text-muted-foreground">No personal files indexed yet.</p>
+            : files.length === 0 ? <EmptyState icon={FileText} title="No personal files indexed yet" description="Upload files here to give the assistant your personal context." />
             : (
               <div className="divide-y rounded-lg border bg-card">
                 {files.map((f) => (

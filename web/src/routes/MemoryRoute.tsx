@@ -15,6 +15,7 @@ import {
   Upload,
   X,
 } from "lucide-react"
+import { EmptyState } from "@/components/ui/empty-state"
 import { useMemory, useMemoryMutations, type MemoryImportSuggestion } from "@/api/memory"
 import { usePrefs, useSetPref } from "@/api/prefs"
 import { useSessions } from "@/api/sessions"
@@ -493,7 +494,13 @@ export function MemoryRoute() {
               </div>
             )
           })}
-          {list.length === 0 && <p className="py-8 text-center text-sm text-muted-foreground">{q.trim() || filter ? "No matches." : "No memories yet."}</p>}
+          {list.length === 0 && (
+            <EmptyState
+              icon={Sparkles}
+              title={q.trim() || filter ? "No matches" : "No memories yet"}
+              description={q.trim() || filter ? "Try a different search or filter." : "Memories the assistant saves about you will appear here."}
+            />
+          )}
         </div>
       </div>
     </div>
