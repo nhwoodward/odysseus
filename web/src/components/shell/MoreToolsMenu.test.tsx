@@ -4,7 +4,7 @@ import { MemoryRouter } from "react-router-dom"
 import { Calendar, Mail } from "lucide-react"
 import { MoreToolsMenu } from "./MoreToolsMenu"
 
-afterEach(cleanup)
+afterEach(() => { cleanup(); window.localStorage.clear() })
 
 const items = [
   { to: "/calendar", icon: Calendar, label: "Calendar" },
@@ -12,7 +12,7 @@ const items = [
 ]
 
 describe("MoreToolsMenu", () => {
-  it("opens a flyout of tools and pins one to the sidebar", () => {
+  it("row variant toggles an inline child menu and pins a tool to the sidebar", () => {
     const onTogglePin = vi.fn()
     render(<MemoryRouter><MoreToolsMenu items={items} onTogglePin={onTogglePin} /></MemoryRouter>)
     const trigger = screen.getByRole("button", { name: /more tools/i })
@@ -25,21 +25,21 @@ describe("MoreToolsMenu", () => {
     expect(onTogglePin).toHaveBeenCalledWith("/email")
   })
 
-  it("closes on Escape", () => {
-    render(<MemoryRouter><MoreToolsMenu items={items} onTogglePin={() => {}} /></MemoryRouter>)
+  it("icon variant opens a popover and closes on Escape", () => {
+    render(<MemoryRouter><MoreToolsMenu variant="icon" items={items} onTogglePin={() => {}} /></MemoryRouter>)
+    expect(screen.queryByRole("link", { name: "Calendar" })).toBeNull()
     fireEvent.click(screen.getByRole("button", { name: /more tools/i }))
     expect(screen.getByRole("link", { name: "Calendar" })).toBeInTheDocument()
     fireEvent.keyDown(document, { key: "Escape" })
     expect(screen.queryByRole("link", { name: "Calendar" })).toBeNull()
   })
 
-  it("surfaces a reminder badge for a tool inside the menu", () => {
+  it("surfaces a reminder badge on the collapsed trigger", () => {
     render(
       <MemoryRouter>
         <MoreToolsMenu items={items} onTogglePin={() => {}} reminderTos={new Set(["/email"])} reminderText="3" />
       </MemoryRouter>,
     )
-    // the trigger shows the bubbled-up reminder text while collapsed
     expect(screen.getByText("3")).toBeInTheDocument()
   })
 })
