@@ -698,7 +698,7 @@ function PdfFieldOverlay({
     const sigId = typeof value === "string" && value.startsWith("signature:") ? value.slice("signature:".length) : ""
     const sig = signatureById.get(sigId)
     return (
-      <button type="button" title={field.label || field.name} onClick={onPickSignature} className="absolute flex items-center justify-center overflow-hidden border border-dashed border-primary/70 bg-primary/10 text-[10px] text-primary" style={style}>
+      <button type="button" title={field.label || field.name} onClick={onPickSignature} className="absolute flex items-center justify-center overflow-hidden border border-dashed border-primary/70 bg-primary/10 text-micro text-primary" style={style}>
         {sig ? <img src={sig.data_url} alt="" className="h-full w-full object-contain" /> : "Sign here"}
       </button>
     )
@@ -708,7 +708,7 @@ function PdfFieldOverlay({
   }
   if (field.type === "choice" && field.options?.length) {
     return (
-      <select value={String(value || "")} onChange={(e) => onChange(field, e.target.value)} className="absolute border border-primary/60 bg-white/90 px-1 text-[10px] text-black outline-none" style={style} title={field.label || field.name}>
+      <select value={String(value || "")} onChange={(e) => onChange(field, e.target.value)} className="absolute border border-primary/60 bg-white/90 px-1 text-micro text-black outline-none" style={style} title={field.label || field.name}>
         <option value="">-</option>
         {field.options.map((option) => <option key={option} value={option}>{option}</option>)}
       </select>
@@ -718,7 +718,7 @@ function PdfFieldOverlay({
     <input
       value={String(value || "")}
       onChange={(e) => onChange(field, e.target.value)}
-      className="absolute border border-primary/60 bg-white/90 px-1 text-[11px] text-black outline-none"
+      className="absolute border border-primary/60 bg-white/90 px-1 text-label text-black outline-none"
       style={style}
       title={field.label || field.name}
     />
@@ -805,7 +805,7 @@ function PdfAnnotationOverlay({
     return (
       <div className="absolute group" style={style}>
         {controls}
-        <button type="button" onClick={onPickSignature} className="flex h-full w-full items-center justify-center border border-dashed border-primary/70 bg-primary/10 text-[10px] text-primary">
+        <button type="button" onClick={onPickSignature} className="flex h-full w-full items-center justify-center border border-dashed border-primary/70 bg-primary/10 text-micro text-primary">
           {sig ? <img src={sig.data_url} alt="" className="h-full w-full object-contain" /> : <span>Sign here</span>}
         </button>
       </div>
@@ -818,7 +818,7 @@ function PdfAnnotationOverlay({
         value={annotation.value}
         onChange={(e) => onChange(annotation.id, { value: e.target.value })}
         placeholder="Type"
-        className="h-full w-full resize-none border border-dashed border-primary/70 bg-primary/10 px-1 py-0.5 text-[11px] leading-tight text-black outline-none"
+        className="h-full w-full resize-none border border-dashed border-primary/70 bg-primary/10 px-1 py-0.5 text-label leading-tight text-black outline-none"
       />
     </div>
   )

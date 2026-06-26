@@ -29,7 +29,7 @@ function Attachments({ items }: { items: ChatAttachment[] }) {
       if (image && a.id) return <ImageAttachment key={a.id || i} attachment={a} />
       return <a key={a.id || i} href={a.id ? `/api/upload/${a.id}` : undefined} download={a.name} className="flex max-w-72 items-center gap-2 rounded-xl border bg-card px-3 py-2 text-left hover:bg-accent">
         <File className="size-4 shrink-0 text-muted-foreground" />
-        <span className="min-w-0"><span className="block truncate text-sm">{a.name}</span>{a.size != null && <span className="block text-[11px] text-muted-foreground">{formatSize(a.size)}</span>}</span>
+        <span className="min-w-0"><span className="block truncate text-sm">{a.name}</span>{a.size != null && <span className="block text-label text-muted-foreground">{formatSize(a.size)}</span>}</span>
       </a>
     })}
   </div>
@@ -55,7 +55,7 @@ function ImageAttachment({ attachment }: { attachment: ChatAttachment }) {
   return <div className="overflow-hidden rounded-xl border bg-card text-left">
     <button onClick={() => window.open(`/api/upload/${attachment.id}`, "_blank")} className="block"><img src={attachment.previewUrl || `/api/upload/${attachment.id}?thumb=1`} alt={attachment.name} className="max-h-48 max-w-72 object-contain" /></button>
     <div className="flex max-w-72 items-center gap-2 px-2.5 py-1.5"><span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{attachment.name}</span><button onClick={open ? () => setOpen(false) : load} title="Review image description / OCR" className="text-muted-foreground hover:text-foreground"><ScanText className="size-3.5" /></button></div>
-    {open && <div className="space-y-1.5 border-t p-2"><textarea value={text} onChange={(event) => setText(event.target.value)} rows={4} placeholder={loading ? "Analyzing image…" : "Image description or OCR text"} className="w-64 resize-y rounded-md border bg-background p-2 text-xs outline-none focus-visible:border-ring" /><div className="flex justify-end"><button onClick={save} disabled={loading} className="rounded-md border px-2 py-1 text-[11px] hover:bg-accent disabled:opacity-50">{saved ? "Saved" : "Save text"}</button></div></div>}
+    {open && <div className="space-y-1.5 border-t p-2"><textarea value={text} onChange={(event) => setText(event.target.value)} rows={4} placeholder={loading ? "Analyzing image…" : "Image description or OCR text"} className="w-64 resize-y rounded-md border bg-background p-2 text-xs outline-none focus-visible:border-ring" /><div className="flex justify-end"><button onClick={save} disabled={loading} className="rounded-md border px-2 py-1 text-label hover:bg-accent disabled:opacity-50">{saved ? "Saved" : "Save text"}</button></div></div>}
   </div>
 }
 
@@ -177,7 +177,7 @@ function ThinkingBar({ m, hasBody, doc, hasReasoning, hasResearch, hasTools }: {
     <div className="flex animate-fade-in items-center gap-2.5 pt-0.5 text-sm text-muted-foreground">
       <Mascot size={9} title="Working" />
       {showLabel && <span className="shimmer-text">{stalled ? "Still working…" : "Thinking…"}</span>}
-      {elapsed && <span className="text-[11px] tabular-nums text-muted-foreground/70">{elapsed}</span>}
+      {elapsed && <span className="text-label tabular-nums text-muted-foreground/70">{elapsed}</span>}
     </div>
   )
 }
@@ -218,7 +218,7 @@ function MessageEditor({ initial, assistant = false, onSubmit, onCancel }: { ini
           if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); save() }
           if (e.key === "Escape") { e.preventDefault(); onCancel?.() }
         }}
-        className={cn("max-h-[300px] w-full resize-none rounded-2xl border px-4 py-2.5 text-[15px] outline-none focus:border-ring focus:ring-[3px] focus:ring-ring/35", assistant ? "bg-background" : "max-w-[600px] bg-secondary")}
+        className={cn("max-h-[300px] w-full resize-none rounded-2xl border px-4 py-2.5 text-subhead outline-none focus:border-ring focus:ring-[3px] focus:ring-ring/35", assistant ? "bg-background" : "max-w-[600px] bg-secondary")}
       />
       <div className={cn("flex items-center gap-2 text-xs", assistant ? "justify-end" : "")}>
         <button onClick={onCancel} className="rounded-md px-2.5 py-1 text-muted-foreground hover:bg-accent hover:text-foreground">Cancel</button>
@@ -265,8 +265,8 @@ export function Message({ m, onRegenerate, onEdit, onDelete, onFork, onRewrite, 
     return (
       <div className="group flex flex-col items-end gap-2 animate-msg-in">
         {!!m.attachments?.length && <Attachments items={m.attachments} />}
-        {m.content && <div className="max-w-[75%] whitespace-pre-wrap rounded-2xl bg-secondary px-4 py-2.5 text-[15px]">{m.content}</div>}
-        <div className="mt-0.5 flex items-center gap-0.5 text-[11px] opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100">
+        {m.content && <div className="max-w-[75%] whitespace-pre-wrap rounded-2xl bg-secondary px-4 py-2.5 text-subhead">{m.content}</div>}
+        <div className="mt-0.5 flex items-center gap-0.5 text-label opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100">
           <CopyButton text={m.content} />
           {onEdit && <button onClick={onEdit} title="Edit & resend" className={actionBtn}><Pencil className="size-3.5" /></button>}
           <MessageActions assistant={false} onDelete={onDelete} onFork={onFork} />
@@ -362,7 +362,7 @@ export function Message({ m, onRegenerate, onEdit, onDelete, onFork, onRewrite, 
         <ThinkingBar m={m} hasBody={hasBody} doc={!!doc} hasReasoning={!!m.reasoning} hasResearch={!!m.research} hasTools={!!m.tools?.length} />
       )}
       {!m.streaming && (m.model || mt || m.content) && (
-        <div className="flex flex-wrap items-center gap-2 pt-0.5 text-[11px] text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-2 pt-0.5 text-label text-muted-foreground">
           {bodyText && <CopyButton text={bodyText} />}
           {(bodyText || doc) && onRegenerate && <button onClick={onRegenerate} title="Regenerate" className={actionBtn}><RotateCcw className="size-3.5" /></button>}
           {bodyText && <SpeakButton text={bodyText} />}

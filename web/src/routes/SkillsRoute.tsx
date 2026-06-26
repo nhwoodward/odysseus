@@ -4,11 +4,12 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { useSkills, useBuiltinSkills, useSkillMarkdown, useSkillMutations, useRunSkill, useStartSkillTest, useSkillTestStatus, useBuiltinSkill, useAuditAllStatus, useCancelAuditAll } from "@/api/skills"
 import type { SkillVerdict, SkillRow, AuditResult } from "@/api/skills"
 import { Button } from "@/components/ui/button"
+import { inputClass } from "@/components/ui/input"
 import { Dialog } from "@/components/ui/dialog"
 import { Markdown } from "@/components/chat/Markdown"
 import { cn } from "@/lib/utils"
 
-const inp = "h-9 w-full rounded-md border bg-background px-3 text-sm outline-none focus-visible:border-ring"
+const inp = inputClass
 const ctrl = "h-9 rounded-md border bg-background px-2 text-sm outline-none focus-visible:border-ring"
 
 type SortKey = "confidence" | "uses" | "az" | "recent"
@@ -45,7 +46,7 @@ function VerdictBadge({ verdict }: { verdict: SkillVerdict }) {
   const v = VERDICT_STYLE[verdict.verdict] || VERDICT_STYLE.unknown
   const { Icon } = v
   return (
-    <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium", v.cls)}>
+    <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-label font-medium", v.cls)}>
       <Icon className="size-3.5" />{v.label}
       {verdict.confidence != null && <span className="opacity-70">{Math.round(verdict.confidence * 100)}%</span>}
     </span>
@@ -121,7 +122,7 @@ function TestPanel({ id, name, onClose }: { id: string; name: string; onClose: (
           </ul>
         )}
         {(running || log.length > 0) && (
-          <div className="mt-3 min-h-0 flex-1 overflow-y-auto rounded-md border bg-card p-3 font-mono text-[11px] leading-relaxed">
+          <div className="mt-3 min-h-0 flex-1 overflow-y-auto rounded-md border bg-card p-3 font-mono text-label leading-relaxed">
             {log.map((e, i) => {
               if (e.type === "say" && e.text) return <p key={i} className="whitespace-pre-wrap">{e.text}</p>
               if (e.type === "tool_start") return <p key={i} className="text-muted-foreground">[{e.tool}] {e.command}</p>
@@ -278,7 +279,7 @@ function AuditAllPanel({ onClose }: { onClose: () => void }) {
         <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
           {running ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
           Audit all
-          {data?.model && <span className="text-[11px] font-normal text-muted-foreground">· {data.model}{data.teacher ? ` + ${data.teacher}` : ""}</span>}
+          {data?.model && <span className="text-label font-normal text-muted-foreground">· {data.model}{data.teacher ? ` + ${data.teacher}` : ""}</span>}
         </div>
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
           <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
@@ -296,8 +297,8 @@ function AuditAllPanel({ onClose }: { onClose: () => void }) {
               <div key={i} className="flex items-center justify-between gap-2">
                 <span className="truncate font-medium">{r.skill}</span>
                 <span className="flex shrink-0 items-center gap-1.5">
-                  {r.skill_state?.status && <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] capitalize", r.skill_state.status === "published" ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-muted text-muted-foreground")}>{r.skill_state.status}</span>}
-                  <span className={cn("rounded-full px-1.5 py-0.5 text-[10px]", AUDIT_RESULT_STYLE[r.result] || "bg-muted text-muted-foreground")}>{r.result.replace(/_/g, " ")}</span>
+                  {r.skill_state?.status && <span className={cn("rounded-full px-1.5 py-0.5 text-micro capitalize", r.skill_state.status === "published" ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-muted text-muted-foreground")}>{r.skill_state.status}</span>}
+                  <span className={cn("rounded-full px-1.5 py-0.5 text-micro", AUDIT_RESULT_STYLE[r.result] || "bg-muted text-muted-foreground")}>{r.result.replace(/_/g, " ")}</span>
                 </span>
               </div>
             ))}
@@ -443,9 +444,9 @@ export function SkillsRoute() {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-sm font-medium">{s.name}</span>
-                    {s.status && <span className={cn("rounded-full px-2 py-0.5 text-[10px] capitalize", published ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-muted text-muted-foreground")}>{s.status}</span>}
-                    {s.confidence != null && <span className="text-[10px] text-muted-foreground">{Math.round(s.confidence * 100)}%</span>}
-                    {s.uses != null && s.uses > 0 && <span className="text-[10px] text-muted-foreground">· {s.uses} use{s.uses === 1 ? "" : "s"}</span>}
+                    {s.status && <span className={cn("rounded-full px-2 py-0.5 text-micro capitalize", published ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-muted text-muted-foreground")}>{s.status}</span>}
+                    {s.confidence != null && <span className="text-micro text-muted-foreground">{Math.round(s.confidence * 100)}%</span>}
+                    {s.uses != null && s.uses > 0 && <span className="text-micro text-muted-foreground">· {s.uses} use{s.uses === 1 ? "" : "s"}</span>}
                   </div>
                   {s.description && <p className="mt-0.5 text-xs text-muted-foreground">{s.description}</p>}
                 </div>
@@ -473,7 +474,7 @@ export function SkillsRoute() {
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium">{b.name}</span>
-                    {b.is_overridden && <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] text-amber-600 dark:text-amber-400">overridden</span>}
+                    {b.is_overridden && <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-micro text-amber-600 dark:text-amber-400">overridden</span>}
                   </div>
                   <button onClick={() => setBuiltinTarget(b.name)} title="Override" className="text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"><Pencil className="size-4" /></button>
                 </div>

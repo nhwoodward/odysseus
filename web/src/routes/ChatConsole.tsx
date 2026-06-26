@@ -183,12 +183,12 @@ export function ChatConsole() {
           <span className="flex min-w-0 items-center gap-2">
             <span className="truncate">{incognito ? "Incognito chat" : (title || "New chat")}</span>
             {incognito && (
-              <span className="inline-flex shrink-0 items-center gap-1 rounded-full border bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full border bg-muted px-2 py-0.5 text-label font-medium text-muted-foreground">
                 <EyeOff className="size-3" /> Not saved
               </span>
             )}
             {persistentPersonaName && !incognito && (
-              <span className="inline-flex max-w-40 shrink-0 items-center gap-1 rounded-full border bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+              <span className="inline-flex max-w-40 shrink-0 items-center gap-1 rounded-full border bg-muted px-2 py-0.5 text-label font-medium text-muted-foreground">
                 <Users className="size-3" />
                 <span className="truncate">{persistentPersonaName}</span>
               </span>

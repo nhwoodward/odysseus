@@ -162,7 +162,7 @@ export function SystemLogsSection() {
           <span className="text-sm">app.log {on && <span className="text-muted-foreground">· live{isFetching ? "…" : ""}</span>}</span>
           <Button size="sm" variant="outline" onClick={() => setOn((o) => !o)}>{on ? "Stop" : <><Loader2 className={cn("size-4", isFetching && on && "animate-spin")} />Load logs</>}</Button>
         </div>
-        {on && <pre className="mt-2 max-h-80 overflow-auto rounded bg-muted p-2 font-mono text-[11px] leading-relaxed">{(logs || []).join("\n") || "…"}</pre>}
+        {on && <pre className="mt-2 max-h-80 overflow-auto rounded bg-muted p-2 font-mono text-label leading-relaxed">{(logs || []).join("\n") || "…"}</pre>}
       </div>
     </section>
   )

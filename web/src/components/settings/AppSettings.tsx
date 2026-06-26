@@ -227,7 +227,7 @@ export function AgentToolsSettings() {
           <input value={toolSearch} onChange={(e) => setToolSearch(e.target.value)} placeholder="Search tools…" className={tokInp} />
           <div className="max-h-96 divide-y overflow-y-auto rounded-lg border">
             {visibleTools.map((tool) => <label key={tool.id} className="flex items-center justify-between gap-3 px-3 py-2.5">
-              <span className="min-w-0"><span className="block truncate text-sm font-medium">{tool.id.replaceAll("_", " ")}</span><code className="text-[11px] text-muted-foreground">{tool.id}</code></span>
+              <span className="min-w-0"><span className="block truncate text-sm font-medium">{tool.id.replaceAll("_", " ")}</span><code className="text-label text-muted-foreground">{tool.id}</code></span>
               <input type="checkbox" checked={tool.enabled} disabled={saveTools.isPending} onChange={(e) => toggleTool(tool.id, e.target.checked)} aria-label={`Enable ${tool.id}`} />
             </label>)}
             {!isLoading && visibleTools.length === 0 && <p className="p-4 text-center text-sm text-muted-foreground">No matching tools.</p>}
@@ -478,7 +478,7 @@ export function KeybindsSection() {
         {Object.keys(DEFAULT_KEYBINDS).map((action) => (
           <FieldRow key={action} label={KEYBIND_LABELS[action] || action}>
             <div className="w-full"><input value={kb[action]} readOnly onKeyDown={(event) => capture(event, action)} onFocus={(event) => event.currentTarget.select()} placeholder="Press a shortcut" title="Focus, then press the desired key combination" className={cn("h-9 w-full rounded-md border bg-background px-3 font-mono text-sm outline-none focus-visible:border-ring", (conflicts[kb[action]]?.length || 0) > 1 && "border-destructive")} />
-              {(conflicts[kb[action]]?.length || 0) > 1 && <p className="mt-1 text-[11px] text-destructive">Also used by {conflicts[kb[action]].filter((item) => item !== action).map((item) => KEYBIND_LABELS[item] || item).join(", ")}</p>}
+              {(conflicts[kb[action]]?.length || 0) > 1 && <p className="mt-1 text-label text-destructive">Also used by {conflicts[kb[action]].filter((item) => item !== action).map((item) => KEYBIND_LABELS[item] || item).join(", ")}</p>}
             </div>
           </FieldRow>
         ))}

@@ -10,6 +10,7 @@ import type { LucideIcon } from "lucide-react"
 import { useConnectorCatalog, useConnections, useConnectorMutations, useConnectorTools } from "@/api/connectors"
 import type { CatalogEntry, Connection } from "@/api/connectors"
 import { Switch } from "@/components/ui/switch"
+import { inputClass } from "@/components/ui/input"
 import { Markdown } from "@/components/chat/Markdown"
 import { cn } from "@/lib/utils"
 
@@ -21,7 +22,7 @@ function CapBadges({ caps }: { caps: string[] }) {
   return (
     <>
       {caps.map((c) => (
-        <span key={c} className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium capitalize text-muted-foreground">{c}</span>
+        <span key={c} className="rounded-full bg-muted px-1.5 py-0.5 text-micro font-medium capitalize text-muted-foreground">{c}</span>
       ))}
     </>
   )
@@ -34,7 +35,7 @@ function statusChip(status: string, needsAuth: boolean) {
   return { cls: "bg-muted text-muted-foreground", label: "Connecting…" }
 }
 
-const inp = "h-9 w-full rounded-md border bg-background px-3 text-sm outline-none focus-visible:border-ring"
+const inp = inputClass
 
 // A connected (or connecting) source the user owns. Expands to per-tool
 // enable/disable switches (parity with the legacy/settings MCP tool toggles).
@@ -69,7 +70,7 @@ function ConnectionRow({ c, onDisconnect }: { c: Connection; onDisconnect: (id: 
             <ExternalLink className="size-3.5" />Authorize
           </a>
         )}
-        <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium", chip.cls)}>{chip.label}</span>
+        <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-label font-medium", chip.cls)}>{chip.label}</span>
         <button onClick={() => onDisconnect(c.id)} title="Disconnect" className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-destructive">
           <Trash2 className="size-4" />
         </button>
@@ -138,7 +139,7 @@ function CatalogCard({ entry, connectedCount, onConnected, isAdmin, onSetAvailab
       </div>
       <div className="mt-2.5 flex items-center gap-1.5">
         <CapBadges caps={entry.capabilities} />
-        {entry.kind === "local" && <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">local</span>}
+        {entry.kind === "local" && <span className="rounded-full bg-muted px-1.5 py-0.5 text-micro text-muted-foreground">local</span>}
         <button
           onClick={onClickConnect}
           disabled={connect.isPending}
@@ -162,7 +163,7 @@ function CatalogCard({ entry, connectedCount, onConnected, isAdmin, onSetAvailab
                 onChange={(e) => setVals((v) => ({ ...v, [f.key]: e.target.value }))}
                 className={inp}
               />
-              {f.help && <span className="mt-0.5 block text-[11px] text-muted-foreground">{f.help}</span>}
+              {f.help && <span className="mt-0.5 block text-label text-muted-foreground">{f.help}</span>}
             </label>
           ))}
           {err && <p className="text-xs text-destructive">{err}</p>}
@@ -175,7 +176,7 @@ function CatalogCard({ entry, connectedCount, onConnected, isAdmin, onSetAvailab
       {err && !open && <p className="mt-2 text-xs text-destructive">{err}</p>}
       {isAdmin && (
         <div className="mt-2.5 flex items-center justify-between gap-2 border-t pt-2.5">
-          <span className="text-[11px] text-muted-foreground">Available to users</span>
+          <span className="text-label text-muted-foreground">Available to users</span>
           <Switch checked={entry.available !== false} onCheckedChange={(v) => onSetAvailable?.(v)} />
         </div>
       )}

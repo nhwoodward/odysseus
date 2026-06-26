@@ -1780,7 +1780,7 @@ function EmailListRowMenu({
               <ExternalLink className="size-3.5 text-muted-foreground" />
               <span>Open in new tab</span>
             </button>
-            <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Remind to reply</div>
+            <div className="px-3 py-1 text-micro font-semibold uppercase tracking-wider text-muted-foreground">Remind to reply</div>
             <button type="button" disabled={disabled} onClick={() => pick("remind-later")} className={itemClass}>
               <BellPlus className="size-3.5 text-muted-foreground" />
               <span>Later today</span>
@@ -2020,7 +2020,7 @@ function ScheduledEmailList({
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="truncate text-sm font-medium">{subject}</div>
-                  <span className={cn("rounded border px-1.5 py-0.5 text-[10px] uppercase", failed ? "border-destructive/40 text-destructive" : "text-muted-foreground")}>
+                  <span className={cn("rounded border px-1.5 py-0.5 text-micro uppercase", failed ? "border-destructive/40 text-destructive" : "text-muted-foreground")}>
                     {failed ? "Failed" : "Pending"}
                   </span>
                 </div>

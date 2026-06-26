@@ -274,7 +274,7 @@ function Editor({ id, onBack, onOpen }: { id: string; onBack: () => void; onOpen
                 <button type="button" onClick={() => previewOldVersion(version.version_number, version.content || "")} className="min-w-0 flex-1 text-left">
                   <div className="flex items-center gap-2">
                     <span className="font-medium">v{version.version_number}</span>
-                    {index === 0 && <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">latest</span>}
+                    {index === 0 && <span className="rounded-full bg-muted px-1.5 py-0.5 text-micro text-muted-foreground">latest</span>}
                     {version.source && index !== 0 && <span className="text-xs text-muted-foreground">{version.source}</span>}
                   </div>
                   <div className="truncate text-xs text-muted-foreground">{version.summary || formatTime(version.created_at)}</div>
@@ -399,7 +399,7 @@ function DocumentRow({
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 items-center gap-2">
           <span className="truncate text-sm font-medium">{doc.title || doc.name || "Untitled"}</span>
-          <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">v{doc.version_count || 1}</span>
+          <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-micro text-muted-foreground">v{doc.version_count || 1}</span>
         </div>
         <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
           {doc.session_name && <span className="max-w-48 truncate">{doc.session_name}</span>}

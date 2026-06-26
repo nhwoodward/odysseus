@@ -618,14 +618,14 @@ function Pane({
               <span
                 title={grade === "pass" ? "Response contains the expected answer" : "Expected answer not found in response"}
                 className={cn(
-                  "inline-flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold",
+                  "inline-flex size-5 shrink-0 items-center justify-center rounded-full text-micro font-semibold",
                   grade === "pass" ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-destructive/15 text-destructive",
                 )}
               >
                 {grade === "pass" ? <Check className="size-3" /> : <X className="size-3" />}
               </span>
             )}
-            {fastest && <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary"><Zap className="size-3" />Fastest</span>}
+            {fastest && <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-micro font-semibold uppercase tracking-wider text-primary"><Zap className="size-3" />Fastest</span>}
           </div>
           <div className="truncate text-xs text-muted-foreground" title={model}>{model}</div>
         </div>
@@ -657,7 +657,7 @@ function Pane({
         ) : body ? <Markdown>{body}</Markdown> : err ? <span className="text-sm text-destructive">{err}</span> : running ? <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-3.5 animate-spin" />{activityLabel}</div> : <span className="text-sm text-muted-foreground">No output yet.</span>}
       </div>
       {(met || elapsedMs != null) && (
-        <div className="flex flex-wrap gap-3 border-t px-3 py-1.5 text-[11px] text-muted-foreground">
+        <div className="flex flex-wrap gap-3 border-t px-3 py-1.5 text-label text-muted-foreground">
           {met?.results != null && <span>{met.results} results</span>}
           {met?.time != null && <span>{Number(met.time).toFixed(2)}s search</span>}
           {met?.tokens_out != null && <span>{met.tokens_out} tok</span>}
@@ -1349,7 +1349,7 @@ export function CompareRoute() {
     <div className="mx-auto flex h-full w-full max-w-6xl flex-col" data-tour="compare-root">
       <header className="flex h-13 shrink-0 items-center gap-2 border-b px-2 text-sm font-semibold md:px-4">
         <GitCompareArrows className="size-4" />Compare models
-        <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">{panes.length}/{MAX_COMPARE_PANES}</span>
+        <span className="rounded-full bg-muted px-2 py-0.5 text-label font-medium text-muted-foreground">{panes.length}/{MAX_COMPARE_PANES}</span>
         <div className="ml-auto flex items-center gap-1">
           {canProbeModels && selectedModels.length > 0 && unprobedModels.length > 0 && (
             <Button variant="outline" size="sm" onClick={probeModels} disabled={anyBusy} title="Probe unverified models with a small test request">

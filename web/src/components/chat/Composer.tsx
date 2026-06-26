@@ -1592,7 +1592,7 @@ export function Composer({
         {dragging && <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-background/80 text-sm font-medium text-muted-foreground">Drop files to attach</div>}
         {slashOpen && (
           <div className="absolute bottom-full left-0 right-0 mb-2 origin-bottom animate-pop-in overflow-hidden rounded-xl border bg-popover shadow-lg">
-            <div className="border-b px-3 py-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Commands</div>
+            <div className="border-b px-3 py-1.5 text-label font-medium uppercase tracking-wider text-muted-foreground">Commands</div>
             <div className="max-h-64 overflow-y-auto py-1">
               {slashMatches.map((c, i) => (
                 <button
@@ -1638,7 +1638,7 @@ export function Composer({
             if (e.key === "ArrowUp" && !text && !e.shiftKey && !e.metaKey && lastSentRef.current) { e.preventDefault(); setText(lastSentRef.current); requestAnimationFrame(grow); return }
             if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit() }
           }}
-          className="max-h-[200px] w-full resize-none bg-transparent px-1 py-1.5 text-[15px] outline-none placeholder:text-muted-foreground"
+          className="max-h-[200px] w-full resize-none bg-transparent px-1 py-1.5 text-subhead outline-none placeholder:text-muted-foreground"
         />
         <div className="mt-1 flex items-center gap-1">
           <button data-tour="composer-attach" onClick={() => fileRef.current?.click()} title="Attach files" className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground">
@@ -1663,7 +1663,7 @@ export function Composer({
           </div>
         </div>
       </div>
-      <p className="mt-2 text-center text-[11px] text-muted-foreground">Odysseus can make mistakes. Verify important info.</p>
+      <p className="mt-2 text-center text-label text-muted-foreground">Odysseus can make mistakes. Verify important info.</p>
     </div>
   )
 }

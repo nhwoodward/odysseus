@@ -3,10 +3,11 @@ import { useAuthStatus } from "@/api/auth"
 import { useOnboarded, useSavePersonalization, useSetPref } from "@/api/prefs"
 import { Mascot } from "@/components/ui/Mascot"
 import { Button } from "@/components/ui/button"
+import { inputClass } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { TONE_OPTIONS, type Tone } from "@/lib/personalization"
 
-const inpCls = "h-9 w-full rounded-md border bg-background px-3 text-sm outline-none focus-visible:border-ring"
+const inpCls = inputClass
 const taCls = "w-full resize-none rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring"
 
 // First-run welcome. Shows once per user (server-side `onboarded` flag), lets

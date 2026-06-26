@@ -16,7 +16,7 @@ export const buttonVariants = cva(
       },
       size: {
         default: "h-9 px-4",
-        sm: "h-8 px-3 text-[13px]",
+        sm: "h-8 px-3 text-note",
         lg: "h-10 px-6",
         icon: "size-9",
         iconSm: "size-7 [&_svg]:size-3.5", // compact icon button (replaces ad-hoc rounded-md p-1.5)

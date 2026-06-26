@@ -246,7 +246,7 @@ function statusTone(status?: string) {
 }
 function StatusBadge({ status, onClick }: { status?: string; onClick?: () => void }) {
   const label = status || "unknown"
-  const cls = cn("inline-flex h-6 items-center rounded-full border px-2 text-[11px] font-medium capitalize", statusTone(label), onClick && "cursor-pointer hover:bg-accent")
+  const cls = cn("inline-flex h-6 items-center rounded-full border px-2 text-label font-medium capitalize", statusTone(label), onClick && "cursor-pointer hover:bg-accent")
   return onClick
     ? <button type="button" onClick={(e) => { e.stopPropagation(); onClick() }} className={cls}>{label}</button>
     : <span className={cls}>{label}</span>
@@ -352,7 +352,7 @@ function TaskRunOutput({ text, max = 800 }: { text?: string | null; max?: number
         <button
           type="button"
           onClick={() => setExpanded((value) => !value)}
-          className="mt-2 text-[11px] font-medium text-foreground underline-offset-2 hover:underline"
+          className="mt-2 text-label font-medium text-foreground underline-offset-2 hover:underline"
         >
           {expanded ? "Show less" : "Show more"}
         </button>
@@ -768,8 +768,8 @@ function TaskCard({
               <span className="flex min-w-0 flex-wrap items-center gap-2">
                 <span className="min-w-0 max-w-full truncate text-sm font-medium">{name}</span>
                 <StatusBadge status={task.status} onClick={toggleStatus} />
-                <span className="rounded-full border bg-muted/40 px-2 py-0.5 text-[11px] text-muted-foreground">{category}</span>
-                {task.is_builtin && <span className="rounded-full border bg-muted/40 px-2 py-0.5 text-[11px] text-muted-foreground">built-in{task.is_modified ? " / edited" : ""}</span>}
+                <span className="rounded-full border bg-muted/40 px-2 py-0.5 text-label text-muted-foreground">{category}</span>
+                {task.is_builtin && <span className="rounded-full border bg-muted/40 px-2 py-0.5 text-label text-muted-foreground">built-in{task.is_modified ? " / edited" : ""}</span>}
                 {(task.task_type === "llm" || task.task_type === "research" || task.model) && <Bot className="size-3.5 text-muted-foreground" aria-label="AI task" />}
               </span>
               <span className="mt-1 block truncate text-xs text-muted-foreground">{scheduleLabel(task)}</span>
@@ -1043,7 +1043,7 @@ function ActivityView({ active }: { active: boolean }) {
                   <div className="flex min-w-0 flex-wrap items-center gap-2">
                     <span className="truncate text-sm font-medium">{r.task_name || r.action || "Task"}</span>
                     <StatusBadge status={r.status} />
-                    {r.repeatCount && r.repeatCount > 1 && <span className="rounded-full border bg-muted/40 px-2 py-0.5 text-[11px] text-muted-foreground">+{r.repeatCount - 1} repeats</span>}
+                    {r.repeatCount && r.repeatCount > 1 && <span className="rounded-full border bg-muted/40 px-2 py-0.5 text-label text-muted-foreground">+{r.repeatCount - 1} repeats</span>}
                   </div>
                   <p className="mt-0.5 text-xs text-muted-foreground">{fmtShort(r.finished_at || r.started_at)}{r.model ? ` - ${r.model.split("/").pop()}` : ""}</p>
                 </div>
@@ -1103,7 +1103,7 @@ export function TasksRoute() {
               <button
                 key={v}
                 onClick={() => { if (v === "add") openNew(); else { setTab(v); setEditing(null); setDraft(null) } }}
-                className={cn("whitespace-nowrap rounded-md px-2 py-1 text-[11px] font-medium capitalize sm:px-2.5 sm:text-xs", tab === v ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
+                className={cn("whitespace-nowrap rounded-md px-2 py-1 text-label font-medium capitalize sm:px-2.5 sm:text-xs", tab === v ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
               >
                 {v === "add" ? "Add" : v}{v === "tasks" && list.length ? ` ${list.length}` : ""}
               </button>

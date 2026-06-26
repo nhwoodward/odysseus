@@ -42,7 +42,7 @@ export function BrowserPreview({ html, title }: { html: string; title: string })
       <div className="flex items-center gap-2 border-b bg-muted/40 px-3 py-2">
         <Globe className="size-4 shrink-0 text-muted-foreground" />
         <span className="min-w-0 flex-1 truncate text-sm font-medium">{title}</span>
-        <span className="shrink-0 rounded-full border bg-card px-2 py-0.5 text-[10px] text-muted-foreground">
+        <span className="shrink-0 rounded-full border bg-card px-2 py-0.5 text-micro text-muted-foreground">
           built in browser tab
         </span>
       </div>
@@ -56,7 +56,7 @@ export function BrowserPreview({ html, title }: { html: string; title: string })
         <button
           onClick={() => setLive((v) => !v)}
           title={live ? "Stop scripts (static preview)" : "Run scripts in an isolated origin"}
-          className={cn("inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] transition-colors hover:bg-accent",
+          className={cn("inline-flex items-center gap-1 rounded-md px-2 py-1 text-label transition-colors hover:bg-accent",
             live ? "text-foreground" : "text-muted-foreground hover:text-foreground")}
         >
           {live ? <Square className="size-3" /> : <Play className="size-3" />}
@@ -65,12 +65,12 @@ export function BrowserPreview({ html, title }: { html: string; title: string })
         <button
           onClick={copy}
           title="Copy the recovered HTML"
-          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-label text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
           {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
           HTML
         </button>
-        <span className="ml-auto hidden truncate pl-2 text-[10px] text-muted-foreground/70 sm:inline">
+        <span className="ml-auto hidden truncate pl-2 text-micro text-muted-foreground/70 sm:inline">
           reconstructed from the agent's injected HTML — the tab was ephemeral
         </span>
       </div>

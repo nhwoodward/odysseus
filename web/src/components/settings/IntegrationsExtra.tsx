@@ -39,11 +39,11 @@ function EmailAccountForm({ initial, onClose }: { initial?: EmailAccount; onClos
     <div className="mt-2 space-y-2 rounded-lg border bg-card p-3">
       <div className="flex gap-2"><input value={f.name || ""} onChange={(e) => set("name", e.target.value)} placeholder="Account name" className={inp} /><input value={f.from_address || ""} onChange={(e) => set("from_address", e.target.value)} placeholder="from@example.com" className={inp} /></div>
       <input value={f.display_name || ""} onChange={(e) => set("display_name", e.target.value)} placeholder="Display name (optional)" className={inp} />
-      <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">IMAP (incoming)</div>
+      <div className="text-label font-medium uppercase tracking-wider text-muted-foreground">IMAP (incoming)</div>
       <div className="flex gap-2"><input value={f.imap_host || ""} onChange={(e) => set("imap_host", e.target.value)} placeholder="imap host" className={inp} /><input value={f.imap_port ?? ""} onChange={(e) => set("imap_port", Number(e.target.value) || 993)} type="number" placeholder="993" className={cn(inp, "w-24")} /></div>
       <div className="flex gap-2"><input value={f.imap_user || ""} onChange={(e) => set("imap_user", e.target.value)} placeholder="imap user" className={inp} /><input onChange={(e) => set("imap_password", e.target.value)} type="password" placeholder={initial?.has_imap_password ? "•••• (unchanged)" : "imap password"} autoComplete="off" className={inp} /></div>
       <label className="flex items-center justify-between text-sm text-muted-foreground">STARTTLS<Switch checked={!!f.imap_starttls} onCheckedChange={(v) => set("imap_starttls", v)} /></label>
-      <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">SMTP (outgoing)</div>
+      <div className="text-label font-medium uppercase tracking-wider text-muted-foreground">SMTP (outgoing)</div>
       <div className="flex gap-2"><input value={f.smtp_host || ""} onChange={(e) => set("smtp_host", e.target.value)} placeholder="smtp host" className={inp} /><input value={f.smtp_port ?? ""} onChange={(e) => set("smtp_port", Number(e.target.value) || 465)} type="number" placeholder="465" className={cn(inp, "w-24")} /></div>
       <div className="flex gap-2">
         <select value={f.smtp_security || "ssl"} onChange={(e) => set("smtp_security", e.target.value)} className={inp}><option value="ssl">SSL/TLS</option><option value="starttls">STARTTLS</option><option value="none">None</option></select>
@@ -86,7 +86,7 @@ export function EmailAccountsSection() {
         {(accounts || []).map((a) => editId === a.id ? <EmailAccountForm key={a.id} initial={a} onClose={() => setEditId(null)} /> : (
           <div key={a.id} className="group flex items-center gap-2 rounded-lg border bg-card p-3">
             <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-medium">{a.name} {a.is_default && <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-normal text-muted-foreground">default</span>}</div>
+              <div className="truncate text-sm font-medium">{a.name} {a.is_default && <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-micro font-normal text-muted-foreground">default</span>}</div>
               <div className="truncate text-xs text-muted-foreground">{a.from_address || a.imap_user} · {a.imap_host || "no imap"}</div>
             </div>
             {!a.is_default && <button onClick={() => setDefault.mutate(a.id)} title="Set default" className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"><Star className="size-4" /></button>}
@@ -285,7 +285,7 @@ function AgentPluginCard({ kind, label }: { kind: "codex" | "claude"; label: str
   return <div className="rounded-lg border bg-card p-3">
     <div className="flex items-center justify-between gap-3"><div><div className="text-sm font-medium">{label}</div><div className="text-xs text-muted-foreground">Scoped token and plugin bundle setup.</div></div><Package className="size-5 text-muted-foreground" /></div>
     {!token ? <div className="mt-3 flex gap-2"><Button size="sm" onClick={() => create.mutate({ name: `${label} plugin`, scopes }, { onSuccess: (result) => setToken(result.token) })}>{create.isPending ? "Creating…" : "Create token & setup"}</Button><Button size="sm" variant="outline" onClick={() => window.open(plugin, "_blank")}><Download className="size-4" />Bundle</Button></div>
-      : <div className="mt-3 space-y-2"><p className="text-xs text-muted-foreground">Run this once. The token is only shown now.</p><pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded-md bg-muted p-2 text-[11px]">{command}</pre><Button size="sm" variant="outline" onClick={() => navigator.clipboard.writeText(command).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500) })}>{copied ? <Check className="size-4" /> : <Copy className="size-4" />}{copied ? "Copied" : "Copy setup"}</Button></div>}
+      : <div className="mt-3 space-y-2"><p className="text-xs text-muted-foreground">Run this once. The token is only shown now.</p><pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded-md bg-muted p-2 text-label">{command}</pre><Button size="sm" variant="outline" onClick={() => navigator.clipboard.writeText(command).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500) })}>{copied ? <Check className="size-4" /> : <Copy className="size-4" />}{copied ? "Copied" : "Copy setup"}</Button></div>}
   </div>
 }
 

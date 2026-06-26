@@ -41,7 +41,7 @@ export function DocHistory({ docId, onBack, onRestored }: { docId: string; onBac
             {restore.isPending ? <Loader2 className="size-4 animate-spin" /> : <RotateCcw className="size-3.5" />}Restore
           </Button>
         </div>
-        <pre className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-words p-4 font-mono text-[13px] leading-relaxed text-foreground">{selected.content}</pre>
+        <pre className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-words p-4 font-mono text-note leading-relaxed text-foreground">{selected.content}</pre>
       </div>
     )
   }
@@ -65,8 +65,8 @@ export function DocHistory({ docId, onBack, onRestored }: { docId: string; onBac
                 <button onClick={() => setSelected(v)} className="min-w-0 flex-1 text-left">
                   <span className="flex items-center gap-2 text-sm font-medium">
                     Version {v.version_number}
-                    {i === 0 && <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-normal text-muted-foreground">current</span>}
-                    {v.source === "user" && <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-normal text-muted-foreground">manual</span>}
+                    {i === 0 && <span className="rounded-full bg-muted px-1.5 py-0.5 text-micro font-normal text-muted-foreground">current</span>}
+                    {v.source === "user" && <span className="rounded-full bg-muted px-1.5 py-0.5 text-micro font-normal text-muted-foreground">manual</span>}
                   </span>
                   <span className="mt-0.5 block truncate text-xs text-muted-foreground">{v.summary || "—"} · {ago(v.created_at)}</span>
                 </button>

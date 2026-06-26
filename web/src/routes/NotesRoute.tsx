@@ -1092,7 +1092,7 @@ function NoteCard({
             {note.pinned && <Pin className={cn("size-3.5 shrink-0 fill-current", muted)} />}
             {isGoal ? <Target className={cn("size-3.5 shrink-0", muted)} /> : isDraw ? <Brush className={cn("size-3.5 shrink-0", muted)} /> : isChecklistType(note.note_type) ? <ListChecks className={cn("size-3.5 shrink-0", muted)} /> : null}
             <h2 className="truncate text-sm font-semibold">{note.title || "(untitled)"}</h2>
-            {isGoal && <span className={cn("rounded-full border px-1.5 py-0.5 text-[11px]", cardBg ? "border-white/30 bg-white/15 text-white/85" : "bg-muted text-muted-foreground")}>Goal{goalProgress(note)}</span>}
+            {isGoal && <span className={cn("rounded-full border px-1.5 py-0.5 text-label", cardBg ? "border-white/30 bg-white/15 text-white/85" : "bg-muted text-muted-foreground")}>Goal{goalProgress(note)}</span>}
           </div>
           {note.image_url && <img src={note.image_url} alt="" className="mt-2 max-h-56 w-full rounded-md object-cover" />}
           {isGoal && note.content && <p className={cn("mt-2 whitespace-pre-wrap break-words text-sm", muted)}>{note.content}</p>}

@@ -83,6 +83,16 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+/* Micro-type scale. The UI leans on a few sub-`text-xs` sizes for dense labels,
+   meta, and pills (previously written as ~136 ad-hoc `text-[10px]/[11px]/[13px]/
+   [15px]` arbitrary values). These name that intentional scale and set ONLY
+   font-size (line-height stays inherited), so they are a 1:1 drop-in for the
+   arbitrary values — no visual change, just a centralized, semantic token. */
+@utility text-micro { font-size: 10px; }
+@utility text-label { font-size: 11px; }
+@utility text-note { font-size: 13px; }
+@utility text-subhead { font-size: 15px; }
+
 @layer base {
   * { border-color: var(--border); }
   html, body, #root { height: 100%; }

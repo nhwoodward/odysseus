@@ -37,7 +37,7 @@ function StepNode({ t }: { t: ToolEvent }) {
       >
         {detail && <ChevronRight className={cn("size-3 shrink-0 text-muted-foreground transition-transform duration-200", open && "rotate-90")} />}
         <span className="font-medium text-foreground">{toolLabel(t.name)}</span>
-        {t.running && <span className="text-[11px] tabular-nums text-muted-foreground/70">{formatElapsed(now - start)}</span>}
+        {t.running && <span className="text-label tabular-nums text-muted-foreground/70">{formatElapsed(now - start)}</span>}
       </button>
       <AnimatePresence initial={false}>
         {open && detail && (
@@ -99,7 +99,7 @@ function DeliverableChip({ d }: { d: Deliverable }) {
       type="button"
       onClick={() => openDeliverable(d)}
       title={d.title}
-      className="inline-flex max-w-52 items-center gap-1.5 rounded-full border bg-background px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+      className="inline-flex max-w-52 items-center gap-1.5 rounded-full border bg-background px-2.5 py-1 text-label text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
     >
       <Icon className="size-3 shrink-0" />
       <span className="truncate">{d.title}</span>
@@ -161,7 +161,7 @@ export function AgentTimeline({ rounds, streaming, streamStartAt, deliverables }
 
       {deliverables.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-          <span className="text-[11px] font-medium text-muted-foreground">Deliverables</span>
+          <span className="text-label font-medium text-muted-foreground">Deliverables</span>
           {deliverables.map((d, i) => <DeliverableChip key={i} d={d} />)}
         </div>
       )}

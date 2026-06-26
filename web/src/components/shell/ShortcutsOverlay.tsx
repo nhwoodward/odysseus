@@ -21,7 +21,7 @@ export function ShortcutsOverlay({ onClose }: { onClose: () => void }) {
               {g.rows.map(([k, label]) => (
                 <div key={k} className="flex items-center justify-between gap-3 text-sm">
                   <span className="text-muted-foreground">{label}</span>
-                  <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[11px]">{k}</kbd>
+                  <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-label">{k}</kbd>
                 </div>
               ))}
             </div>

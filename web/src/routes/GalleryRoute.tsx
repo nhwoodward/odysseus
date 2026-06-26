@@ -4,11 +4,12 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { downloadImage, flattenGallery, useGallery, useGalleryAlbums, useGalleryMutations } from "@/api/gallery"
 import { apiFetch, apiJson } from "@/lib/api"
 import { Button } from "@/components/ui/button"
+import { inputClass } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { toast } from "@/stores/toast"
 import type { GalleryAlbum, GalleryImage } from "@/types"
 
-const inp = "h-9 w-full rounded-md border bg-background px-3 text-sm outline-none focus-visible:border-ring"
+const inp = inputClass
 const videoExts = [".mp4", ".mov", ".webm", ".mkv", ".m4v"]
 type GalleryTab = "photos" | "albums" | "editor" | "settings"
 
@@ -149,12 +150,12 @@ function Lightbox({ img, hasPrev, hasNext, onPrev, onNext, onClose, onEdit, onFi
               <div className="flex gap-1">
                 <button onClick={() => aiTag.mutate(img.id, { onSuccess: () => toast("Tagged with AI", "success"), onError: (e) => toast(e instanceof Error ? e.message : "Couldn't auto-tag") })}
                   disabled={aiTag.isPending} title="Auto-tag with AI"
-                  className="inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] text-muted-foreground hover:text-foreground disabled:opacity-50">
+                  className="inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-label text-muted-foreground hover:text-foreground disabled:opacity-50">
                   {aiTag.isPending ? <Loader2 className="size-3 animate-spin" /> : <Sparkles className="size-3" />}AI tag
                 </button>
                 {aiTags.length > 0 && (
                   <button onClick={() => clearAiTags.mutate(img.id)} title="Clear AI tags"
-                    className="inline-flex items-center rounded-md border px-1.5 py-0.5 text-[11px] text-muted-foreground hover:text-foreground"><X className="size-3" /></button>
+                    className="inline-flex items-center rounded-md border px-1.5 py-0.5 text-label text-muted-foreground hover:text-foreground"><X className="size-3" /></button>
                 )}
               </div>
             </div>
@@ -162,11 +163,11 @@ function Lightbox({ img, hasPrev, hasNext, onPrev, onNext, onClose, onEdit, onFi
               <div className="flex flex-wrap gap-1">
                 {aiTags.map((t) => (
                   <button key={t} onClick={() => onFilterTag(t)} title={`Filter by "${t}"`}
-                    className="rounded-full border bg-muted px-2 py-0.5 text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground">{t}</button>
+                    className="rounded-full border bg-muted px-2 py-0.5 text-label text-muted-foreground hover:bg-accent hover:text-foreground">{t}</button>
                 ))}
               </div>
             ) : (
-              <p className="text-[11px] text-muted-foreground">No AI tags yet.</p>
+              <p className="text-label text-muted-foreground">No AI tags yet.</p>
             )}
           </div>
           {!isVideo(img) && (
@@ -482,13 +483,13 @@ function GridImage({ img, onOpen, onFavorite, onDelete, onTag }: {
         </button>
       </div>
       {(img.prompt || chips.length > 0) && (
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2 text-[11px] text-white opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100">
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2 text-label text-white opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100">
           {img.prompt && <div className="pointer-events-none truncate">{img.prompt}</div>}
           {chips.length > 0 && (
             <div className="mt-0.5 flex flex-wrap gap-1">
               {chips.map((t) => (
                 <button key={t} onClick={(e) => { e.stopPropagation(); onTag(t) }} title={`Filter by "${t}"`}
-                  className="rounded-full bg-white/20 px-1.5 py-0.5 text-[10px] hover:bg-white/40">{t}</button>
+                  className="rounded-full bg-white/20 px-1.5 py-0.5 text-micro hover:bg-white/40">{t}</button>
               ))}
             </div>
           )}

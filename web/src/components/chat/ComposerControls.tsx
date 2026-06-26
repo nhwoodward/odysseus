@@ -51,13 +51,13 @@ export function SourcesMenu() {
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
           <div className="absolute bottom-full left-0 z-20 mb-1 w-64 origin-bottom-left animate-pop-in rounded-xl border bg-popover p-2 shadow-lg">
-            <div className="mb-1.5 px-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Connected sources</div>
+            <div className="mb-1.5 px-1 text-label font-medium uppercase tracking-wide text-muted-foreground">Connected sources</div>
             {conns.length === 0 ? (
               <p className="px-1 pb-1.5 text-xs text-muted-foreground">No sources connected yet.</p>
             ) : (
               <div className="flex flex-wrap gap-1 px-0.5">
                 {conns.map((s) => (
-                  <span key={s.id} title={s.status} className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px]", s.status === "connected" ? "text-foreground" : "text-muted-foreground")}>
+                  <span key={s.id} title={s.status} className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-label", s.status === "connected" ? "text-foreground" : "text-muted-foreground")}>
                     <span className={cn("size-1.5 rounded-full", s.status === "connected" ? "bg-emerald-500" : s.needs_auth ? "bg-amber-500" : "bg-muted-foreground/50")} />
                     {s.name}
                   </span>
@@ -130,7 +130,7 @@ export function ModelPicker() {
   const renderOption = (option: (typeof options)[number], prefix = "") => <div key={`${prefix}${option.key}`} className="group/model flex items-center rounded-md hover:bg-accent">
     <button onClick={() => pick(option.endpointId, option.model, option.url)} className={cn("min-w-0 flex-1 px-2 py-1.5 text-left text-sm", c.model === option.model && c.endpointId === option.endpointId && "text-foreground")}>
       <span className="block truncate">{option.model}</span>
-      {prefix && <span className="block truncate text-[10px] text-muted-foreground">{option.endpointName}</span>}
+      {prefix && <span className="block truncate text-micro text-muted-foreground">{option.endpointName}</span>}
     </button>
     <button onClick={() => toggleFavorite(option.key)} title={favorites.includes(option.key) ? "Remove favorite" : "Favorite model"} className="mr-1 rounded p-1 text-muted-foreground hover:text-foreground">
       <Star className={cn("size-3.5", favorites.includes(option.key) && "fill-current text-foreground")} />
@@ -139,7 +139,7 @@ export function ModelPicker() {
   const special = (title: string, icon: ReactNode, keys: string[]) => {
     const items = keys.map((key) => byKey.get(key)).filter((item): item is (typeof options)[number] => !!item).filter((item) => filtered.includes(item))
     if (!items.length) return null
-    return <div className="mb-1"><div className="flex items-center gap-1.5 px-2 py-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{icon}{title}</div>{items.map((option) => renderOption(option, `${title}:`))}</div>
+    return <div className="mb-1"><div className="flex items-center gap-1.5 px-2 py-1 text-label font-medium uppercase tracking-wider text-muted-foreground">{icon}{title}</div>{items.map((option) => renderOption(option, `${title}:`))}</div>
   }
   return (
     <div className="relative" data-tour="model-picker">
@@ -161,7 +161,7 @@ export function ModelPicker() {
             {special("Recent", <Clock3 className="size-3" />, recent.filter((key) => !favorites.includes(key)))}
             {(models?.items || []).map((ep) => (
               <div key={ep.endpoint_id} className="mb-1">
-                <button onClick={() => setCollapsed((values) => values.includes(ep.endpoint_id) ? values.filter((value) => value !== ep.endpoint_id) : [...values, ep.endpoint_id])} className="flex w-full items-center gap-1 px-2 py-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground hover:text-foreground">
+                <button onClick={() => setCollapsed((values) => values.includes(ep.endpoint_id) ? values.filter((value) => value !== ep.endpoint_id) : [...values, ep.endpoint_id])} className="flex w-full items-center gap-1 px-2 py-1 text-label font-medium uppercase tracking-wider text-muted-foreground hover:text-foreground">
                   {collapsed.includes(ep.endpoint_id) ? <ChevronRight className="size-3" /> : <ChevronDown className="size-3" />}{ep.endpoint_name || ep.url}
                 </button>
                 {!collapsed.includes(ep.endpoint_id) && filtered.filter((option) => option.endpointId === ep.endpoint_id).map((option) => renderOption(option))}
@@ -481,7 +481,7 @@ export function ToolsMenu() {
       <button onClick={() => { if (!open) hydrateCustomConfig(); setOpen((o) => !o) }} aria-haspopup="menu" aria-expanded={open} className={cn(trigger, activeCount && "text-foreground")} title="Tools & options">
         <SlidersHorizontal className="size-4" />
         <span className="hidden sm:inline">Tools</span>
-        {activeCount > 0 && <span className="rounded-full bg-primary/15 px-1.5 text-[10px] font-medium text-foreground">{activeCount}</span>}
+        {activeCount > 0 && <span className="rounded-full bg-primary/15 px-1.5 text-micro font-medium text-foreground">{activeCount}</span>}
       </button>
       {open && (
         <>
@@ -496,7 +496,7 @@ export function ToolsMenu() {
             <Row label={`Documents${docCount ? ` (${docCount})` : ""}`}>
               <button
                 onClick={openDocs}
-                className="inline-flex h-8 items-center gap-1.5 rounded-md border bg-background px-2.5 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                className="inline-flex h-8 items-center gap-1.5 rounded-md border bg-background px-2.5 text-note font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               >
                 <FileText className="size-3.5" />
                 Open
@@ -577,7 +577,7 @@ export function ToolsMenu() {
               <button
                 onClick={() => saveCustom(false)}
                 disabled={customPreset.save.isPending}
-                className="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-md border bg-background px-2.5 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
+                className="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-md border bg-background px-2.5 text-note font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
               >
                 {customPreset.save.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
                 Apply prompt
@@ -644,7 +644,7 @@ export function ToolsMenu() {
                 <button
                   onClick={() => saveCustom(true)}
                   disabled={customPreset.save.isPending || (!personaName.trim() && !personaPrompt.trim())}
-                  className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md border bg-background px-2.5 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
+                  className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md border bg-background px-2.5 text-note font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
                 >
                   {customPreset.save.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
                   Save persona

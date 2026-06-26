@@ -213,10 +213,10 @@ function ServeForm({ models, gpus }: { models: CachedModel[]; gpus: Gpu[] }) {
             {cmd && (
               <div>
                 <div className="mb-1 text-xs text-muted-foreground">Command preview</div>
-                <pre className="max-h-32 overflow-auto whitespace-pre-wrap break-all rounded-md border bg-muted/40 p-2 font-mono text-[11px] leading-relaxed text-muted-foreground">{cmd}</pre>
+                <pre className="max-h-32 overflow-auto whitespace-pre-wrap break-all rounded-md border bg-muted/40 p-2 font-mono text-label leading-relaxed text-muted-foreground">{cmd}</pre>
               </div>
             )}
-            {!!profiles.data?.profiles?.length && <div><div className="mb-1 text-xs text-muted-foreground">Hardware-aware profiles</div><div className="grid gap-2 sm:grid-cols-3">{profiles.data.profiles.map((profile, index) => <button key={String(profile.name || profile.label || index)} onClick={() => { const flags = profile.flags || profile; if (typeof flags.context === "number") setMaxLen(String(flags.context)) }} className="rounded-md border p-2 text-left hover:bg-accent"><span className="block text-xs font-medium">{String(profile.label || profile.name || `Profile ${index + 1}`)}</span><span className="mt-0.5 block text-[11px] text-muted-foreground">{String(profile.description || JSON.stringify(profile.flags || profile).slice(0, 90))}</span></button>)}</div></div>}
+            {!!profiles.data?.profiles?.length && <div><div className="mb-1 text-xs text-muted-foreground">Hardware-aware profiles</div><div className="grid gap-2 sm:grid-cols-3">{profiles.data.profiles.map((profile, index) => <button key={String(profile.name || profile.label || index)} onClick={() => { const flags = profile.flags || profile; if (typeof flags.context === "number") setMaxLen(String(flags.context)) }} className="rounded-md border p-2 text-left hover:bg-accent"><span className="block text-xs font-medium">{String(profile.label || profile.name || `Profile ${index + 1}`)}</span><span className="mt-0.5 block text-label text-muted-foreground">{String(profile.description || JSON.stringify(profile.flags || profile).slice(0, 90))}</span></button>)}</div></div>}
 
             <div className="flex items-center gap-2">
               <Button disabled={serve.isPending || !repoId} onClick={go}>
@@ -282,7 +282,7 @@ function RunningSection() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="truncate text-sm font-medium">{t.model || t.session_id}</span>
-                      <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[11px]", statusTone(t.status))}>{t.status}</span>
+                      <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-label", statusTone(t.status))}>{t.status}</span>
                     </div>
                     <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
                       <span>{t.type}</span>
@@ -293,7 +293,7 @@ function RunningSection() {
                       {t.progress && t.progress !== t.phase && <span className="truncate">· {t.progress}</span>}
                     </div>
                     {t.diagnosis?.message && (
-                      <div className="mt-1 flex items-start gap-1 text-[11px] text-destructive">
+                      <div className="mt-1 flex items-start gap-1 text-label text-destructive">
                         <AlertTriangle className="mt-0.5 size-3 shrink-0" /><span className="break-words">{t.diagnosis.message}</span>
                       </div>
                     )}
@@ -303,7 +303,7 @@ function RunningSection() {
                     {t.cmd && <Button variant="ghost" size="sm" disabled={serve.isPending || busy} onClick={() => onRestart(t)}><RotateCcw className="size-4" />Restart</Button>}
                     <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive" disabled={busy} onClick={() => onStop(t)}>{busy ? <Loader2 className="size-4 animate-spin" /> : <Square className="size-4" />}Stop</Button>
                   </div>
-                </div>{expanded === t.session_id && t.output_tail && <div className="relative mt-2 rounded-md bg-muted p-2"><button onClick={() => navigator.clipboard.writeText(t.output_tail || "")} className="absolute right-2 top-2 rounded p-1 text-muted-foreground hover:bg-accent"><Copy className="size-3.5" /></button><pre className="max-h-72 overflow-auto whitespace-pre-wrap pr-7 text-[11px]">{t.output_tail}</pre></div>}</div>
+                </div>{expanded === t.session_id && t.output_tail && <div className="relative mt-2 rounded-md bg-muted p-2"><button onClick={() => navigator.clipboard.writeText(t.output_tail || "")} className="absolute right-2 top-2 rounded p-1 text-muted-foreground hover:bg-accent"><Copy className="size-3.5" /></button><pre className="max-h-72 overflow-auto whitespace-pre-wrap pr-7 text-label">{t.output_tail}</pre></div>}</div>
               )
             })}
           </div>
@@ -344,7 +344,7 @@ function WhatFits({ gpus }: { gpus: Gpu[] }) {
             {verdict === "no-fit" && `Unlikely to fit — needs ~${needed.toFixed(1)} GB but only ${totalVram.toFixed(1)} GB total. Use a smaller/quantized model or multi-GPU.`}
           </p>
         )}
-        <p className="text-[11px] text-muted-foreground/70">Rough estimate only — actual usage depends on context length, KV-cache dtype, and batch size.</p>
+        <p className="text-label text-muted-foreground/70">Rough estimate only — actual usage depends on context length, KV-cache dtype, and batch size.</p>
       </div>
     </section>
   )
@@ -370,7 +370,7 @@ function OperationsSection() {
       <div className="space-y-3 rounded-lg border bg-card p-3">
         <div><div className="text-sm font-medium">Remote host setup</div><p className="text-xs text-muted-foreground">Detect Linux, Windows, or Termux over SSH and install the model-download runtime.</p></div>
         <div className="flex gap-2"><input value={host} onChange={(event) => setHost(event.target.value)} placeholder="user@host" className={cn(inp, "min-w-0 flex-1")} /><input value={port} onChange={(event) => setPort(event.target.value)} placeholder="22" className={cn(inp, "w-20")} /><Button disabled={!host.trim() || setup.isPending} onClick={runSetup}>{setup.isPending ? <Loader2 className="size-4 animate-spin" /> : <Wrench className="size-4" />}Setup</Button></div>
-        {setupOutput && <pre className="max-h-40 overflow-auto whitespace-pre-wrap rounded-md bg-muted p-2 text-[11px]">{setupOutput}</pre>}
+        {setupOutput && <pre className="max-h-40 overflow-auto whitespace-pre-wrap rounded-md bg-muted p-2 text-label">{setupOutput}</pre>}
         <a href="/v2/tasks" className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"><CalendarClock className="size-3.5" />Schedule downloads and serving in Automations</a>
       </div>
       <div className="space-y-3 rounded-lg border bg-card p-3">
@@ -411,7 +411,7 @@ export function CookbookRoute() {
                     <div key={g.index} className="rounded-lg border bg-card p-3">
                       <div className="flex items-center justify-between">
                         <span className="truncate text-sm font-medium">{g.name || `GPU ${g.index}`}</span>
-                        {g.busy && <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">busy</span>}
+                        {g.busy && <span className="rounded-full bg-muted px-2 py-0.5 text-label text-muted-foreground">busy</span>}
                       </div>
                       <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
                         <div className={cn("h-full rounded-full", pct > 85 ? "bg-destructive" : "bg-primary")} style={{ width: `${pct}%` }} />
@@ -421,7 +421,7 @@ export function CookbookRoute() {
                         {g.util_pct != null && <span>{g.util_pct}% util</span>}
                       </div>
                       {g.processes && g.processes.length > 0 && (
-                        <div className="mt-2 space-y-0.5 border-t pt-1.5 text-[11px] text-muted-foreground">
+                        <div className="mt-2 space-y-0.5 border-t pt-1.5 text-label text-muted-foreground">
                           {g.processes.slice(0, 4).map((p) => <div key={p.pid} className="flex justify-between gap-2"><span className="truncate">{p.name} ({p.pid})</span><span>{gb(p.used_mb)}</span></div>)}
                         </div>
                       )}
@@ -455,7 +455,7 @@ export function CookbookRoute() {
                         {m.is_diffusion && <span>· diffusion</span>}
                       </div>
                     </div>
-                    <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[11px]", m.status === "downloading" ? "bg-amber-500/15 text-amber-600 dark:text-amber-400" : "bg-muted text-muted-foreground")}>{m.status || "ready"}</span>
+                    <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-label", m.status === "downloading" ? "bg-amber-500/15 text-amber-600 dark:text-amber-400" : "bg-muted text-muted-foreground")}>{m.status || "ready"}</span>
                   </div>
                 ))}
               </div>

@@ -391,7 +391,7 @@ export function MemoryRoute() {
                 <div key={`${idx}-${item.text}`} className="flex items-start gap-3 rounded-md border bg-background p-2">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm">{item.text}</p>
-                    <span className="mt-1 inline-block rounded-full bg-muted px-2 py-0.5 text-[11px] capitalize text-muted-foreground">{item.category}</span>
+                    <span className="mt-1 inline-block rounded-full bg-muted px-2 py-0.5 text-label capitalize text-muted-foreground">{item.category}</span>
                   </div>
                   <Button size="sm" variant="outline" disabled={add.isPending} onClick={() => saveReviewItem(idx)}><Check className="size-4" />Save</Button>
                   <button onClick={() => setReview((prev) => prev.map((x, i) => i === idx ? { ...x, active: false } : x))} title="Reject suggestion" className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"><X className="size-4" /></button>
@@ -475,11 +475,11 @@ export function MemoryRoute() {
                     <>
                       <p className="text-sm" onDoubleClick={() => startEdit(m)}>{m.text}</p>
                       <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                        <span className="inline-block rounded-full bg-muted px-2 py-0.5 text-[11px] capitalize text-muted-foreground">{category}</span>
-                        <span className="text-[11px] text-muted-foreground">{sourceLabel(m.source)}</span>
-                        {uses > 0 && <span className="text-[11px] text-muted-foreground" title={`Injected into chat context ${uses} ${uses === 1 ? "time" : "times"}`}>{uses}x</span>}
-                        {when && <span className="text-[11px] text-muted-foreground" title={new Date(timestamp * 1000).toLocaleString()}>{when}</span>}
-                        {m.pinned && <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground"><Pin className="size-3" />Pinned</span>}
+                        <span className="inline-block rounded-full bg-muted px-2 py-0.5 text-label capitalize text-muted-foreground">{category}</span>
+                        <span className="text-label text-muted-foreground">{sourceLabel(m.source)}</span>
+                        {uses > 0 && <span className="text-label text-muted-foreground" title={`Injected into chat context ${uses} ${uses === 1 ? "time" : "times"}`}>{uses}x</span>}
+                        {when && <span className="text-label text-muted-foreground" title={new Date(timestamp * 1000).toLocaleString()}>{when}</span>}
+                        {m.pinned && <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-label text-muted-foreground"><Pin className="size-3" />Pinned</span>}
                       </div>
                     </>
                   )}

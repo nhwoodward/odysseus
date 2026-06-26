@@ -182,7 +182,7 @@ function ActiveRow({ item, onCancel, cancelling, onDone }: {
           <div className="truncate text-xs text-muted-foreground">{progressLabel(progress)}</div>
         </div>
         {item.started_at ? (
-          <span className="shrink-0 font-mono text-[11px] tabular-nums text-muted-foreground">{formatElapsed(elapsed)}</span>
+          <span className="shrink-0 font-mono text-label tabular-nums text-muted-foreground">{formatElapsed(elapsed)}</span>
         ) : null}
       </div>
       <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
@@ -425,8 +425,8 @@ function StartForm({ onStarted }: { onStarted: () => void }) {
             <div key={item.id} className="flex items-center gap-2 rounded-md border bg-card px-3 py-2 text-sm">
               <span className="shrink-0 text-xs text-muted-foreground">{i + 1}.</span>
               <span className="min-w-0 flex-1 truncate">{item.query}</span>
-              {item.category && <span className="hidden rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground sm:inline">{item.category}</span>}
-              {item.model_label && <span className="hidden max-w-32 truncate rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground md:inline">{item.model_label}</span>}
+              {item.category && <span className="hidden rounded-full bg-muted px-2 py-0.5 text-label text-muted-foreground sm:inline">{item.category}</span>}
+              {item.model_label && <span className="hidden max-w-32 truncate rounded-full bg-muted px-2 py-0.5 text-label text-muted-foreground md:inline">{item.model_label}</span>}
               <button
                 type="button"
                 onClick={() => setQueued((items) => items.filter((q) => q.id !== item.id))}

@@ -14,9 +14,10 @@ import { PersonalizationSection } from "@/components/settings/Personalization"
 import { UserPrivileges } from "@/components/settings/UserPrivileges"
 import { useSetUserAdmin, useProviders, useDeviceFlow, COPILOT_PROVIDER, CHATGPT_PROVIDER, type DeviceFlowProvider } from "@/api/advanced"
 import { Button } from "@/components/ui/button"
+import { inputClass } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 
-const inpCls = "h-9 w-full rounded-md border bg-background px-3 text-sm outline-none focus-visible:border-ring"
+const inpCls = inputClass
 
 // Device-flow "Connect" button for subscription providers (Copilot / ChatGPT).
 // Replicates the chat composer's `/setup` flow: start → show code + open the
@@ -116,7 +117,7 @@ export function AccountSecurity() {
         </div>
         <div className="border-t pt-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">Two-factor (TOTP){twoFA?.enabled && <span className="ml-1.5 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-normal text-emerald-600 dark:text-emerald-400">Enabled</span>}</span>
+            <span className="text-sm font-medium">Two-factor (TOTP){twoFA?.enabled && <span className="ml-1.5 rounded-full bg-emerald-500/15 px-2 py-0.5 text-label font-normal text-emerald-600 dark:text-emerald-400">Enabled</span>}</span>
             {twoFA?.enabled ? <Button size="sm" variant="outline" onClick={doDisable}>Disable</Button> : (!qr && <Button size="sm" variant="outline" onClick={startTwo}>Enable 2FA</Button>)}
           </div>
           {qr && (
@@ -457,10 +458,10 @@ export function SettingsRoute() {
             <span className="text-sm font-medium">{u.username}{u.username === user && <span className="ml-1.5 text-xs font-normal text-muted-foreground">(you)</span>}</span>
             <div className="flex items-center gap-2">
               {u.username === user
-                ? (u.is_admin && <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">admin</span>)
+                ? (u.is_admin && <span className="rounded-full bg-muted px-2 py-0.5 text-label text-muted-foreground">admin</span>)
                 : (
                   <>
-                    <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground" title="Administrator">admin<Switch checked={!!u.is_admin} onCheckedChange={(v) => setAdmin.mutate({ username: u.username, is_admin: v })} /></label>
+                    <label className="flex items-center gap-1.5 text-label text-muted-foreground" title="Administrator">admin<Switch checked={!!u.is_admin} onCheckedChange={(v) => setAdmin.mutate({ username: u.username, is_admin: v })} /></label>
                     <button onClick={() => { const n = prompt("Rename user", u.username); if (n && n.trim() && n.trim() !== u.username) renameUser.mutate({ username: u.username, new_username: n.trim() }) }} className="text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100" title="Rename user"><Pencil className="size-4" /></button>
                     <button onClick={() => { if (confirm(`Delete user "${u.username}"?`)) removeUser.mutate(u.username) }} className="text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100" title="Delete user"><Trash2 className="size-4" /></button>
                   </>

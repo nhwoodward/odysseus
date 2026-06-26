@@ -818,7 +818,7 @@ function QuickReminderMenu({
             align === "right" ? "right-0" : "left-0",
           )}
         >
-          <div className="flex items-center gap-1.5 px-3 py-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+          <div className="flex items-center gap-1.5 px-3 py-1 text-label font-medium uppercase tracking-wider text-muted-foreground">
             <Bell className="size-3" />Remind me
           </div>
           {QUICK_REMINDER_PRESETS.map((p) => (
@@ -833,7 +833,7 @@ function QuickReminderMenu({
               {p.label}
             </button>
           ))}
-          {!start && <p className="px-3 py-1 text-[11px] text-muted-foreground">No event time</p>}
+          {!start && <p className="px-3 py-1 text-label text-muted-foreground">No event time</p>}
         </div>
       )}
     </div>
@@ -851,7 +851,7 @@ function CookbookTaskLink({ ev, compact }: { ev: CalEvent; compact?: boolean }) 
       title="Open in Tasks"
       className={cn(
         "inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-muted-foreground hover:text-foreground",
-        compact ? "text-[11px]" : "text-xs",
+        compact ? "text-label" : "text-xs",
       )}
     >
       <ExternalLink className="size-3" />Open in Tasks
@@ -871,7 +871,7 @@ function EventCard({ ev, compact, onEdit, onDelete, onReminder }: { ev: CalEvent
           <span className={cn("truncate font-medium", compact ? "text-xs" : "text-sm")}>{title}</span>
           {(ev.is_recurrence || ev.rrule) && <RefreshCw className="size-3 shrink-0 text-muted-foreground" />}
         </div>
-        <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+        <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-label text-muted-foreground">
           <span>{timeLabel(ev)}</span>
           {ev.event_type && (
             <span className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5">
@@ -1672,7 +1672,7 @@ export function CalendarRoute() {
                       >
                         {day.getDate()}
                       </button>
-                      {dayEvents.length > 0 && <span className="text-[11px] text-muted-foreground">{dayEvents.length}</span>}
+                      {dayEvents.length > 0 && <span className="text-label text-muted-foreground">{dayEvents.length}</span>}
                     </div>
                     <div className="space-y-1.5">
                       {dayEvents.slice(0, 3).map((ev) => renderEvent(ev, true))}
@@ -1715,7 +1715,7 @@ export function CalendarRoute() {
                     </button>
                   </div>
                   {weekDays.length > 0 && (
-                    <span className="text-[10px] font-medium tabular-nums text-muted-foreground" title={`ISO week ${isoWeekNumber(weekDays[0])}`}>W{isoWeekNumber(weekDays[0])}</span>
+                    <span className="text-micro font-medium tabular-nums text-muted-foreground" title={`ISO week ${isoWeekNumber(weekDays[0])}`}>W{isoWeekNumber(weekDays[0])}</span>
                   )}
                 </div>
                 {weekDays.map((day) => {
@@ -1740,7 +1740,7 @@ export function CalendarRoute() {
                 })}
               </div>
               <div className="grid grid-cols-[4rem_repeat(7,minmax(0,1fr))] border-b">
-                <div className="px-2 py-2 text-[11px] uppercase tracking-wider text-muted-foreground">All day</div>
+                <div className="px-2 py-2 text-label uppercase tracking-wider text-muted-foreground">All day</div>
                 {weekDays.map((day) => {
                   const allDayEvents = weekEventsForDay(day).filter((ev) => ev.all_day)
                   return (
@@ -1771,7 +1771,7 @@ export function CalendarRoute() {
                 <div className="grid grid-cols-[4rem_repeat(7,minmax(0,1fr))]">
                   <div className="relative bg-muted/20" style={{ height: weekGridHeight }}>
                     {Array.from({ length: 24 }, (_, hour) => (
-                      <div key={hour} className="absolute left-0 right-0 border-t px-2 text-[11px] text-muted-foreground" style={{ top: hour * weekHourHeight, height: weekHourHeight }}>
+                      <div key={hour} className="absolute left-0 right-0 border-t px-2 text-label text-muted-foreground" style={{ top: hour * weekHourHeight, height: weekHourHeight }}>
                         <span className="relative -top-2 bg-card px-1">{minutesLabel(hour * 60)}</span>
                       </div>
                     ))}
@@ -1794,7 +1794,7 @@ export function CalendarRoute() {
                         ))}
                         {weekDraft?.mode === "create" && weekDraft.dayKey === key && (
                           <div
-                            className="pointer-events-none absolute left-1 right-1 z-20 rounded-md border border-primary bg-primary/15 px-2 py-1 text-[11px] font-medium text-primary"
+                            className="pointer-events-none absolute left-1 right-1 z-20 rounded-md border border-primary bg-primary/15 px-2 py-1 text-label font-medium text-primary"
                             style={{
                               top: (weekDraft.startMin / 60) * weekHourHeight,
                               height: Math.max(24, ((weekDraft.endMin - weekDraft.startMin) / 60) * weekHourHeight),
@@ -1844,8 +1844,8 @@ export function CalendarRoute() {
                               }}
                             >
                               <div className="truncate text-xs font-semibold">{title}</div>
-                              <div className="truncate text-[11px] text-muted-foreground">{weekRangeLabel(timing.startMin, timing.endMin)}</div>
-                              {ev.location && <div className="truncate text-[11px] text-muted-foreground">{ev.location}</div>}
+                              <div className="truncate text-label text-muted-foreground">{weekRangeLabel(timing.startMin, timing.endMin)}</div>
+                              {ev.location && <div className="truncate text-label text-muted-foreground">{ev.location}</div>}
                               <div
                                 data-week-resize="true"
                                 data-testid={`week-resize-${eventIdentity(ev)}`}
@@ -1945,7 +1945,7 @@ export function CalendarRoute() {
                         return (
                           <div key={`day-detail-${eventIdentity(ev)}-${ev.dtstart || ""}`}>
                             {dayDetailSearch && start && (
-                              <div className="mb-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                              <div className="mb-1 text-label font-medium uppercase tracking-wider text-muted-foreground">
                                 {start.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}
                               </div>
                             )}

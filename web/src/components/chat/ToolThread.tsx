@@ -26,12 +26,12 @@ export function DiffView({ diff, open, onToggle }: { diff: ToolDiff; open: boole
   })
   return (
     <div className="mt-1">
-      <button onClick={onToggle} className="flex w-full items-center gap-1.5 text-[11px] text-muted-foreground transition-colors hover:text-foreground">
+      <button onClick={onToggle} className="flex w-full items-center gap-1.5 text-label text-muted-foreground transition-colors hover:text-foreground">
         <ChevronRight className={cn("size-3 transition-transform duration-200", open && "rotate-90")} />
         <span className="font-mono">{diff.file || "diff"}</span>
         {stat && <span className="text-muted-foreground/60">{stat}</span>}
       </button>
-      {open && <pre className="mt-1 max-h-64 overflow-auto rounded bg-muted p-1 text-[11px] leading-relaxed">{rows}</pre>}
+      {open && <pre className="mt-1 max-h-64 overflow-auto rounded bg-muted p-1 text-label leading-relaxed">{rows}</pre>}
     </div>
   )
 }
@@ -62,22 +62,22 @@ export function ToolStepDetail({ t }: { t: ToolEvent }) {
     <>
       {cmd && !diff && (
         <details className="mt-1 group">
-          <summary className={cn("cursor-pointer select-none font-mono text-[11px] text-muted-foreground transition-colors hover:text-foreground", "flex items-center gap-1")}>
+          <summary className={cn("cursor-pointer select-none font-mono text-label text-muted-foreground transition-colors hover:text-foreground", "flex items-center gap-1")}>
             <ChevronRight className="size-3 shrink-0 transition-transform duration-200 group-open:rotate-90" />
             <span className="truncate">{cmd.split("\n")[0]}</span>
           </summary>
-          <pre className="mt-1 max-h-48 overflow-auto rounded bg-muted p-2 text-[11px] leading-relaxed">{cmd}</pre>
+          <pre className="mt-1 max-h-48 overflow-auto rounded bg-muted p-2 text-label leading-relaxed">{cmd}</pre>
         </details>
       )}
-      {t.running && t.progress && <div className="mt-1 truncate pl-5 font-mono text-[11px] text-muted-foreground">{t.progress}</div>}
+      {t.running && t.progress && <div className="mt-1 truncate pl-5 font-mono text-label text-muted-foreground">{t.progress}</div>}
       {diff && <DiffView diff={t.diff!} open={diffOpen} onToggle={() => setDiffOpen((o) => !o)} />}
       {t.output && !diff && (
         <div className="mt-1">
-          <button onClick={() => setOutOpen((o) => !o)} className="flex items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground">
+          <button onClick={() => setOutOpen((o) => !o)} className="flex items-center gap-1 text-label text-muted-foreground transition-colors hover:text-foreground">
             <ChevronRight className={cn("size-3 transition-transform duration-200", outOpen && "rotate-90")} />
             <span>Output</span>
           </button>
-          {outOpen && <pre className="mt-1 max-h-48 overflow-auto rounded bg-muted p-2 text-[11px] leading-relaxed">{String(t.output).slice(0, 4000)}</pre>}
+          {outOpen && <pre className="mt-1 max-h-48 overflow-auto rounded bg-muted p-2 text-label leading-relaxed">{String(t.output).slice(0, 4000)}</pre>}
         </div>
       )}
       {/* Generated image / browser screenshot — sanitized src + prompt caption. */}
@@ -85,7 +85,7 @@ export function ToolStepDetail({ t }: { t: ToolEvent }) {
         <figure className="mt-1.5">
           <img src={image} alt={t.imagePrompt || t.name} className="max-h-64 rounded border" />
           {(t.imagePrompt || t.name) && (
-            <figcaption className="mt-1 truncate text-[10px] text-muted-foreground">{t.imagePrompt || t.name}</figcaption>
+            <figcaption className="mt-1 truncate text-micro text-muted-foreground">{t.imagePrompt || t.name}</figcaption>
           )}
         </figure>
       )}
@@ -103,7 +103,7 @@ function ToolRow({ t }: { t: ToolEvent }) {
       <div className="flex items-center gap-1.5">
         <ToolStatusIcon t={t} />
         <span className="font-medium text-foreground">{t.name}</span>
-        {t.running && <span className="text-[11px] tabular-nums text-muted-foreground/70">{formatElapsed(now - start)}</span>}
+        {t.running && <span className="text-label tabular-nums text-muted-foreground/70">{formatElapsed(now - start)}</span>}
       </div>
       <ToolStepDetail t={t} />
     </div>

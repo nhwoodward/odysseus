@@ -36,10 +36,10 @@ function AllowedModelsEditor({ user, allowed }: { user: AppUser; allowed: string
     <div className="mt-1 space-y-1 border-t pt-2">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-muted-foreground">Allowed models ({sel.size})</span>
-        {sel.size > 0 && <button onClick={() => setPrivileges.mutate({ username: user.username, privileges: { allowed_models: [] } })} className="text-[11px] text-muted-foreground underline underline-offset-2 hover:text-foreground">Clear</button>}
+        {sel.size > 0 && <button onClick={() => setPrivileges.mutate({ username: user.username, privileges: { allowed_models: [] } })} className="text-label text-muted-foreground underline underline-offset-2 hover:text-foreground">Clear</button>}
       </div>
       {unique.length === 0
-        ? <p className="text-[11px] text-muted-foreground">No models available to choose from.</p>
+        ? <p className="text-label text-muted-foreground">No models available to choose from.</p>
         : (
           <div className="max-h-40 space-y-0.5 overflow-y-auto rounded-md border bg-background/50 p-1.5">
             {unique.map((m) => (
@@ -62,7 +62,7 @@ export function UserPrivileges({ user }: { user: AppUser }) {
   const allowedModels = Array.isArray(p.allowed_models) ? (p.allowed_models as unknown[]).map(String) : []
   return (
     <div className="mt-1">
-      <button onClick={() => setOpen((o) => !o)} className="flex items-center gap-1.5 text-[11px] text-muted-foreground transition-colors hover:text-foreground">
+      <button onClick={() => setOpen((o) => !o)} className="flex items-center gap-1.5 text-label text-muted-foreground transition-colors hover:text-foreground">
         <ChevronRight className={cn("size-3.5 transition-transform duration-200", open && "rotate-90")} />Privileges
       </button>
       {open && (

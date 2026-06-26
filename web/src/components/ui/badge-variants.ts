@@ -4,7 +4,7 @@ import { cva } from "class-variance-authority"
 // Every variant pairs a tint with readable text — status should never be
 // conveyed by color alone (pass a label/icon as children).
 export const badgeVariants = cva(
-  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium [&_svg]:size-3 [&_svg]:shrink-0",
+  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-label font-medium [&_svg]:size-3 [&_svg]:shrink-0",
   {
     variants: {
       variant: {

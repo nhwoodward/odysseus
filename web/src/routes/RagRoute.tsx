@@ -132,8 +132,8 @@ function ModelRow({ m }: { m: EmbeddingModel }) {
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className="truncate text-sm font-medium">{m.model}</span>
-          {m.active && <span className="shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] text-emerald-600 dark:text-emerald-400">active</span>}
-          {m.recommended && !m.active && <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">recommended</span>}
+          {m.active && <span className="shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-micro text-emerald-600 dark:text-emerald-400">active</span>}
+          {m.recommended && !m.active && <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-micro text-muted-foreground">recommended</span>}
         </div>
         <div className="flex flex-wrap gap-1.5 text-xs text-muted-foreground">
           {m.dim != null && <span>{m.dim}d</span>}
@@ -142,7 +142,7 @@ function ModelRow({ m }: { m: EmbeddingModel }) {
           {m.description && <span className="truncate">· {m.description}</span>}
         </div>
       </div>
-      {m.downloading ? <span className="shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] text-amber-600 dark:text-amber-400">downloading…</span>
+      {m.downloading ? <span className="shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-label text-amber-600 dark:text-amber-400">downloading…</span>
         : m.downloaded ? (
           <span className="flex shrink-0 items-center gap-1.5">
             <span className="flex items-center gap-1 text-xs text-muted-foreground"><Check className="size-3.5" />downloaded</span>

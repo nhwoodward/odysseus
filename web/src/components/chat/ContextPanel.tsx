@@ -104,7 +104,7 @@ export function ContextPanel() {
           )}
           {(kind === "doc" || kind === "files") && <FileText className="size-4 shrink-0 text-muted-foreground" />}
           <span className="truncate">{headerTitle}</span>
-          {kind === "doc" && doc?.language && <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-normal text-muted-foreground">{doc.language}</span>}
+          {kind === "doc" && doc?.language && <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-label font-normal text-muted-foreground">{doc.language}</span>}
         </span>
         <div className="flex shrink-0 items-center gap-1">
           {editing ? (
@@ -168,7 +168,7 @@ export function ContextPanel() {
           onRestored={(content) => { usePanel.getState().setDocContent(content); setMode("view") }} />
       ) : kind === "doc" && editing ? (
         <textarea ref={editorRef} value={draft} onChange={(e) => setDraft(e.target.value)} onSelect={(e) => { const el = e.currentTarget; setPendingSelection(el.selectionEnd > el.selectionStart ? { start: el.selectionStart, end: el.selectionEnd } : null) }} spellCheck={false} autoFocus
-          className="min-h-0 flex-1 resize-none border-0 bg-background p-4 font-mono text-[13px] leading-relaxed text-foreground outline-none" />
+          className="min-h-0 flex-1 resize-none border-0 bg-background p-4 font-mono text-note leading-relaxed text-foreground outline-none" />
       ) : kind === "doc" && doc?.error ? (
         <div className="flex min-h-0 flex-1 items-center justify-center p-6 text-center text-sm text-destructive">{doc.error}</div>
       ) : showPreview ? (
@@ -181,7 +181,7 @@ export function ContextPanel() {
                 <a key={i} href={s.url} target="_blank" rel="noreferrer" className="block rounded-lg border bg-background p-3 transition-colors hover:bg-accent/50">
                   <div className="flex items-center gap-1.5 text-sm font-medium"><ExternalLink className="size-3.5 shrink-0 text-muted-foreground" /><span className="truncate">{s.title || s.url}</span></div>
                   {s.snippet && <p className="mt-1 line-clamp-3 text-xs text-muted-foreground">{s.snippet}</p>}
-                  {s.url && <p className="mt-1 truncate text-[11px] text-muted-foreground/70">{s.url}</p>}
+                  {s.url && <p className="mt-1 truncate text-label text-muted-foreground/70">{s.url}</p>}
                 </a>
               ))}
               {sources.length === 0 && <p className="text-sm text-muted-foreground">No sources.</p>}
@@ -189,7 +189,7 @@ export function ContextPanel() {
           )}
           {kind === "doc" && (isProse
             ? <div className="prose-chat"><Markdown>{doc?.content || "_Generating…_"}</Markdown></div>
-            : <pre className="whitespace-pre-wrap break-words rounded-lg border bg-background p-3 font-mono text-[13px] leading-relaxed text-foreground">{doc?.content || ""}</pre>
+            : <pre className="whitespace-pre-wrap break-words rounded-lg border bg-background p-3 font-mono text-note leading-relaxed text-foreground">{doc?.content || ""}</pre>
           )}
         </div>
       )}
