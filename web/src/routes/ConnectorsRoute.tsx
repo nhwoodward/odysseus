@@ -12,6 +12,8 @@ import type { CatalogEntry, Connection } from "@/api/connectors"
 import { Switch } from "@/components/ui/switch"
 import { inputClass } from "@/components/ui/input"
 import { Markdown } from "@/components/chat/Markdown"
+import { BrandLogo } from "@/components/connectors/BrandLogo"
+import { EmptyState } from "@/components/ui/empty-state"
 import { cn } from "@/lib/utils"
 
 const ICONS: Record<string, LucideIcon> = {
@@ -39,7 +41,7 @@ const inp = inputClass
 
 // A connected (or connecting) source the user owns. Expands to per-tool
 // enable/disable switches (parity with the legacy/settings MCP tool toggles).
-function ConnectionRow({ c, onDisconnect }: { c: Connection; onDisconnect: (id: string) => void }) {
+function ConnectionRow({ c, brand, onDisconnect }: { c: Connection; brand?: string; onDisconnect: (id: string) => void }) {
   const [open, setOpen] = useState(false)
   const chip = statusChip(c.status, c.needs_auth)
   const expandable = c.status === "connected" && c.tool_count > 0
@@ -54,13 +56,7 @@ function ConnectionRow({ c, onDisconnect }: { c: Connection; onDisconnect: (id: 
   return (
     <div className="rounded-xl border bg-card">
       <div className="flex items-center gap-3 p-3">
-        {expandable ? (
-          <button onClick={() => setOpen((o) => !o)} title="Manage tools" className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground transition-colors hover:text-foreground">
-            <ChevronRight className={cn("size-4 transition-transform duration-200", open && "rotate-90")} />
-          </button>
-        ) : (
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"><Plug className="size-[18px]" /></span>
-        )}
+        <BrandLogo brand={brand} fallback={Plug} />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-medium">{c.name}</span>
           <span className="block truncate text-xs text-muted-foreground">{c.tool_count} tool{c.tool_count === 1 ? "" : "s"}{c.error ? ` · ${c.error}` : ""}</span>
@@ -69,6 +65,11 @@ function ConnectionRow({ c, onDisconnect }: { c: Connection; onDisconnect: (id: 
           <a href={c.auth_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs font-medium hover:bg-accent">
             <ExternalLink className="size-3.5" />Authorize
           </a>
+        )}
+        {expandable && (
+          <button onClick={() => setOpen((o) => !o)} title="Manage tools" aria-expanded={open} className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+            <ChevronRight className={cn("size-4 transition-transform duration-200", open && "rotate-90")} />
+          </button>
         )}
         <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-label font-medium", chip.cls)}>{chip.label}</span>
         <button onClick={() => onDisconnect(c.id)} title="Disconnect" className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-destructive">
@@ -128,7 +129,7 @@ function CatalogCard({ entry, connectedCount, onConnected, isAdmin, onSetAvailab
   return (
     <div className="flex flex-col rounded-xl border bg-card p-3.5">
       <div className="flex items-start gap-3">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"><Icon className="size-[18px]" /></span>
+        <BrandLogo brand={entry.brand} fallback={Icon} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <span className="truncate text-sm font-medium">{entry.name}</span>
@@ -229,6 +230,7 @@ export function ConnectorsRoute() {
   const { data: connections } = useConnections()
   const { disconnect, setAvailability } = useConnectorMutations()
   const [q, setQ] = useState("")
+  const [tab, setTab] = useState("featured") // "featured" | "all" | <category name>
 
   const conns = useMemo(() => connections || [], [connections])
   const countByCatalog = useMemo(() => {
@@ -248,29 +250,102 @@ export function ConnectorsRoute() {
     else next.delete(id)
     setAvailability.mutate([...next])
   }
-  const filtered = useMemo(() => {
-    const term = q.trim().toLowerCase()
-    if (!term) return entries
-    return entries.filter((e) => e.name.toLowerCase().includes(term) || e.description.toLowerCase().includes(term) || e.category.toLowerCase().includes(term))
-  }, [entries, q])
+  const brandById = useMemo(() => {
+    const m: Record<string, string | undefined> = {}
+    for (const e of entries) m[e.id] = e.brand
+    return m
+  }, [entries])
 
+  const categories = useMemo(() => catalog?.categories || [], [catalog?.categories])
+  const hasFeatured = useMemo(() => entries.some((e) => e.featured), [entries])
+  const term = q.trim().toLowerCase()
+  const searching = term.length > 0
+  // If "Featured" is selected but the (admin-curated) set has no featured items,
+  // fall back to All so the grid is never empty for a non-search reason.
+  const activeTab = tab === "featured" && !hasFeatured ? "all" : tab
+
+  const matches = useMemo(() => {
+    if (!searching) return entries
+    return entries.filter((e) =>
+      e.name.toLowerCase().includes(term) ||
+      e.description.toLowerCase().includes(term) ||
+      e.category.toLowerCase().includes(term))
+  }, [entries, term, searching])
+
+  // The displayed set: search wins; otherwise the active tab filters.
+  const visible = useMemo(() => {
+    if (searching) return matches
+    if (activeTab === "featured") return entries.filter((e) => e.featured)
+    if (activeTab === "all") return entries
+    return entries.filter((e) => e.category === activeTab)
+  }, [searching, matches, activeTab, entries])
+
+  // Only the "All" tab (no search) groups into per-category sections.
+  const grouped = !searching && activeTab === "all"
   const byCategory = useMemo(() => {
     const groups: Record<string, CatalogEntry[]> = {}
-    for (const e of filtered) (groups[e.category] ||= []).push(e)
-    const order = catalog?.categories || []
-    return Object.entries(groups).sort((a, b) => (order.indexOf(a[0]) + 1 || 99) - (order.indexOf(b[0]) + 1 || 99))
-  }, [filtered, catalog?.categories])
+    for (const e of visible) (groups[e.category] ||= []).push(e)
+    return Object.entries(groups).sort((a, b) => (categories.indexOf(a[0]) + 1 || 99) - (categories.indexOf(b[0]) + 1 || 99))
+  }, [visible, categories])
+
+  const tabs = useMemo(() => {
+    const t: { id: string; label: string }[] = []
+    if (hasFeatured) t.push({ id: "featured", label: "Featured" })
+    t.push({ id: "all", label: "All" })
+    for (const c of categories) t.push({ id: c, label: c })
+    return t
+  }, [hasFeatured, categories])
+
+  const card = (e: CatalogEntry) => (
+    <CatalogCard
+      key={e.id}
+      entry={e}
+      connectedCount={countByCatalog[e.id] || 0}
+      onConnected={() => {}}
+      isAdmin={isAdmin}
+      onSetAvailable={(v) => setAvailable(e.id, v)}
+    />
+  )
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <header className="flex shrink-0 flex-wrap items-center gap-2 border-b px-4 py-3 lg:px-6">
-        <Plug className="size-5 text-muted-foreground" />
-        <h1 className="text-lg font-semibold">Connectors</h1>
-        <div className="relative ml-2 hidden sm:block">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search connectors…" className="h-8 w-56 rounded-md border bg-background pl-8 pr-2 text-sm outline-none focus-visible:border-ring" />
+      <header className="shrink-0 border-b px-4 py-3 lg:px-6">
+        <div className="flex flex-wrap items-center gap-2">
+          <Plug className="size-5 text-muted-foreground" />
+          <h1 className="text-lg font-semibold">Connectors</h1>
+          {entries.length > 0 && <span className="rounded-full bg-muted px-2 py-0.5 text-label font-medium text-muted-foreground">{entries.length}</span>}
+          <div className="ml-auto"><CustomConnector onAdded={() => {}} /></div>
         </div>
-        <div className="ml-auto"><CustomConnector onAdded={() => {}} /></div>
+        <div className="relative mt-3">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search connectors by name, category, or what they do…"
+            aria-label="Search connectors"
+            className="h-10 w-full rounded-lg border bg-background pl-9 pr-9 text-sm outline-none focus-visible:border-ring"
+          />
+          {q && (
+            <button onClick={() => setQ("")} title="Clear search" aria-label="Clear search" className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground">
+              <X className="size-4" />
+            </button>
+          )}
+        </div>
+        {!searching && tabs.length > 1 && (
+          <div className="mt-3 flex gap-1.5 overflow-x-auto pb-0.5">
+            {tabs.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                aria-pressed={activeTab === t.id}
+                className={cn("shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                  activeTab === t.id ? "border-foreground bg-foreground text-background" : "text-muted-foreground hover:bg-accent hover:text-foreground")}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        )}
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 lg:px-6">
@@ -278,36 +353,39 @@ export function ConnectorsRoute() {
           <section className="mb-6">
             <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Your connections</h2>
             <div className="grid gap-2 md:grid-cols-2">
-              {conns.map((c) => <ConnectionRow key={c.id} c={c} onDisconnect={(id) => disconnect.mutate(id)} />)}
+              {conns.map((c) => <ConnectionRow key={c.id} c={c} brand={c.catalog_id ? brandById[c.catalog_id] : undefined} onDisconnect={(id) => disconnect.mutate(id)} />)}
             </div>
           </section>
         )}
 
         {isLoading && <p className="text-sm text-muted-foreground">Loading connectors…</p>}
 
-        {byCategory.map(([cat, items]) => (
-          <section key={cat} className="mb-6">
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{cat}</h2>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {items.map((e) => (
-                <CatalogCard
-                  key={e.id}
-                  entry={e}
-                  connectedCount={countByCatalog[e.id] || 0}
-                  onConnected={() => {}}
-                  isAdmin={isAdmin}
-                  onSetAvailable={(v) => setAvailable(e.id, v)}
-                />
-              ))}
-            </div>
-          </section>
-        ))}
-
-        {!isLoading && filtered.length === 0 && (
-          <div className="flex flex-col items-center justify-center gap-2 py-16 text-center text-muted-foreground">
-            <X className="size-8" />
-            <p className="text-sm">No connectors match “{q}”.</p>
+        {!isLoading && entries.length > 0 && (
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className="truncate text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {searching ? `Results for “${q}”` : activeTab === "featured" ? "Featured" : activeTab === "all" ? "All connectors" : activeTab}
+            </h2>
+            <span className="shrink-0 text-xs text-muted-foreground">{visible.length} connector{visible.length === 1 ? "" : "s"}</span>
           </div>
+        )}
+
+        {grouped ? (
+          byCategory.map(([cat, items]) => (
+            <section key={cat} className="mb-6">
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{cat}</h3>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{items.map(card)}</div>
+            </section>
+          ))
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{visible.map(card)}</div>
+        )}
+
+        {!isLoading && visible.length === 0 && (
+          <EmptyState
+            icon={Search}
+            title={searching ? `No connectors match “${q}”` : "Nothing here yet"}
+            description={searching ? "Try a different name, category, or keyword — or add a custom MCP connector." : "Connectors will show up here."}
+          />
         )}
       </div>
     </div>

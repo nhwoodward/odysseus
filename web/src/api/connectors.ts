@@ -15,6 +15,8 @@ export interface CatalogEntry {
   description: string
   category: string
   icon: string
+  brand?: string // simple-icons slug for the brand logo (BrandLogo); absent = lucide fallback
+  featured?: boolean
   capabilities: string[]
   kind: "remote" | "local"
   auth_type: string
