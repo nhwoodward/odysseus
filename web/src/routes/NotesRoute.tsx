@@ -10,6 +10,7 @@ import {
   useState,
 } from "react"
 import { useNavigate } from "react-router-dom"
+import { EmptyState } from "@/components/ui/empty-state"
 import {
   Archive,
   Bell,
@@ -1648,7 +1649,13 @@ export function NotesRoute() {
           </div>
         )}
         {isLoading && <p className="py-8 text-center text-sm text-muted-foreground">Loading notes...</p>}
-        {!isLoading && filtered.length === 0 && <p className="py-8 text-center text-sm text-muted-foreground">{hasActiveFilter ? "No matching notes." : archiveView ? "No archived notes." : "No notes yet."}</p>}
+        {!isLoading && filtered.length === 0 && (
+          <EmptyState
+            icon={StickyNote}
+            title={hasActiveFilter ? "No matching notes" : archiveView ? "No archived notes" : "No notes yet"}
+            description={hasActiveFilter || archiveView ? undefined : "Capture quick notes, checklists, and reminders here."}
+          />
+        )}
       </div>
     </div>
   )

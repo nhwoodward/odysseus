@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { EmptyState } from "@/components/ui/empty-state"
 import {
   Bell,
   Bot,
   CalendarDays,
+  ListChecks,
   Check,
   Clipboard,
   Copy,
@@ -925,7 +927,7 @@ function TasksList({ tasks, onNew, onEdit }: { tasks: Task[]; onNew: () => void;
         </div>
       )}
       <div className="space-y-2">
-        {!tasks.length && <p className="py-8 text-center text-sm text-muted-foreground">No tasks yet. Create one to get started.</p>}
+        {!tasks.length && <EmptyState icon={ListChecks} title="No tasks yet" description="Create a task to automate work on a schedule, event, or webhook." />}
         {tasks.length > 0 && visible.length === 0 && <p className="py-8 text-center text-sm text-muted-foreground">No matching tasks.</p>}
         {visible.map((t) => (
           <TaskCard

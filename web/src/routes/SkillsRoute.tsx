@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Trash2, Sparkles, Wrench, Pencil, ArrowLeft, Save, Plus, Play, FlaskConical, Link2, RotateCcw, CheckCircle2, XCircle, AlertTriangle, HelpCircle, Loader2, Search, X, Eye, EyeOff, ListChecks } from "lucide-react"
+import { EmptyState } from "@/components/ui/empty-state"
 import { useSkills, useBuiltinSkills, useSkillMarkdown, useSkillMutations, useRunSkill, useStartSkillTest, useSkillTestStatus, useBuiltinSkill, useAuditAllStatus, useCancelAuditAll } from "@/api/skills"
 import type { SkillVerdict, SkillRow, AuditResult } from "@/api/skills"
 import { Button } from "@/components/ui/button"
@@ -471,7 +472,7 @@ export function SkillsRoute() {
               </div>
               )
             })}
-            {(skills || []).length === 0 && <p className="py-3 text-sm text-muted-foreground">No custom skills yet.</p>}
+            {(skills || []).length === 0 && <EmptyState icon={Sparkles} title="No custom skills yet" description="Skills the assistant learns from your sessions will appear here." />}
             {(skills || []).length > 0 && visible.length === 0 && <p className="py-3 text-sm text-muted-foreground">No skills match your filters.</p>}
           </div>
         </section>

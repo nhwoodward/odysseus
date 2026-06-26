@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { ArrowLeft, PenSquare, Send, X, Reply, ReplyAll, Forward, Archive, MailOpen, Trash2, Search, Inbox, ChevronDown, Star, FolderInput, CheckCheck, Paperclip, Download, FileText, Sparkles, Filter, Bell, BellPlus, Clock, AlertCircle, Newspaper, Megaphone, RefreshCw, MoreVertical, ExternalLink, UserPlus, Ban, ShieldCheck, MessagesSquare, type LucideIcon } from "lucide-react"
+import { EmptyState } from "@/components/ui/empty-state"
 import {
   useInbox, useEmail, useEmailActions, sendEmail, saveDraft,
   useFolders, useEmailSearch, useContacts, useAttachments,
@@ -1965,7 +1966,7 @@ function EmailList({
           )
         })}
       </div>
-      {!error && emails.length === 0 && <p className="p-8 text-center text-sm text-muted-foreground">{emptyLabel}</p>}
+      {!error && emails.length === 0 && <EmptyState icon={Inbox} title={emptyLabel} />}
       {footer}
     </div>
   )

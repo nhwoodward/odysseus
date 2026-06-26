@@ -8,6 +8,7 @@ import {
   type MouseEvent as ReactMouseEvent,
 } from "react"
 import { useNavigate } from "react-router-dom"
+import { EmptyState } from "@/components/ui/empty-state"
 import {
   AlertTriangle,
   Bell,
@@ -2005,7 +2006,7 @@ export function CalendarRoute() {
           </div>
         )}
 
-        {sorted.length === 0 && !showDayDetail && <p className="py-8 text-center text-sm text-muted-foreground">No events match this view.</p>}
+        {sorted.length === 0 && !showDayDetail && <EmptyState title="No events" description="No events match this view." />}
       </div>
     </div>
   )

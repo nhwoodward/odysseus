@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react"
 import { FlaskConical, Cpu, HardDrive, Download, Play, Square, Server, Loader2, AlertTriangle, Gauge, Wrench, PackageSearch, CalendarClock, Image, RotateCcw, FileText, Copy } from "lucide-react"
+import { EmptyState } from "@/components/ui/empty-state"
 import {
   useCachedModels, useGpus, useCookbookMutations,
   useRunningTasks, useRunningMutations,
@@ -271,7 +272,7 @@ function RunningSection() {
       <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground"><Server className="size-3.5" />Running</h2>
       {isLoading ? <p className="text-sm text-muted-foreground">Checking running tasks…</p>
         : isError || !data?.ok ? <p className="rounded-lg border bg-card p-3 text-sm text-muted-foreground">Running-task status unavailable (admin only).</p>
-        : tasks.length === 0 ? <p className="rounded-lg border bg-card p-3 text-sm text-muted-foreground">Nothing running. Serve a model above to see it here.</p>
+        : tasks.length === 0 ? <EmptyState icon={Server} title="Nothing running" description="Serve a model above to see it here." />
         : (
           <div className="divide-y rounded-lg border bg-card">
             {tasks.map((t) => {
