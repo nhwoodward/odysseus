@@ -13,6 +13,7 @@ import httpx
 
 from core.database import McpServer, SessionLocal
 from core.middleware import require_admin
+from src.auth_helpers import require_user
 from src.constants import DATA_DIR, MCP_OAUTH_DIR
 from src.mcp_manager import McpManager
 
@@ -482,8 +483,12 @@ def setup_mcp_routes(mcp_manager: McpManager):
     @router.get("/oauth/callback")
     async def oauth_callback(code: str, state: str, request: Request):
         """Handle OAuth callback. Generic MCP OAuth flows resolve via the
-        pending-state registry; Google flows fall through to the legacy path."""
-        require_admin(request)
+        pending-state registry; Google flows fall through to the legacy path.
+
+        Auth: any authenticated user (not admin-only) so per-user *connectors*
+        can complete OAuth. The generic path is CSRF-safe — it only resolves a
+        `state` the server itself registered for a connect the user initiated."""
+        require_user(request)
         from src.mcp_oauth import resolve_pending
         if resolve_pending(state, code):
             return HTMLResponse(_oauth_result_page(

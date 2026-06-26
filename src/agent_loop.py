@@ -39,13 +39,24 @@ from src.agent_tools import (
 logger = logging.getLogger(__name__)
 
 
-def _load_mcp_disabled_map() -> Dict[str, set]:
-    """Load per-server disabled tool sets from the database."""
+def _load_mcp_disabled_map(owner: Optional[str] = None, mcp_mgr=None) -> Dict[str, set]:
+    """Load per-server disabled tool sets from the database.
+
+    Per-user connectors isolation: when ``owner`` and ``mcp_mgr`` are provided,
+    every MCP server owned by a *different* user is fully hidden by adding all of
+    its tool names to its disabled set — so a foreign-owned connection never
+    reaches this user's tool schemas or prompt. Shared servers (``owner`` IS NULL
+    — builtins / admin globals) and the request user's own connections stay
+    visible. ``get_all_tools()`` and ``get_all_openai_schemas()`` both iterate the
+    same ``_tools`` dict, so any tool that could surface for a foreign server is
+    enumerated here and suppressed (no leak)."""
     from core.database import McpServer, SessionLocal
     disabled_map: Dict[str, set] = {}
+    foreign: set = set()
     db = SessionLocal()
     try:
-        for srv in db.query(McpServer).all():
+        servers = db.query(McpServer).all()
+        for srv in servers:
             if srv.disabled_tools:
                 try:
                     names = json.loads(srv.disabled_tools)
@@ -53,8 +64,15 @@ def _load_mcp_disabled_map() -> Dict[str, set]:
                         disabled_map[srv.id] = set(names)
                 except (json.JSONDecodeError, TypeError):
                     pass
+        if owner:
+            foreign = {srv.id for srv in servers if getattr(srv, "owner", None) and srv.owner != owner}
     finally:
         db.close()
+    if foreign and mcp_mgr is not None:
+        for tool in mcp_mgr.get_all_tools():
+            sid = tool.get("server_id")
+            if sid in foreign:
+                disabled_map.setdefault(sid, set()).add(tool.get("name"))
     return disabled_map
 
 # System prompt that tells the LLM about available tools.
@@ -1872,7 +1890,7 @@ async def stream_agent_loop(
         sorted(_intent.get("domains") or []),
         _retrieval_query[:200],
     )
-    _mcp_disabled_map = _load_mcp_disabled_map() if mcp_mgr else {}
+    _mcp_disabled_map = _load_mcp_disabled_map(owner, mcp_mgr) if mcp_mgr else {}
     if plan_mode and mcp_mgr:
         # Allow read-only MCP tools to investigate, block write/unknown ones:
         # hide them from the schemas AND reject them at runtime by qualified name.
