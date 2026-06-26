@@ -1,12 +1,13 @@
 import { useEffect, useState, type DragEvent } from "react"
 import { NavLink, useLocation, useNavigate } from "react-router-dom"
-import { Plus, Search, PanelLeft, Settings, Trash2, Moon, Sun, LogOut, EyeOff, Keyboard, ChevronsUpDown, Pencil, Pin, Check, FolderKanban, ChevronDown, Users, Archive, ArchiveRestore, CheckSquare, Square, X } from "lucide-react"
+import { Plus, Search, PanelLeft, Settings, Trash2, Moon, Sun, LogOut, EyeOff, Keyboard, ChevronsUpDown, Pencil, Pin, Check, Users, Archive, ArchiveRestore, CheckSquare, Square, X } from "lucide-react"
 import { useUi } from "@/stores/ui"
 import { useComposer } from "@/stores/composer"
 import { useSessions, useSessionMutations, useArchivedSessions } from "@/api/sessions"
 import { useAuthStatus, logout } from "@/api/auth"
 import { usePrefs } from "@/api/prefs"
-import { PRIMARY, WORKSPACE } from "./nav"
+import { ALL_NAV, DEFAULT_PINNED } from "./nav"
+import { MoreToolsMenu } from "./MoreToolsMenu"
 import type { Session } from "@/types"
 import { removePersistentPersonaSession } from "@/lib/persistentPersona"
 import { useEscapeClose } from "@/lib/useEscapeClose"
@@ -60,9 +61,9 @@ function Account({ collapsed }: { collapsed: boolean }) {
         </>
       )}
       {collapsed ? (
-        <button onClick={() => setOpen((o) => !o)} title={name} aria-haspopup="menu" aria-expanded={open} className="mx-auto flex size-9 items-center justify-center rounded-full bg-muted text-sm font-medium uppercase">{name[0]}</button>
+        <button onClick={() => setOpen((o) => !o)} title={name} aria-expanded={open} className="mx-auto flex size-9 items-center justify-center rounded-full bg-muted text-sm font-medium uppercase">{name[0]}</button>
       ) : (
-        <button onClick={() => setOpen((o) => !o)} aria-haspopup="menu" aria-expanded={open} className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 hover:bg-accent">
+        <button onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 hover:bg-accent">
           <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium uppercase">{name[0]}</span>
           <span className="min-w-0 flex-1 truncate text-left text-sm font-medium">{name}</span>
           <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />
@@ -83,15 +84,10 @@ export function Sidebar() {
   const { data: sessions } = useSessions()
   const { data: prefs } = usePrefs()
   const hidden = new Set((prefs?.hidden_nav as string[] | undefined) || [])
-  const primary = PRIMARY.filter((i) => i.to === "/chat" || !hidden.has(i.to))
-  const workspace = WORKSPACE.filter((i) => !hidden.has(i.to))
-  const allNav = [...primary, ...workspace]
+  // Every destination the user hasn't hidden (Chat can never be hidden).
+  const visibleNav = ALL_NAV.filter((i) => i.to === "/chat" || !hidden.has(i.to))
   const firedNoteReminders = useNoteReminders((s) => s.firedCount)
-  // When the Workspace group is collapsed, surface anything that would be hidden:
-  // an active route in the group, and unread Notes reminders.
-  const workspaceActive = workspace.some((i) => pathname === i.to || pathname.startsWith(i.to + "/"))
-  const workspaceReminders = workspace.some((i) => i.to === "/notes") && firedNoteReminders > 0
-  const { remove, rename, setImportant, archive, unarchive, setFolder, bulkDelete, bulkArchive } = useSessionMutations()
+  const { remove, rename, setImportant, archive, unarchive, bulkDelete, bulkArchive } = useSessionMutations()
   const [q, setQ] = useState("")
   const [editId, setEditId] = useState<string | null>(null)
   const [editName, setEditName] = useState("")
@@ -99,53 +95,40 @@ export function Sidebar() {
   const [manualOrder, setManualOrder] = useState<string[]>(() => {
     try { return JSON.parse(window.localStorage.getItem("odysseus-session-order") || "[]") as string[] } catch { return [] }
   })
-  const [folderOrder, setFolderOrder] = useState<string[]>(() => {
-    try { return JSON.parse(window.localStorage.getItem("odysseus-folder-order") || "[]") as string[] } catch { return [] }
-  })
   const [draggedId, setDraggedId] = useState<string | null>(null)
-  const [draggedFolder, setDraggedFolder] = useState<string | null>(null)
-  const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(new Set())
-  // Collapse the Workspace nav group to keep the sidebar scannable. Persisted so
-  // the preference survives reloads.
-  const [workspaceCollapsed, setWorkspaceCollapsed] = useState<boolean>(() => {
-    try { return window.localStorage.getItem("odysseus-nav-workspace-collapsed") === "1" } catch { return false }
+  // Pinned nav favorites shown as direct sidebar rows. "/chat" is always pinned;
+  // everything else lives behind the "More tools" flyout until pinned. Persisted
+  // like the other sidebar prefs in this file.
+  const [pinnedNav, setPinnedNav] = useState<string[]>(() => {
+    try { const v = JSON.parse(window.localStorage.getItem("odysseus-pinned-nav") || "null"); return Array.isArray(v) ? v as string[] : DEFAULT_PINNED } catch { return DEFAULT_PINNED }
   })
-  const toggleWorkspace = () => setWorkspaceCollapsed((v) => {
-    const next = !v
-    try { window.localStorage.setItem("odysseus-nav-workspace-collapsed", next ? "1" : "0") } catch { /* ignore */ }
-    return next
-  })
+  useEffect(() => { window.localStorage.setItem("odysseus-pinned-nav", JSON.stringify(pinnedNav)) }, [pinnedNav])
+  // One-time cleanup of prefs the sidebar rework retired (folder ordering + the
+  // collapsible Workspace group) so they don't linger in localStorage.
+  useEffect(() => {
+    try { window.localStorage.removeItem("odysseus-folder-order"); window.localStorage.removeItem("odysseus-nav-workspace-collapsed") } catch { /* ignore */ }
+  }, [])
+  const togglePin = (to: string) => setPinnedNav((prev) => prev.includes(to) ? prev.filter((t) => t !== to) : [...prev, to])
+  const pinnedSet = new Set(["/chat", ...pinnedNav])
+  const favorites = visibleNav.filter((i) => pinnedSet.has(i.to))
+  const moreItems = visibleNav.filter((i) => !pinnedSet.has(i.to))
+  const moreReminderTos = firedNoteReminders > 0 ? new Set(["/notes"]) : undefined
   const [view, setView] = useState<"active" | "archived">("active")
   const [selectMode, setSelectMode] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const commitRename = () => { if (editId && editName.trim()) rename.mutate({ id: editId, name: editName.trim() }); setEditId(null) }
   useEffect(() => { window.localStorage.setItem("odysseus-session-order", JSON.stringify(manualOrder)) }, [manualOrder])
-  useEffect(() => { window.localStorage.setItem("odysseus-folder-order", JSON.stringify(folderOrder)) }, [folderOrder])
   const manualRank = (session: Session) => { const rank = manualOrder.indexOf(session.id); return rank < 0 ? Number.MAX_SAFE_INTEGER : rank }
   const manualSort = (items: Session[]) => [...items].sort((a, b) => manualRank(a) - manualRank(b) || new Date(b.last_message_at || b.updated_at || 0).getTime() - new Date(a.last_message_at || a.updated_at || 0).getTime())
   const moveChat = (target: Session) => {
     if (!draggedId || draggedId === target.id) return
-    const source = list.find((session) => session.id === draggedId)
     setManualOrder((old) => {
       const all = [...new Set([...old, ...list.map((session) => session.id)])].filter((id) => id !== draggedId)
       const targetIndex = all.indexOf(target.id)
       all.splice(targetIndex < 0 ? all.length : targetIndex, 0, draggedId)
       return all
     })
-    if ((source?.folder || null) !== (target.folder || null)) setFolder.mutate({ id: draggedId, folder: target.folder || null })
     setDraggedId(null); setSortMode("manual")
-  }
-  const dropIntoFolder = (folder: string | null) => {
-    if (!draggedId) return
-    setFolder.mutate({ id: draggedId, folder }); setDraggedId(null); setSortMode("manual")
-  }
-  const moveFolder = (target: string) => {
-    if (!draggedFolder || draggedFolder === target) return
-    setFolderOrder((old) => {
-      const all = [...new Set([...old, ...projectMap.keys()])].filter((name) => name !== draggedFolder)
-      const index = all.indexOf(target); all.splice(index < 0 ? all.length : index, 0, draggedFolder); return all
-    })
-    setDraggedFolder(null)
   }
 
   const archivedView = view === "archived"
@@ -154,29 +137,23 @@ export function Sidebar() {
 
   const list = (sessions || []).filter((s) => !s.archived).filter((s) => !q || (s.name || "").toLowerCase().includes(q.toLowerCase()))
   // Pinned (important) chats float to the top in every sort mode, in their own
-  // section above projects and the time/sort buckets. They are excluded from
-  // those groups below so they never appear twice.
+  // section above the time/sort buckets. They are excluded from those buckets
+  // below so they never appear twice.
   const pinned = list
     .filter((s) => s.is_important)
     .sort((x, y) => new Date(y.last_message_at || y.updated_at || 0).getTime() - new Date(x.last_message_at || x.updated_at || 0).getTime())
+  // Every non-pinned chat falls into the time/sort buckets (the sidebar no
+  // longer groups by project folder — projects are managed on the Projects page
+  // and the chat-header picker).
   const rest = list.filter((s) => !s.is_important)
-  // Chats in a project (folder) group next; the remainder fall into the
-  // time/sort buckets below.
-  const filed = rest.filter((s) => s.folder)
-  const unfiled = rest.filter((s) => !s.folder)
-  const projectMap = new Map<string, Session[]>()
-  for (const s of filed) { const k = s.folder as string; if (!projectMap.has(k)) projectMap.set(k, []); projectMap.get(k)!.push(s) }
-  const projectGroups = Array.from(projectMap.entries())
-    .map(([name, items]) => ({ name, items: sortMode === "manual" ? manualSort(items) : [...items].sort((x, y) => new Date(y.last_message_at || y.updated_at || 0).getTime() - new Date(x.last_message_at || x.updated_at || 0).getTime()) }))
-    .sort((a, b) => { const ar = folderOrder.indexOf(a.name), br = folderOrder.indexOf(b.name); return (ar < 0 ? Number.MAX_SAFE_INTEGER : ar) - (br < 0 ? Number.MAX_SAFE_INTEGER : br) || a.name.localeCompare(b.name) })
   const groups = sortMode === "recent"
-    ? BUCKETS.map((b) => ({ b, items: unfiled.filter((s) => bucketOf(s) === b) })).filter((g) => g.items.length)
-    : sortMode === "manual" ? [{ b: "Manual order", items: manualSort(unfiled) }]
-    : [{ b: sortMode === "az" ? "A–Z" : "Oldest first", items: [...unfiled].sort((x, y) => sortMode === "az" ? (x.name || "").localeCompare(y.name || "") : new Date(x.last_message_at || x.updated_at || 0).getTime() - new Date(y.last_message_at || y.updated_at || 0).getTime()) }]
+    ? BUCKETS.map((b) => ({ b, items: rest.filter((s) => bucketOf(s) === b) })).filter((g) => g.items.length)
+    : sortMode === "manual" ? [{ b: "Manual order", items: manualSort(rest) }]
+    : [{ b: sortMode === "az" ? "A–Z" : "Oldest first", items: [...rest].sort((x, y) => sortMode === "az" ? (x.name || "").localeCompare(y.name || "") : new Date(x.last_message_at || x.updated_at || 0).getTime() - new Date(y.last_message_at || y.updated_at || 0).getTime()) }]
 
   // All visible session ids in the active view drive Select-All. Archived rows
   // are not selectable (their actions are Restore/Delete, handled per-row).
-  const visibleIds = [...pinned, ...filed, ...unfiled].map((s) => s.id)
+  const visibleIds = [...pinned, ...rest].map((s) => s.id)
   const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selected.has(id))
   const toggleSelected = (id: string) => setSelected((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n })
   const exitSelectMode = () => { setSelectMode(false); setSelected(new Set()) }
@@ -288,17 +265,20 @@ export function Sidebar() {
         <button data-tour="search-conversations" onClick={() => window.dispatchEvent(new CustomEvent("odysseus:open-search"))} title="Search conversations (⌘K)" className={iconBtn(false)}><Search className="size-5" /></button>
         <div className="my-1 h-px w-6 bg-border" />
         <div className="flex flex-col items-center gap-1" data-tour="primary-nav">
-          {allNav.map(({ to, icon: Icon, label }) => {
+          {favorites.map(({ to, icon: Icon, label }) => {
             const showReminderBadge = to === "/notes" && firedNoteReminders > 0
             return (
               <NavLink key={to} to={to} title={label} data-tour={tourNav(to)} className={({ isActive }) => iconBtn(isActive)}>
                 <span className="relative grid place-items-center">
                   <Icon className="size-5" />
-                  {showReminderBadge && <span className="notes-nav-reminder-badge notes-nav-reminder-badge-icon">{reminderCountLabel(firedNoteReminders)}</span>}
+                  {showReminderBadge && <span className="notes-nav-reminder-badge notes-nav-reminder-badge-icon" aria-label={`${reminderCountLabel(firedNoteReminders)} reminders`}>{reminderCountLabel(firedNoteReminders)}</span>}
                 </span>
               </NavLink>
             )
           })}
+          {moreItems.length > 0 && (
+            <MoreToolsMenu variant="icon" items={moreItems} onTogglePin={togglePin} reminderTos={moreReminderTos} reminderText={reminderCountLabel(firedNoteReminders)} />
+          )}
         </div>
         <Account collapsed />
         </aside>
@@ -325,47 +305,29 @@ export function Sidebar() {
         </div>
       </div>
       <nav className="space-y-0.5 px-2" data-tour="primary-nav">
-        {primary.map(({ to, icon: Icon, label }) => {
+        {favorites.map(({ to, icon: Icon, label }) => {
           const showReminderBadge = to === "/notes" && firedNoteReminders > 0
+          const unpinnable = to !== "/chat"
           return (
-            <NavLink key={to} to={to} data-tour={tourNav(to)} className={({ isActive }) => navRow(isActive)}>
-              <Icon className="size-4 shrink-0" />
-              <span className="min-w-0 flex-1 truncate">{label}</span>
-              {showReminderBadge && <span className="notes-nav-reminder-badge">{reminderCountLabel(firedNoteReminders)}</span>}
-            </NavLink>
+            <div key={to} className="group/fav relative">
+              <NavLink to={to} data-tour={tourNav(to)} className={({ isActive }) => cn(navRow(isActive), unpinnable && "pr-8")}>
+                <Icon className="size-4 shrink-0" />
+                <span className="min-w-0 flex-1 truncate">{label}</span>
+                {showReminderBadge && <span className="notes-nav-reminder-badge" aria-label={`${reminderCountLabel(firedNoteReminders)} reminders`}>{reminderCountLabel(firedNoteReminders)}</span>}
+              </NavLink>
+              {unpinnable && (
+                <button onClick={() => togglePin(to)} title="Unpin from sidebar" aria-label={`Unpin ${label} from sidebar`}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 group-hover/fav:opacity-100">
+                  <Pin className="size-3.5 fill-current" />
+                </button>
+              )}
+            </div>
           )
         })}
+        {moreItems.length > 0 && (
+          <MoreToolsMenu variant="row" items={moreItems} onTogglePin={togglePin} reminderTos={moreReminderTos} reminderText={reminderCountLabel(firedNoteReminders)} />
+        )}
       </nav>
-      {workspace.length > 0 && (
-        <div className="pt-2" data-tour="workspace-nav">
-          <button
-            type="button"
-            onClick={toggleWorkspace}
-            aria-expanded={!workspaceCollapsed}
-            title={workspaceCollapsed ? "Expand Workspace" : "Collapse Workspace"}
-            className="group/ws flex w-full items-center gap-1.5 px-4 pb-1 pt-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground/80 transition-colors hover:text-foreground"
-          >
-            <span className="flex-1 text-left">Workspace</span>
-            {workspaceCollapsed && workspaceReminders && <span className="notes-nav-reminder-badge">{reminderCountLabel(firedNoteReminders)}</span>}
-            {workspaceCollapsed && workspaceActive && !workspaceReminders && <span className="size-1.5 rounded-full bg-foreground/70" aria-hidden />}
-            <ChevronDown className={cn("size-3.5 shrink-0 text-muted-foreground/50 transition-transform duration-200 group-hover/ws:text-muted-foreground", workspaceCollapsed && "-rotate-90")} />
-          </button>
-          <div className={cn("grid transition-[grid-template-rows] duration-200 ease-out", workspaceCollapsed ? "grid-rows-[0fr]" : "grid-rows-[1fr]")}>
-            <nav className="min-h-0 space-y-0.5 overflow-hidden px-2">
-              {workspace.map(({ to, icon: Icon, label }) => {
-                const showReminderBadge = to === "/notes" && firedNoteReminders > 0
-                return (
-                  <NavLink key={to} to={to} data-tour={tourNav(to)} className={({ isActive }) => navRow(isActive)}>
-                    <Icon className="size-4 shrink-0" />
-                    <span className="min-w-0 flex-1 truncate">{label}</span>
-                    {showReminderBadge && <span className="notes-nav-reminder-badge">{reminderCountLabel(firedNoteReminders)}</span>}
-                  </NavLink>
-                )
-              })}
-            </nav>
-          </div>
-        </div>
-      )}
       <div className="mt-3 flex items-center justify-between px-3 pb-1">
         <div className="flex items-center gap-2">
           <button onClick={() => { setView("active"); exitSelectMode() }}
@@ -378,7 +340,7 @@ export function Sidebar() {
         ) : (
           <div className="flex items-center gap-2">
             <button onClick={enterSelectMode} title="Select chats" className="text-muted-foreground hover:text-foreground"><CheckSquare className="size-3.5" /></button>
-            <select value={sortMode} onChange={(e) => setSortMode(e.target.value as "recent" | "az" | "oldest" | "manual")} className="rounded border-0 bg-transparent text-xs text-muted-foreground outline-none hover:text-foreground">
+            <select value={sortMode} onChange={(e) => setSortMode(e.target.value as "recent" | "az" | "oldest" | "manual")} aria-label="Sort chats" className="rounded border-0 bg-transparent text-xs text-muted-foreground outline-none hover:text-foreground">
               <option value="recent">Recent</option><option value="az">A–Z</option><option value="oldest">Oldest</option><option value="manual">Manual</option>
             </select>
           </div>
@@ -396,7 +358,7 @@ export function Sidebar() {
           <button onClick={runBulkDelete} disabled={!selected.size} title="Delete selected" className="text-muted-foreground hover:text-destructive disabled:opacity-40"><Trash2 className="size-3.5" /></button>
         </div>
       )}
-      <div className="flex-1 overflow-y-auto px-2 pb-2">
+      <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
         {archivedView ? (
           <>
             {archivedList.map(renderArchivedRow)}
@@ -413,28 +375,9 @@ export function Sidebar() {
                 {pinned.map(renderRow)}
               </div>
             )}
-            {projectGroups.length > 0 && (
-              <div className="mb-2">
-                {projectGroups.map((g) => {
-                  const isCollapsed = collapsedProjects.has(g.name)
-                  return (
-                    <div key={g.name} className="mb-0.5">
-                      <button draggable={sortMode === "manual"} onDragStart={(event) => { setDraggedFolder(g.name); event.dataTransfer.effectAllowed = "move" }} onDragEnd={() => setDraggedFolder(null)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); if (draggedFolder) moveFolder(g.name); else dropIntoFolder(g.name) }} onClick={() => setCollapsedProjects((prev) => { const n = new Set(prev); if (n.has(g.name)) n.delete(g.name); else n.add(g.name); return n })}
-                        className="flex w-full items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground/80 hover:bg-accent/40 hover:text-foreground">
-                        <ChevronDown className={cn("size-3.5 shrink-0 transition-transform duration-200", isCollapsed && "-rotate-90")} />
-                        <FolderKanban className="size-3.5 shrink-0" />
-                        <span className="min-w-0 flex-1 truncate text-left">{g.name}</span>
-                        <span className="shrink-0">{g.items.length}</span>
-                      </button>
-                      {!isCollapsed && <div className="ml-3 border-l pl-1">{g.items.map(renderRow)}</div>}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
             {groups.map((g) => (
               <div key={g.b} className="mb-2">
-                <div onDragOver={(event) => { if (draggedId) event.preventDefault() }} onDrop={(event) => { event.preventDefault(); dropIntoFolder(null) }} className="px-2 py-1 text-xs font-medium text-muted-foreground/80">{g.b}</div>
+                <div className="px-2 py-1 text-xs font-medium text-muted-foreground/80">{g.b}</div>
                 {g.items.map(renderRow)}
               </div>
             ))}

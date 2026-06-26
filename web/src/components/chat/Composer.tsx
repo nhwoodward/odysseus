@@ -245,7 +245,7 @@ const TOUR_GUIDES: Record<string, TourGuide> = {
       tourStep('[data-tour="new-chat"]', "Start with a new chat, then pick the model you want to use."),
       tourStep('[data-tour="mode-picker"]', "Use Chat for straightforward conversation or Agent when the model should operate tools."),
       tourStep('[data-tour="tools-menu"]', "Toggle web search, research, shell, RAG, and incognito from the composer controls."),
-      tourStep('[data-tour="primary-nav"]', "Use the tools/sidebar to open Compare, Research, Library, Gallery, Memory, Tasks, Cookbook, and Settings."),
+      tourStep('[data-tour="primary-nav"]', "Your pinned tools live here; open everything else (Compare, Library, Gallery, Tasks, Cookbook…) from “More tools”. Pin the ones you use most."),
       tourStep('[data-tour="composer-input"]', "Type in the composer, drop files to attach them, or run /prompt for a starter prompt."),
     ],
     closing: "For focused walkthroughs, run /tour-compare, /tour-research, /tour-library, /tour-brain, or /tour-task-1.",

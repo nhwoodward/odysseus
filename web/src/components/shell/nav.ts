@@ -28,3 +28,14 @@ export const WORKSPACE: NavItem[] = [
   { to: "/skills", icon: Sparkles, label: "Skills" },
   { to: "/connectors", icon: Plug, label: "Connectors" },
 ]
+
+// Flat list of every destination, in display order. The sidebar shows a small
+// pinned subset as direct rows and tucks the rest behind a "More tools" flyout
+// (leaders like ChatGPT/Claude keep ~5 nav items so the chat history dominates).
+export const ALL_NAV: NavItem[] = [...PRIMARY, ...WORKSPACE]
+
+// Default favorites shown directly in the sidebar, in addition to "/chat" which
+// the sidebar always force-pins (and renders first). User-curatable via
+// pin/unpin (persisted to localStorage `odysseus-pinned-nav`); all entries still
+// honor `hidden_nav`.
+export const DEFAULT_PINNED = ["/projects", "/research"]

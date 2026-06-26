@@ -5,7 +5,7 @@ import { useModels } from "@/api/models"
 import { useIntegrations } from "@/api/integrations"
 import { useTokens, useTokenProfiles, useTokenMutations } from "@/api/tokens"
 import { usePrefs, useSetPref } from "@/api/prefs"
-import { PRIMARY, WORKSPACE } from "@/components/shell/nav"
+import { ALL_NAV } from "@/components/shell/nav"
 import { DEFAULT_KEYBINDS } from "@/lib/useHotkeys"
 import { apiFetch } from "@/lib/api"
 import { useBuiltinTools, useSetBuiltinTools } from "@/api/tools"
@@ -429,7 +429,7 @@ export function SidebarItemsSettings() {
   const { data: prefs } = usePrefs()
   const setPref = useSetPref()
   const hidden = new Set((prefs?.hidden_nav as string[] | undefined) || [])
-  const items = [...PRIMARY, ...WORKSPACE].filter((i) => i.to !== "/chat")
+  const items = ALL_NAV.filter((i) => i.to !== "/chat")
   const toggle = (to: string, visible: boolean) => {
     const next = new Set(hidden)
     if (visible) next.delete(to); else next.add(to)
