@@ -3,11 +3,12 @@ import { ChevronRight, Terminal, Loader2, Check, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { safeImageSrc } from "@/lib/safeImage"
 import { useNow, formatElapsed } from "@/lib/useNow"
+import { visibleCommand } from "@/lib/agentRun"
 import type { ToolEvent, ToolDiff } from "@/types"
 
 // One hunk of a unified diff, colored per line like the legacy UI
 // (chatRenderer.js: diff-add / diff-del / diff-ctx / diff-meta / diff-hunk).
-function DiffView({ diff, open, onToggle }: { diff: ToolDiff; open: boolean; onToggle: () => void }) {
+export function DiffView({ diff, open, onToggle }: { diff: ToolDiff; open: boolean; onToggle: () => void }) {
   const stat = [
     diff.new_file ? "new" : "",
     diff.added ? `+${diff.added}` : "",
@@ -21,7 +22,7 @@ function DiffView({ diff, open, onToggle }: { diff: ToolDiff; open: boolean; onT
     else if (line.startsWith("+")) { cls = "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"; text = line.slice(1) }
     else if (line.startsWith("-")) { cls = "bg-rose-500/10 text-rose-700 dark:text-rose-400"; text = line.slice(1) }
     else if (line.startsWith(" ")) text = line.slice(1)
-    return <span key={i} className={cn("block whitespace-pre-wrap px-1", cls)}>{text || " "}</span>
+    return <span key={i} className={cn("block whitespace-pre-wrap px-1", cls)}>{text || " "}</span>
   })
   return (
     <div className="mt-1">
@@ -35,33 +36,30 @@ function DiffView({ diff, open, onToggle }: { diff: ToolDiff; open: boolean; onT
   )
 }
 
-function ToolRow({ t }: { t: ToolEvent }) {
+// Status glyph for a tool step (running spinner / non-zero exit X / success
+// check). Shared by the flat ToolThread rows and the AgentTimeline rail nodes
+// so both stay in lockstep.
+export function ToolStatusIcon({ t }: { t: ToolEvent }) {
   const err = t.exitCode != null && t.exitCode !== 0
-  const rawCmd = t.command || (typeof t.input === "string" ? t.input : "")
-  // Doc-edit tools carry their FIND/REPLACE body as the command; its first line
-  // is a `<<<FIND>>>` marker — raw tool syntax that shouldn't surface. Hide it.
-  const cmd = rawCmd.startsWith("<<<") ? "" : rawCmd
+  return t.running
+    ? <Loader2 className="size-3.5 shrink-0 animate-spin text-muted-foreground" />
+    : err
+      ? <X className="size-3.5 shrink-0 text-destructive" />
+      : <Check className="size-3.5 shrink-0 text-emerald-500" />
+}
+
+// The expandable body of a tool step: full (multiline) command, live progress,
+// per-line colored diff, output, and generated image / browser screenshot.
+// Extracted from ToolRow so the AgentTimeline reuses the exact same per-step
+// rendering instead of drifting a second copy.
+export function ToolStepDetail({ t }: { t: ToolEvent }) {
+  const cmd = visibleCommand(t)
   const image = safeImageSrc(t.imageUrl) || safeImageSrc(t.screenshot)
   const diff = t.diff?.text
   const [outOpen, setOutOpen] = useState(false)
   const [diffOpen, setDiffOpen] = useState(false)
-  // Live elapsed timer on the running step — captured at mount (tool_start
-  // adds the row, so mount ≈ step start) and frozen once it settles.
-  const [start] = useState(() => Date.now())
-  const now = useNow(!!t.running)
   return (
-    <div className="animate-fade-in">
-      <div className="flex items-center gap-1.5">
-        {t.running
-          ? <Loader2 className="size-3.5 shrink-0 animate-spin text-muted-foreground" />
-          : err
-            ? <X className="size-3.5 shrink-0 text-destructive" />
-            : <Check className="size-3.5 shrink-0 text-emerald-500" />}
-        <span className="font-medium text-foreground">{t.name}</span>
-        {t.running && <span className="text-[11px] tabular-nums text-muted-foreground/70">{formatElapsed(now - start)}</span>}
-      </div>
-      {/* Full command (multiline) — shown only when there's no diff to say it
-          better. Collapsed to one line as a peek, expand for the whole thing. */}
+    <>
       {cmd && !diff && (
         <details className="mt-1 group">
           <summary className={cn("cursor-pointer select-none font-mono text-[11px] text-muted-foreground transition-colors hover:text-foreground", "flex items-center gap-1")}>
@@ -91,10 +89,30 @@ function ToolRow({ t }: { t: ToolEvent }) {
           )}
         </figure>
       )}
+    </>
+  )
+}
+
+function ToolRow({ t }: { t: ToolEvent }) {
+  // Live elapsed timer on the running step — captured at mount (tool_start
+  // adds the row, so mount ≈ step start) and frozen once it settles.
+  const [start] = useState(() => Date.now())
+  const now = useNow(!!t.running)
+  return (
+    <div className="animate-fade-in">
+      <div className="flex items-center gap-1.5">
+        <ToolStatusIcon t={t} />
+        <span className="font-medium text-foreground">{t.name}</span>
+        {t.running && <span className="text-[11px] tabular-nums text-muted-foreground/70">{formatElapsed(now - start)}</span>}
+      </div>
+      <ToolStepDetail t={t} />
     </div>
   )
 }
 
+// Flat tool card — used for a plain (non-agent) reply that ran a tool or two,
+// where the run-level timeline would be overkill. Agent turns render the
+// connected AgentTimeline instead.
 export function ToolThread({ tools, defaultOpen = false }: { tools: ToolEvent[]; defaultOpen?: boolean }) {
   const anyRunning = tools.some((t) => t.running)
   // Collapsed by default — expand to inspect each step's command and output.
