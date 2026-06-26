@@ -3,6 +3,7 @@ import {
   FolderOpen, FileText, Upload, RefreshCw, Trash2, Plus, ChevronRight, Folder, CornerLeftUp, FolderInput,
 } from "lucide-react"
 import { EmptyState } from "@/components/ui/empty-state"
+import { SkeletonList } from "@/components/ui/skeleton"
 import {
   usePersonalIndex, usePersonalMutations, useWorkspaceBrowse,
   type BrowseDir,
@@ -193,7 +194,7 @@ export function PersonalRoute() {
           <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             <FileText className="size-3.5" />Indexed files <span className="normal-case text-muted-foreground/70">· {files.length}</span>
           </h2>
-          {isLoading ? <p className="text-sm text-muted-foreground">Loading…</p>
+          {isLoading ? <SkeletonList rows={4} />
             : files.length === 0 ? <EmptyState icon={FileText} title="No personal files indexed yet" description="Upload files here to give the assistant your personal context." />
             : (
               <div className="divide-y rounded-lg border bg-card">

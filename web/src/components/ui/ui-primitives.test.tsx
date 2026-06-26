@@ -4,7 +4,7 @@ import { FolderOpen, Plus } from "lucide-react"
 import { Card, CardContent, CardTitle } from "./card"
 import { Input } from "./input"
 import { Badge } from "./badge"
-import { Skeleton } from "./skeleton"
+import { Skeleton, SkeletonList } from "./skeleton"
 import { EmptyState } from "./empty-state"
 import { Dialog, DialogHeader, DialogBody } from "./dialog"
 
@@ -32,6 +32,13 @@ describe("ui primitives", () => {
   it("Skeleton has the pulse class", () => {
     render(<Skeleton className="h-4 w-10" />)
     expect(document.querySelector(".animate-pulse")).toBeTruthy()
+  })
+
+  it("SkeletonList renders N rows under a status region", () => {
+    render(<SkeletonList rows={3} />)
+    const region = screen.getByRole("status")
+    expect(region).toHaveAttribute("aria-busy", "true")
+    expect(region.querySelectorAll(".animate-pulse").length).toBeGreaterThanOrEqual(3)
   })
 
   it("EmptyState shows icon/title/description + CTA, role=status", () => {

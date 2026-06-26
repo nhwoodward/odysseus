@@ -109,8 +109,8 @@ export function AccountSecurity() {
       <div className="space-y-3 rounded-lg border bg-card p-3">
         <div className="space-y-2">
           <div className="text-sm font-medium">Change password</div>
-          <input value={cur} onChange={(e) => setCur(e.target.value)} type="password" placeholder="Current password" autoComplete="current-password" className={inpCls} />
-          <input value={nw} onChange={(e) => setNw(e.target.value)} type="password" placeholder="New password (8+ chars)" autoComplete="new-password" className={inpCls} />
+          <input value={cur} onChange={(e) => setCur(e.target.value)} type="password" aria-label="Current password" placeholder="Current password" autoComplete="current-password" className={inpCls} />
+          <input value={nw} onChange={(e) => setNw(e.target.value)} type="password" aria-label="New password" placeholder="New password (8+ chars)" autoComplete="new-password" className={inpCls} />
           {pwMsg && <p className="text-xs text-muted-foreground">{pwMsg}</p>}
           <div className="flex justify-end"><Button size="sm" variant="outline" onClick={doChange} disabled={!cur || !nw}>Update password</Button></div>
         </div>
@@ -269,7 +269,7 @@ function AddEndpointForm() {
       )}
       <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name (optional, e.g. OpenAI)" className={inpCls} />
       <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Base URL — e.g. https://api.openai.com/v1" className={inpCls} />
-      <input value={key} onChange={(e) => setKey(e.target.value)} type="password" placeholder="API key (optional for local)" autoComplete="off" className={inpCls} />
+      <input value={key} onChange={(e) => setKey(e.target.value)} type="password" aria-label="API key" placeholder="API key (optional for local)" autoComplete="off" className={inpCls} />
       {msg && <p className="text-xs text-muted-foreground">{msg}</p>}
       <div className="flex justify-end gap-2">
         <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>Cancel</Button>
@@ -474,7 +474,7 @@ export function SettingsRoute() {
       <div className="mt-2 space-y-2 rounded-lg border bg-card p-3">
         <div className="flex flex-col gap-2 sm:flex-row">
           <input value={nu} onChange={(e) => setNu(e.target.value)} placeholder="Username" autoComplete="off" className="h-9 flex-1 rounded-md border bg-background px-3 text-sm outline-none focus-visible:border-ring" />
-          <input value={np} onChange={(e) => setNp(e.target.value)} type="password" placeholder="Password (8+ chars)" autoComplete="new-password" className="h-9 flex-1 rounded-md border bg-background px-3 text-sm outline-none focus-visible:border-ring" />
+          <input value={np} onChange={(e) => setNp(e.target.value)} type="password" aria-label="New user password" placeholder="Password (8+ chars)" autoComplete="new-password" className="h-9 flex-1 rounded-md border bg-background px-3 text-sm outline-none focus-visible:border-ring" />
         </div>
         <div className="flex items-center justify-between">
           <label className="flex items-center gap-2 text-sm text-muted-foreground"><input type="checkbox" checked={nAdmin} onChange={(e) => setNAdmin(e.target.checked)} className="size-3.5 accent-foreground" />Administrator</label>

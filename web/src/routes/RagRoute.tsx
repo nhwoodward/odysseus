@@ -1,6 +1,7 @@
 import { useRef, useState } from "react"
 import { Database, Upload, Trash2, FileText, RefreshCw, Cpu, Download, Check, Plug } from "lucide-react"
 import { EmptyState } from "@/components/ui/empty-state"
+import { SkeletonList } from "@/components/ui/skeleton"
 import {
   useRagStats, useRagDocuments, useEmbeddingModels, useEmbeddingEndpoint, useRagMutations,
   type RagFile, type EmbeddingModel,
@@ -112,7 +113,7 @@ function DocumentsSection() {
       <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground"><FileText className="size-3.5" />Indexed documents <span className="normal-case text-muted-foreground/70">· {files.length}</span></h2>
       <UploadBar />
       <div className="mt-2">
-        {isLoading ? <p className="text-sm text-muted-foreground">Loading documents…</p>
+        {isLoading ? <SkeletonList rows={4} />
           : !data?.ok ? <p className="rounded-lg border bg-card p-3 text-sm text-muted-foreground">Document list unavailable (admin only).</p>
           : files.length === 0 ? <EmptyState icon={FileText} title="No documents indexed yet" description="Upload documents to make them searchable by the assistant." />
           : <div className="divide-y rounded-lg border bg-card">{files.map((f) => <DocRow key={f.path || f.name} doc={f} />)}</div>}
