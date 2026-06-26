@@ -7,12 +7,16 @@ const FOCUSABLE = 'button,[href],input,select,textarea,[tabindex]:not([tabindex=
 // Accessible modal — replaces the 15+ hand-rolled overlays. Gives focus-trap,
 // Escape-to-close, focus-return on close, body scroll-lock, backdrop click, and
 // `role="dialog" aria-modal`. Compose with DialogHeader/DialogBody/DialogFooter.
-export function Dialog({ open, onClose, children, className, label }: {
+export function Dialog({ open, onClose, children, className, label, contained = false }: {
   open: boolean
   onClose: () => void
   children: ReactNode
   className?: string
   label?: string // accessible name (aria-label)
+  // Scope the overlay to the nearest positioned ancestor (absolute) instead of
+  // the viewport (fixed) — for content-column modals that intentionally leave
+  // the sidebar visible/interactive. The parent must be `relative`.
+  contained?: boolean
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const restoreFocus = useRef<HTMLElement | null>(null)
@@ -37,19 +41,24 @@ export function Dialog({ open, onClose, children, className, label }: {
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
     }
     document.addEventListener("keydown", onKey)
+    // A contained (content-scoped) modal leaves the sidebar interactive, so
+    // locking the whole-page scroll would be wrong; only viewport modals do it.
     const prevOverflow = document.body.style.overflow
-    document.body.style.overflow = "hidden"
+    if (!contained) document.body.style.overflow = "hidden"
     return () => {
       document.removeEventListener("keydown", onKey)
-      document.body.style.overflow = prevOverflow
+      if (!contained) document.body.style.overflow = prevOverflow
       restoreFocus.current?.focus?.()
     }
-  }, [open, onClose])
+  }, [open, onClose, contained])
 
   if (!open) return null
   return (
     <div
-      className="fixed inset-0 z-50 flex animate-fade-in items-center justify-center bg-black/40 p-4"
+      className={cn(
+        "flex animate-fade-in items-center justify-center bg-black/40 p-4",
+        contained ? "absolute inset-0 z-10" : "fixed inset-0 z-50",
+      )}
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
       <div

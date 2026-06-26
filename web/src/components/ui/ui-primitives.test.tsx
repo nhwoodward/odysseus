@@ -70,4 +70,13 @@ describe("ui primitives", () => {
     render(<Dialog open={false} onClose={() => {}}><div>hidden</div></Dialog>)
     expect(screen.queryByText("hidden")).not.toBeInTheDocument()
   })
+
+  it("Dialog contained mode scopes to the parent (absolute, no body scroll-lock)", () => {
+    render(<Dialog open contained onClose={() => {}} label="Scoped"><div>scoped</div></Dialog>)
+    const overlay = screen.getByRole("dialog", { name: "Scoped" }).parentElement
+    expect(overlay?.className).toMatch(/absolute/)
+    expect(overlay?.className).not.toMatch(/fixed/)
+    // contained must NOT lock the page scroll (sidebar stays usable)
+    expect(document.body.style.overflow).not.toBe("hidden")
+  })
 })

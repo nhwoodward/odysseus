@@ -4,6 +4,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { useSkills, useBuiltinSkills, useSkillMarkdown, useSkillMutations, useRunSkill, useStartSkillTest, useSkillTestStatus, useBuiltinSkill, useAuditAllStatus, useCancelAuditAll } from "@/api/skills"
 import type { SkillVerdict, SkillRow, AuditResult } from "@/api/skills"
 import { Button } from "@/components/ui/button"
+import { Dialog } from "@/components/ui/dialog"
 import { Markdown } from "@/components/chat/Markdown"
 import { cn } from "@/lib/utils"
 
@@ -64,8 +65,7 @@ function RunPanel({ id, name, onClose }: { id: string; name: string; onClose: ()
     })
   }
   return (
-    <div className="absolute inset-0 z-10 flex animate-fade-in items-center justify-center bg-black/40 p-4">
-      <div className="flex max-h-[85vh] w-full max-w-2xl flex-col animate-pop-in rounded-xl border bg-popover p-4 shadow-lg">
+    <Dialog open onClose={onClose} contained label={`Run ${name}`} className="max-w-2xl p-4">
         <div className="mb-3 flex items-center gap-2 text-sm font-semibold"><Play className="size-4" /> Run {name}</div>
         <textarea value={request} onChange={(e) => setRequest(e.target.value)} placeholder="Your request for this skill…" rows={3} className="w-full resize-none rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring" />
         {err && <p className="mt-2 text-xs text-destructive">{err}</p>}
@@ -78,8 +78,7 @@ function RunPanel({ id, name, onClose }: { id: string; name: string; onClose: ()
           <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
           <Button size="sm" disabled={run.isPending} onClick={submit}><Play className="size-4" />{run.isPending ? "Running…" : "Run"}</Button>
         </div>
-      </div>
-    </div>
+    </Dialog>
   )
 }
 
@@ -106,8 +105,7 @@ function TestPanel({ id, name, onClose }: { id: string; name: string; onClose: (
   const verdict = data?.verdict
   const log = data?.log || []
   return (
-    <div className="absolute inset-0 z-10 flex animate-fade-in items-center justify-center bg-black/40 p-4">
-      <div className="flex max-h-[85vh] w-full max-w-2xl flex-col animate-pop-in rounded-xl border bg-popover p-4 shadow-lg">
+    <Dialog open onClose={onClose} contained label={`Test ${name}`} className="max-w-2xl p-4">
         <div className="mb-3 flex items-center gap-2 text-sm font-semibold"><FlaskConical className="size-4" /> Test {name}</div>
         <div className="flex items-center gap-2">
           <Button size="sm" disabled={start.isPending || running} onClick={begin}>
@@ -138,8 +136,7 @@ function TestPanel({ id, name, onClose }: { id: string; name: string; onClose: (
         <div className="mt-3 flex justify-end gap-2">
           <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
         </div>
-      </div>
-    </div>
+    </Dialog>
   )
 }
 
@@ -157,8 +154,7 @@ function ImportForm({ onClose }: { onClose: () => void }) {
     })
   }
   return (
-    <div className="absolute inset-0 z-10 flex animate-fade-in items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-lg animate-pop-in rounded-xl border bg-popover p-4 shadow-lg">
+    <Dialog open onClose={onClose} contained label="Import from URL" className="max-w-lg p-4">
         <div className="mb-1 flex items-center gap-2 text-sm font-semibold"><Link2 className="size-4" /> Import from URL</div>
         <p className="mb-3 text-xs text-muted-foreground">Install a SKILL.md bundle from a public GitHub or skills.sh URL.</p>
         <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://github.com/…/SKILL.md" className={inp} />
@@ -168,8 +164,7 @@ function ImportForm({ onClose }: { onClose: () => void }) {
           <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
           <Button size="sm" disabled={importFromUrl.isPending} onClick={submit}>{importFromUrl.isPending ? "Importing…" : "Import"}</Button>
         </div>
-      </div>
-    </div>
+    </Dialog>
   )
 }
 
@@ -193,8 +188,7 @@ function BuiltinEditor({ name, onClose }: { name: string; onClose: () => void })
     })
   }
   return (
-    <div className="absolute inset-0 z-10 flex animate-fade-in items-center justify-center bg-black/40 p-4">
-      <div className="flex max-h-[85vh] w-full max-w-2xl flex-col animate-pop-in rounded-xl border bg-popover p-4 shadow-lg">
+    <Dialog open onClose={onClose} contained label={`Override ${name}`} className="max-w-2xl p-4">
         <div className="mb-1 flex items-center gap-2 text-sm font-semibold"><Wrench className="size-4" /> Override {name}</div>
         <p className="mb-3 text-xs text-amber-600 dark:text-amber-400">Editing changes how the assistant is told to use this built-in tool.</p>
         {err && <p className="mb-2 text-xs text-destructive">{err}</p>}
@@ -208,8 +202,7 @@ function BuiltinEditor({ name, onClose }: { name: string; onClose: () => void })
             <Button size="sm" disabled={!dirty || saveBuiltinOverride.isPending} onClick={save}><Save className="size-4" />{saveBuiltinOverride.isPending ? "Saving…" : "Save"}</Button>
           </div>
         </div>
-      </div>
-    </div>
+    </Dialog>
   )
 }
 
@@ -252,8 +245,7 @@ function CreateForm({ onClose }: { onClose: () => void }) {
     })
   }
   return (
-    <div className="absolute inset-0 z-10 flex animate-fade-in items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-lg animate-pop-in rounded-xl border bg-popover p-4 shadow-lg">
+    <Dialog open onClose={onClose} contained label="New skill" className="max-w-lg p-4">
         <div className="mb-3 text-sm font-semibold">New skill</div>
         <div className="space-y-2">
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name (e.g. deploy-checklist)" className={inp} />
@@ -266,8 +258,7 @@ function CreateForm({ onClose }: { onClose: () => void }) {
           <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
           <Button size="sm" disabled={create.isPending} onClick={submit}>{create.isPending ? "Creating…" : "Create"}</Button>
         </div>
-      </div>
-    </div>
+    </Dialog>
   )
 }
 
@@ -283,8 +274,7 @@ function AuditAllPanel({ onClose }: { onClose: () => void }) {
   const pct = total > 0 ? Math.round((done / total) * 100) : 0
   const results = data?.results || []
   return (
-    <div className="absolute inset-0 z-10 flex animate-fade-in items-center justify-center bg-black/40 p-4">
-      <div className="flex max-h-[85vh] w-full max-w-2xl flex-col animate-pop-in rounded-xl border bg-popover p-4 shadow-lg">
+    <Dialog open onClose={onClose} contained label="Audit all skills" className="max-w-2xl p-4">
         <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
           {running ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
           Audit all
@@ -318,8 +308,7 @@ function AuditAllPanel({ onClose }: { onClose: () => void }) {
             ? <Button variant="outline" size="sm" disabled={cancel.isPending} onClick={() => cancel.mutate()}><X className="size-4" />{cancel.isPending ? "Cancelling…" : "Cancel"}</Button>
             : <Button variant="outline" size="sm" onClick={onClose}>Close</Button>}
         </div>
-      </div>
-    </div>
+    </Dialog>
   )
 }
 
