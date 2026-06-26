@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import type { ReactNode } from "react"
-import { ChevronDown, ChevronRight, Clock3, FileText, Loader2, Plus, RotateCcw, Save, Search, SlidersHorizontal, Star, Trash2, Users, Wand2, X } from "lucide-react"
+import { ChevronDown, ChevronRight, Clock3, FileText, Loader2, Plug, Plus, RotateCcw, Save, Search, SlidersHorizontal, Star, Trash2, Users, Wand2, X } from "lucide-react"
 import { useNavigate, useParams } from "react-router-dom"
 import { useQueryClient } from "@tanstack/react-query"
 import { useModels, useDefaultChat } from "@/api/models"
@@ -8,6 +8,7 @@ import { useCustomPresetMutations, usePresetConfig, usePresets } from "@/api/pre
 import { useSessionDocuments } from "@/api/documents"
 import { usePresetGroups, usePresetTemplateMutations, usePresetTemplates, useSavePresetGroups, type PresetGroupParticipant } from "@/api/advanced"
 import { createSession, setSessionImportant } from "@/api/sessions"
+import { useConnections } from "@/api/connectors"
 import { useComposer } from "@/stores/composer"
 import type { GroupMode, GroupParticipant } from "@/stores/composer"
 import { usePanel } from "@/stores/panel"
@@ -24,6 +25,52 @@ function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
   return <Switch checked={on} onCheckedChange={onClick} />
 }
 const trigger = "flex items-center gap-1.5 rounded-md px-2 py-1 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
+
+// Composer affordance: surface the user's connected sources (Connectors) right
+// in the chat flow — a Plug button with a count badge that opens a popover of
+// connected-source pills + a link to the Connectors page to add/manage. The
+// agent already has the user's connected MCP tools (owner-filtered); this makes
+// what's connected visible and one click away.
+export function SourcesMenu() {
+  const navigate = useNavigate()
+  const { data: connections } = useConnections()
+  const [open, setOpen] = useState(false)
+  const conns = connections || []
+  const connected = conns.filter((s) => s.status === "connected")
+  return (
+    <div className="relative">
+      <button onClick={() => setOpen((o) => !o)} title="Connected sources" className="relative rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground">
+        <Plug className="size-4" />
+        {connected.length > 0 && (
+          <span className="absolute -right-0.5 -top-0.5 flex size-3.5 items-center justify-center rounded-full bg-primary text-[9px] font-semibold text-primary-foreground">{connected.length}</span>
+        )}
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute bottom-full left-0 z-20 mb-1 w-64 origin-bottom-left animate-pop-in rounded-xl border bg-popover p-2 shadow-lg">
+            <div className="mb-1.5 px-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Connected sources</div>
+            {conns.length === 0 ? (
+              <p className="px-1 pb-1.5 text-xs text-muted-foreground">No sources connected yet.</p>
+            ) : (
+              <div className="flex flex-wrap gap-1 px-0.5">
+                {conns.map((s) => (
+                  <span key={s.id} title={s.status} className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px]", s.status === "connected" ? "text-foreground" : "text-muted-foreground")}>
+                    <span className={cn("size-1.5 rounded-full", s.status === "connected" ? "bg-emerald-500" : s.needs_auth ? "bg-amber-500" : "bg-muted-foreground/50")} />
+                    {s.name}
+                  </span>
+                ))}
+              </div>
+            )}
+            <button onClick={() => { setOpen(false); navigate("/connectors") }} className="mt-2 flex w-full items-center gap-1.5 rounded-md px-1.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground">
+              <Plus className="size-3.5" />Add / manage connectors
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
 
 export function ModePicker() {
   const c = useComposer()

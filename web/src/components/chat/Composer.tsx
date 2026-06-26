@@ -7,7 +7,7 @@ import { uploadFiles } from "@/api/upload"
 import { useVoiceCaps, transcribe } from "@/api/voice"
 import { useSlashCatalog, invokeSkill } from "@/api/skills"
 import { apiFetch, apiJson } from "@/lib/api"
-import { ModePicker, ModelPicker, ToolsMenu } from "./ComposerControls"
+import { ModePicker, ModelPicker, ToolsMenu, SourcesMenu } from "./ComposerControls"
 import { toast } from "@/stores/toast"
 import { useComposer } from "@/stores/composer"
 import { cn } from "@/lib/utils"
@@ -1651,6 +1651,7 @@ export function Composer({
             </button>
           )}
           <ToolsMenu />
+          <SourcesMenu />
           <div className="ml-auto flex items-center gap-2">
             <ModelPicker />
             <ModePicker />

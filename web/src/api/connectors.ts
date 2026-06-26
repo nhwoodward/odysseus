@@ -51,6 +51,33 @@ export interface ConnectResult {
   error?: string | null
 }
 
+export interface ConnectorTool {
+  server_id: string
+  name: string
+  description?: string
+  is_disabled: boolean
+}
+
+// Tools exposed by one connected source (only fetched when its card is open).
+export function useConnectorTools(id: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ["connector-tools", id],
+    enabled,
+    retry: false,
+    queryFn: () => apiJson<{ tools: ConnectorTool[] }>(`/api/connectors/${id}/tools`).then((r) => r.tools),
+  })
+}
+
+// Admin-only: which catalog entries are available to users (null = all).
+export function useConnectorAvailability(enabled: boolean) {
+  return useQuery({
+    queryKey: ["connector-availability"],
+    enabled,
+    retry: false,
+    queryFn: () => apiJson<{ enabled: string[] | null; all_ids: string[] }>("/api/connectors/admin/availability"),
+  })
+}
+
 export function useConnectorCatalog() {
   return useQuery({
     queryKey: ["connector-catalog"],
@@ -115,6 +142,27 @@ export function useConnectorMutations() {
         if (!r.ok) throw new Error(await errOf(r, "Couldn't disconnect"))
       },
       onSuccess: inv,
+    }),
+    setTools: useMutation({
+      mutationFn: async (v: { id: string; disabled: string[] }) => {
+        const fd = new FormData()
+        fd.append("disabled_tools", JSON.stringify(v.disabled))
+        const r = await apiFetch(`/api/connectors/${v.id}/tools`, { method: "PATCH", body: fd })
+        if (!r.ok) throw new Error(await errOf(r, "Couldn't update tools"))
+      },
+      onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ["connector-tools", v.id] }),
+    }),
+    setAvailability: useMutation({
+      mutationFn: async (enabled: string[]) => {
+        const fd = new FormData()
+        fd.append("enabled", JSON.stringify(enabled))
+        const r = await apiFetch("/api/connectors/admin/availability", { method: "PUT", body: fd })
+        if (!r.ok) throw new Error(await errOf(r, "Couldn't update availability"))
+      },
+      onSuccess: () => {
+        qc.invalidateQueries({ queryKey: ["connector-availability"] })
+        qc.invalidateQueries({ queryKey: ["connector-catalog"] })
+      },
     }),
   }
 }
