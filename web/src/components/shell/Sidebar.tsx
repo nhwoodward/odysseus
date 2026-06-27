@@ -244,6 +244,9 @@ export function Sidebar() {
             <MoreToolsMenu variant="icon" items={moreItems} onTogglePin={togglePin} reminderTos={moreReminderTos} reminderText={reminderCountLabel(firedNoteReminders)} />
           )}
         </div>
+        <NavLink to="/settings" title="Settings" data-tour={tourNav("/settings")} className={({ isActive }) => cn(iconBtn(isActive), "mt-auto")}>
+          <Settings className="size-5" />
+        </NavLink>
         <Account collapsed />
         </aside>
       )}
@@ -268,6 +271,10 @@ export function Sidebar() {
           </div>
         </div>
       </div>
+      {/* One scroll region: the nav (favorites + More tools) and the Chats list
+          scroll together, so a long chat list never hides the tools. The header
+          / new-chat stay pinned above and Settings / Account below. */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
       <nav className="space-y-0.5 px-2" data-tour="primary-nav">
         {favorites.map(({ to, icon: Icon, label }) => {
           const showReminderBadge = to === "/notes" && firedNoteReminders > 0
@@ -317,7 +324,7 @@ export function Sidebar() {
           <button onClick={runBulkDelete} disabled={!selected.size} title="Delete selected" className="text-muted-foreground hover:text-destructive disabled:opacity-40"><Trash2 className="size-3.5" /></button>
         </div>
       )}
-      <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
+      <div className="px-2 pb-2">
         {archivedView ? (
           <>
             {archivedList.map(renderArchivedRow)}
@@ -338,6 +345,15 @@ export function Sidebar() {
             {list.length === 0 && <p className="px-2 py-4 text-xs text-muted-foreground">{q ? "No matches." : "No chats yet."}</p>}
           </>
         )}
+      </div>
+      </div>
+      {/* Pinned footer: Settings always one click away, then the account menu. */}
+      <div className="border-t px-2 py-1">
+        <NavLink to="/settings" data-tour={tourNav("/settings")}
+          className={({ isActive }) => navRow(isActive)}>
+          <Settings className="size-4 shrink-0" />
+          <span className="min-w-0 flex-1 truncate">Settings</span>
+        </NavLink>
       </div>
       <Account collapsed={false} />
       </aside>

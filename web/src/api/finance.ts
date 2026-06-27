@@ -32,8 +32,37 @@ export interface FinanceSummary {
   investments_value: number; investments_allocation: Record<string, number>; pending: boolean
 }
 
+// Admin-only Plaid setup snapshot (in-UI onboarding). `client_id` is shown but
+// the secret is NEVER returned — only `has_secret`. `source` = settings | env | none.
+export interface FinanceConfig {
+  configured: boolean; env: string; client_id: string; has_secret: boolean
+  source: "settings" | "env" | "none"
+}
+
 export function useFinanceStatus() {
   return useQuery({ queryKey: ["finance-status"], retry: false, queryFn: () => apiJson<FinanceStatus>("/api/finance/status") })
+}
+// Only fetched for admins (the endpoint is admin-gated → 403 otherwise).
+export function useFinanceConfig(enabled = true) {
+  return useQuery({ queryKey: ["finance-config"], enabled, retry: false, queryFn: () => apiJson<FinanceConfig>("/api/finance/config") })
+}
+export function useSaveFinanceConfig() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (cfg: { client_id: string; env: string; secret?: string }) => {
+      const fd = new FormData()
+      fd.set("client_id", cfg.client_id.trim())
+      fd.set("env", cfg.env)
+      if (cfg.secret?.trim()) fd.set("secret", cfg.secret.trim())
+      const r = await apiFetch("/api/finance/config", { method: "PUT", body: fd })
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || "Couldn't save Plaid settings")
+      return (await r.json()) as FinanceConfig
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["finance-config"] })
+      qc.invalidateQueries({ queryKey: ["finance-status"] })
+    },
+  })
 }
 export function useFinanceItems(enabled = true) {
   return useQuery({ queryKey: ["finance-items"], enabled, retry: false, queryFn: () => apiJson<{ items: PlaidItemInfo[] }>("/api/finance/items").then((r) => r.items) })

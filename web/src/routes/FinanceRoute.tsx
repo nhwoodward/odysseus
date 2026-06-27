@@ -1,11 +1,14 @@
 import { useMemo, useState } from "react"
 import { Bar, BarChart, CartesianGrid, Pie, PieChart, XAxis } from "recharts"
-import { Landmark, Loader2, Plus, Trash2, TrendingUp, CreditCard, Repeat, PiggyBank, Wallet } from "lucide-react"
+import { Landmark, Loader2, Plus, Trash2, TrendingUp, CreditCard, Repeat, PiggyBank, Wallet, KeyRound, ExternalLink } from "lucide-react"
 import {
   useFinanceStatus, useFinanceItems, useFinanceSummary, useFinanceTransactions,
-  useFinanceInvestments, useFinanceMutations, money, type FinanceSummary,
+  useFinanceInvestments, useFinanceMutations, useFinanceConfig, useSaveFinanceConfig,
+  money, type FinanceSummary,
 } from "@/api/finance"
+import { useAuthStatus } from "@/api/auth"
 import { Card } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -183,8 +186,86 @@ function InvestmentsTab() {
 
 const TABS = [["overview", "Overview"], ["spending", "Spending"], ["investments", "Investments"]] as const
 
+// Admin-only in-UI onboarding: enter the operator's Plaid keys once (stored
+// encrypted server-side) so the dashboard + manage_finance tool go live with no
+// restart. Mirrors how ChatGPT hides Plaid keys — here the self-hosting admin
+// supplies them once, then every user just clicks "Connect a bank".
+function PlaidSetupCard() {
+  const { data: cfg } = useFinanceConfig()
+  const save = useSaveFinanceConfig()
+  const [clientId, setClientId] = useState("")
+  const [secret, setSecret] = useState("")
+  const [env, setEnv] = useState("sandbox")
+  const [prefilled, setPrefilled] = useState(false)
+
+  // Prefill client_id/env from any existing config (e.g. env-var keys) exactly
+  // once when it loads. Guarded setState during render is React's recommended
+  // pattern for adjusting state from async data — no effect / cascading render.
+  if (cfg && !prefilled) {
+    setPrefilled(true)
+    setClientId(cfg.client_id || "")
+    setEnv(cfg.env === "production" ? "production" : "sandbox")
+  }
+
+  const hasSavedSecret = !!cfg?.has_secret
+  const canSave = clientId.trim().length > 0 && (secret.trim().length > 0 || hasSavedSecret) && !save.isPending
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!canSave) return
+    save.mutate({ client_id: clientId, env, secret: secret.trim() || undefined })
+  }
+
+  return (
+    <Card className="mx-auto max-w-xl p-6">
+      <div className="flex items-start gap-3">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"><KeyRound className="size-4" /></span>
+        <div className="min-w-0">
+          <h2 className="text-base font-semibold">Set up Plaid</h2>
+          <p className="text-sm text-muted-foreground">Add your Plaid developer keys once. They're stored encrypted on this server — afterward anyone can connect a bank or brokerage. Keys take effect immediately, no restart.</p>
+        </div>
+      </div>
+
+      <form onSubmit={submit} className="mt-4 space-y-3">
+        <label className="block space-y-1">
+          <span className="text-xs font-medium">Client ID</span>
+          <Input value={clientId} onChange={(e) => setClientId(e.target.value)} placeholder="e.g. 5f9a2b…" autoComplete="off" spellCheck={false} />
+        </label>
+        <label className="block space-y-1">
+          <span className="text-xs font-medium">
+            Secret{hasSavedSecret && <span className="font-normal text-muted-foreground"> · saved — leave blank to keep</span>}
+          </span>
+          <Input type="password" value={secret} onChange={(e) => setSecret(e.target.value)}
+            placeholder={hasSavedSecret ? "••••••••••••" : "Your sandbox or production secret"} autoComplete="off" />
+        </label>
+        <label className="block space-y-1">
+          <span className="text-xs font-medium">Environment</span>
+          <select value={env} onChange={(e) => setEnv(e.target.value)}
+            className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+            <option value="sandbox">Sandbox — fake banks, instant (test login user_good / pass_good)</option>
+            <option value="production">Production — real institutions (requires Plaid approval)</option>
+          </select>
+        </label>
+
+        <div className="flex items-center justify-between gap-3 pt-1">
+          <a href="https://dashboard.plaid.com/developers/keys" target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
+            Get free keys <ExternalLink className="size-3" />
+          </a>
+          <Button type="submit" size="sm" disabled={!canSave}>
+            {save.isPending && <Loader2 className="size-4 animate-spin" />}Save &amp; connect
+          </Button>
+        </div>
+        {save.isError && <p className="text-sm text-destructive">{(save.error as Error)?.message || "Couldn't save Plaid settings."}</p>}
+      </form>
+    </Card>
+  )
+}
+
 export function FinanceRoute() {
   const { data: status, isLoading: statusLoading } = useFinanceStatus()
+  const { data: auth } = useAuthStatus()
+  const isAdmin = !!auth?.is_admin
   const connected = (status?.item_count || 0) > 0
   const { data: items } = useFinanceItems(connected)
   const { data: summary } = useFinanceSummary(connected)
@@ -209,9 +290,13 @@ export function FinanceRoute() {
     body = <div className="p-4 lg:p-6"><SkeletonList rows={4} /></div>
   } else if (!status?.configured) {
     body = (
-      <div className="p-4 lg:p-6">
-        <EmptyState icon={Landmark} title="Connect your finances"
-          description="Plaid isn't configured on this server yet. Set PLAID_CLIENT_ID, PLAID_SECRET and PLAID_ENV=sandbox, then restart to connect bank & brokerage accounts." />
+      <div className="min-h-0 flex-1 overflow-y-auto p-4 lg:p-6">
+        {isAdmin ? (
+          <PlaidSetupCard />
+        ) : (
+          <EmptyState icon={Landmark} title="Finance isn't set up yet"
+            description="Plaid hasn't been configured on this server. Ask your admin to add the Plaid keys — then you can connect a bank or brokerage and ask the assistant about your money." />
+        )}
       </div>
     )
   } else if (!connected) {

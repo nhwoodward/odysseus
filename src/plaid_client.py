@@ -1,8 +1,10 @@
 """Thin Plaid REST client (httpx) for the personal-finance feature.
 
 No SDK dependency — Plaid is plain JSON POST with ``client_id``/``secret`` (and
-for data calls, the user's ``access_token``) in the request body. Configured by
-env so it starts in Sandbox and moves to Production by changing PLAID_ENV:
+for data calls, the user's ``access_token``) in the request body. Configured via
+the admin Finance setup UI (stored encrypted in settings) **or** env vars; UI
+settings win so the keys take effect with no restart. Starts in Sandbox and
+moves to Production via ``plaid_env`` / PLAID_ENV:
 
     PLAID_CLIENT_ID=...    PLAID_SECRET=...    PLAID_ENV=sandbox
 
@@ -27,11 +29,50 @@ _ENV_BASES = {
 
 
 def _cfg() -> tuple[str, str, str]:
-    return (
-        os.getenv("PLAID_CLIENT_ID", "").strip(),
-        os.getenv("PLAID_SECRET", "").strip(),
-        os.getenv("PLAID_ENV", "sandbox").strip().lower(),
-    )
+    """Return (client_id, secret, env).
+
+    UI-entered admin settings take precedence over env vars so the operator can
+    configure Plaid in the app with no restart; env (image / docker-compose) is
+    the fallback. The secret lives Fernet-encrypted in settings (``plaid_secret``).
+    """
+    cid = secret = env = ""
+    try:
+        from src.settings import get_setting
+
+        cid = (get_setting("plaid_client_id", "") or "").strip()
+        env = (get_setting("plaid_env", "") or "").strip().lower()
+        enc = get_setting("plaid_secret", "") or ""
+        if enc:
+            from src.secret_storage import decrypt
+
+            secret = (decrypt(enc) or "").strip()
+    except Exception:  # settings store unavailable — fall back to env
+        logger.debug("Plaid settings lookup failed; using env", exc_info=True)
+
+    cid = cid or os.getenv("PLAID_CLIENT_ID", "").strip()
+    secret = secret or os.getenv("PLAID_SECRET", "").strip()
+    env = env or os.getenv("PLAID_ENV", "sandbox").strip().lower()
+    return cid, secret, env
+
+
+def config_summary() -> Dict[str, Any]:
+    """Admin-facing config snapshot for the setup UI. NEVER includes the secret
+    value itself — only whether one is set, and where the config came from."""
+    cid, secret, env = _cfg()
+    settings_cid = ""
+    try:
+        from src.settings import get_setting
+
+        settings_cid = (get_setting("plaid_client_id", "") or "").strip()
+    except Exception:
+        settings_cid = ""
+    return {
+        "configured": bool(cid and secret),
+        "env": env or "sandbox",
+        "client_id": cid,
+        "has_secret": bool(secret),
+        "source": "settings" if settings_cid else ("env" if cid else "none"),
+    }
 
 
 def is_configured() -> bool:

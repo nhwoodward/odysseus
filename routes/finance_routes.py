@@ -24,9 +24,12 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Form, HTTPException, Request
 
 from core.database import PlaidItem, SessionLocal
+from core.middleware import require_admin
 from src.auth_helpers import require_user
 from src import plaid_client as plaid
 from src import finance_service
+from src import secret_storage
+from src.settings import load_settings, save_settings
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +75,38 @@ def setup_finance_routes() -> APIRouter:
         finally:
             db.close()
         return {"configured": plaid.is_configured(), "env": plaid.plaid_env(), "item_count": count}
+
+    @router.get("/config")
+    async def get_config(request: Request):
+        """Admin-only: the Plaid setup snapshot for the in-UI onboarding card.
+
+        Returns whether keys are set, the env, the client_id, and where the
+        config came from (settings vs env). NEVER returns the secret value."""
+        require_admin(request)
+        return plaid.config_summary()
+
+    @router.put("/config")
+    async def put_config(
+        request: Request,
+        client_id: str = Form(...),
+        env: str = Form("sandbox"),
+        secret: str = Form(""),
+    ):
+        """Admin-only: store operator Plaid keys (encrypted) so the dashboard +
+        the manage_finance tool go live with no restart. The secret is only
+        rewritten when a new one is supplied, so env/client_id can change
+        without re-entering it."""
+        require_admin(request)
+        env = (env or "sandbox").strip().lower()
+        if env not in ("sandbox", "development", "production"):
+            raise HTTPException(400, "env must be sandbox, development, or production.")
+        settings = load_settings()
+        settings["plaid_client_id"] = client_id.strip()
+        settings["plaid_env"] = env
+        if secret.strip():
+            settings["plaid_secret"] = secret_storage.encrypt(secret.strip())
+        save_settings(settings)
+        return plaid.config_summary()
 
     @router.get("/items")
     async def list_items(request: Request):
