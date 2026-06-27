@@ -176,7 +176,7 @@ function ThinkingBar({ m, hasBody, doc, hasReasoning, hasResearch, hasTools }: {
   return (
     <div className="flex animate-fade-in items-center gap-2.5 pt-0.5 text-sm text-muted-foreground">
       <Mascot size={9} title="Working" />
-      {showLabel && <span className="shimmer-text">{stalled ? "Still working…" : "Thinking…"}</span>}
+      {showLabel && <span className={cn("transition-colors duration-300", stalled ? "text-muted-foreground/70" : "shimmer-text")}>{stalled ? "Still working…" : "Thinking…"}</span>}
       {elapsed && <span className="text-label tabular-nums text-muted-foreground/70">{elapsed}</span>}
     </div>
   )

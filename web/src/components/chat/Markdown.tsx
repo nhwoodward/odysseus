@@ -113,9 +113,9 @@ function CodeBlock({ node: _node, children, ...props }: ComponentPropsWithoutRef
       {editing
         ? <textarea value={draft} onChange={(event) => setDraft(event.target.value)} spellCheck={false} className="min-h-40 w-full resize-y border-0 bg-muted/40 p-4 font-mono text-sm outline-none" />
         : <pre ref={ref} {...props}>{draft === nodeText(Children.toArray(children)).replace(/\n$/, "") ? children : <code className={cls}>{draft}</code>}</pre>}
-      {output && <div className="relative border-t bg-muted/30 p-3">
-        <div className="mb-1 text-micro font-medium uppercase tracking-wider text-muted-foreground">Output</div>
-        <pre className={output.error ? "whitespace-pre-wrap text-xs text-destructive" : "whitespace-pre-wrap text-xs"}>{output.text}</pre>
+      {output && <div className="border-t bg-muted/30 p-3">
+        <div className="mb-1.5 text-label font-semibold text-muted-foreground">Output</div>
+        <pre className={`max-h-44 overflow-y-auto whitespace-pre-wrap text-xs leading-relaxed${output.error ? " text-destructive" : ""}`}>{output.text}</pre>
       </div>}
     </div>
   )

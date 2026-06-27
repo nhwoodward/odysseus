@@ -35,7 +35,7 @@ function StepNode({ t }: { t: ToolEvent }) {
         onClick={() => setOpen((o) => !o)}
         className={cn("flex w-full items-center gap-1.5 py-0.5 text-left", !detail && "cursor-default")}
       >
-        {detail && <ChevronRight className={cn("size-3 shrink-0 text-muted-foreground transition-transform duration-200", open && "rotate-90")} />}
+        {detail && <ChevronRight className={cn("size-3 shrink-0 text-muted-foreground transition-transform duration-150", open && "rotate-90")} />}
         <span className="font-medium text-foreground">{toolLabel(t.name)}</span>
         {t.running && <span className="text-label tabular-nums text-muted-foreground/70">{formatElapsed(now - start)}</span>}
       </button>
@@ -45,7 +45,7 @@ function StepNode({ t }: { t: ToolEvent }) {
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.18, ease: "easeOut" }}
+            transition={{ duration: 0.15, ease: "easeOut" }}
             className="overflow-hidden"
           >
             <div className="pb-1 pt-0.5"><ToolStepDetail t={t} /></div>
@@ -60,8 +60,8 @@ function StepNode({ t }: { t: ToolEvent }) {
 // the ringed status nodes).
 function TimelineGroup({ tools }: { tools: ToolEvent[] }) {
   return (
-    <ol className="relative space-y-1.5 py-0.5 text-xs">
-      <span aria-hidden className="absolute left-[7px] top-2.5 bottom-2.5 w-px bg-border" />
+    <ol className="relative space-y-2.5 py-0.5 text-xs">
+      <span aria-hidden className="absolute left-[7px] top-2.5 bottom-2.5 w-px bg-border/70" />
       {tools.map((t, i) => <StepNode key={i} t={t} />)}
     </ol>
   )
@@ -141,7 +141,7 @@ export function AgentTimeline({ rounds, streaming, streamStartAt, deliverables }
         onClick={() => setOpen((o) => !o)}
         className="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
       >
-        <ChevronRight className={cn("size-3.5 transition-transform duration-200", open && "rotate-90")} />
+        <ChevronRight className={cn("size-3.5 transition-transform duration-150", open && "rotate-90")} />
         <StatusIcon className={cn("size-3.5", statusClass)} />
         <span className="font-medium text-foreground">{summary.running ? "Working…" : "Agent run"}</span>
         <span className="tabular-nums">· {summary.done}/{summary.total} step{summary.total === 1 ? "" : "s"}</span>

@@ -98,7 +98,7 @@ export function ChatConsole() {
   // Stick to the bottom as tokens stream in — but ONLY when the user is already
   // there. If they scrolled up to read, don't yank them back down every token.
   useEffect(() => { if (atBottom && scrollRef.current) scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight }) }, [messages, atBottom])
-  const onScroll = () => { const el = scrollRef.current; if (el) setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 96) }
+  const onScroll = () => { const el = scrollRef.current; if (el) setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 160) }
   // Reset transient view state when switching threads.
   // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional reset on thread change
   useEffect(() => { setEditingIndex(null); setAtBottom(true) }, [sessionId])
