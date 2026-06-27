@@ -1,6 +1,6 @@
 import {
   MessageSquare, GitCompareArrows, Image, Brain, Telescope,
-  Calendar, Mail, StickyNote, ListChecks, FileText, FolderOpen, Database, FlaskConical, Sparkles, FolderKanban, Plug,
+  Calendar, Mail, StickyNote, ListChecks, FileText, FolderOpen, Database, FlaskConical, Sparkles, FolderKanban, Plug, Landmark,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
@@ -27,6 +27,7 @@ export const WORKSPACE: NavItem[] = [
   { to: "/cookbook", icon: FlaskConical, label: "Cookbook" },
   { to: "/skills", icon: Sparkles, label: "Skills" },
   { to: "/connectors", icon: Plug, label: "Connectors" },
+  { to: "/finance", icon: Landmark, label: "Finance" },
 ]
 
 // Flat list of every destination, in display order. The sidebar shows a small

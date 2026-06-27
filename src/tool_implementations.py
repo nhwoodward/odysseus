@@ -1475,6 +1475,65 @@ async def do_manage_notes(content: str, owner: Optional[str] = None) -> Dict:
 # Calendar tool — CalDAV-backed event CRUD
 # ---------------------------------------------------------------------------
 
+async def do_manage_finance(content: str, owner: Optional[str] = None) -> Dict:
+    """Read-only personal-finance data (Plaid) for the current user, owner-scoped.
+
+    Reuses src/finance_service so the agent and the dashboard never diverge.
+    Never returns access tokens; only aggregated, user-facing figures."""
+    from src import plaid_client as plaid
+    from src import finance_service as fin
+
+    try:
+        args = _parse_tool_args(content)
+    except ValueError:
+        return {"error": "Invalid JSON arguments", "exit_code": 1}
+
+    if not plaid.is_configured():
+        return {"error": "Plaid isn't configured on this server (no PLAID_CLIENT_ID/PLAID_SECRET).", "exit_code": 1}
+
+    me = owner or ""
+    if not fin.owner_tokens(me):
+        return {"connected": False,
+                "message": "No financial accounts are connected yet. Connect a bank or brokerage on the Finance page (Plaid)."}
+
+    action = (args.get("action") or "summary").strip().lower()
+    limit = int(args.get("limit") or 25)
+    category = (args.get("category") or "").strip().upper()
+    query = (args.get("query") or "").strip().lower()
+
+    try:
+        if action == "summary":
+            return await fin.summary(me)
+        if action == "net_worth":
+            return await fin.balances(me)
+        if action == "subscriptions":
+            return await fin.recurring(me)
+        if action == "investments":
+            data = await fin.investments(me)
+            data["holdings"] = data["holdings"][:limit]
+            return data
+        if action == "spending":
+            days = int(args.get("days") or 30)
+            txn = await fin.transactions(me, days)
+            by_cat, total = fin.spending_by_category(txn["transactions"])
+            top = sorted(by_cat.items(), key=lambda kv: kv[1], reverse=True)
+            return {"days": days, "total": total,
+                    "by_category": [{"category": k, "amount": v} for k, v in top],
+                    "pending": txn.get("pending")}
+        if action == "transactions":
+            days = int(args.get("days") or 90)
+            txn = await fin.transactions(me, days)
+            rows = txn["transactions"]
+            if category:
+                rows = [t for t in rows if (t.get("category") or "").upper() == category]
+            if query:
+                rows = [t for t in rows if query in (t.get("name") or "").lower()]
+            return {"days": days, "count": len(rows), "transactions": rows[:limit], "pending": txn.get("pending")}
+        return {"error": f"Unknown action '{action}'", "exit_code": 1}
+    except plaid.PlaidError as e:
+        return {"error": f"Plaid error: {e}", "exit_code": 1}
+
+
 async def do_manage_calendar(content: str, owner: Optional[str] = None) -> Dict:
     """Handle manage_calendar tool calls: list/create/update/delete calendar events (local SQLite)."""
     from datetime import datetime, timedelta

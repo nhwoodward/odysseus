@@ -32,6 +32,7 @@ const TasksRoute = lazyNamed(() => import("@/routes/TasksRoute"), "TasksRoute")
 const CookbookRoute = lazyNamed(() => import("@/routes/CookbookRoute"), "CookbookRoute")
 const SkillsRoute = lazyNamed(() => import("@/routes/SkillsRoute"), "SkillsRoute")
 const ConnectorsRoute = lazyNamed(() => import("@/routes/ConnectorsRoute"), "ConnectorsRoute")
+const FinanceRoute = lazyNamed(() => import("@/routes/FinanceRoute"), "FinanceRoute")
 const SettingsRoute = lazyNamed(() => import("@/routes/SettingsRoute"), "SettingsRoute")
 
 const FONT_STACKS: Record<string, string> = {
@@ -106,6 +107,7 @@ function ThemedApp() {
             <Route path="/cookbook" element={<CookbookRoute />} />
             <Route path="/skills" element={<SkillsRoute />} />
             <Route path="/connectors" element={<ConnectorsRoute />} />
+            <Route path="/finance" element={<FinanceRoute />} />
             <Route path="/settings" element={<SettingsRoute />} />
             <Route path="*" element={<Navigate to="/chat" replace />} />
           </Routes>

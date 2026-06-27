@@ -583,6 +583,26 @@ FUNCTION_TOOL_SCHEMAS = [
     {
         "type": "function",
         "function": {
+            "name": "manage_finance",
+            "description": "Read the user's connected personal-finance data (via Plaid; READ-ONLY) to answer money questions: balances, net worth, spending by category, recent transactions, subscriptions/recurring charges, and investment holdings. Start with action 'summary' for an overview. Owner-scoped to the current user. If nothing is connected, tell them to connect an account on the Finance page.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {"type": "string",
+                               "enum": ["summary", "net_worth", "spending", "transactions", "subscriptions", "investments"],
+                               "description": "summary = overview (net worth, 30-day spend, subscriptions, investments); net_worth = accounts + assets/liabilities; spending = categorized spend over `days`; transactions = recent transactions (optional category/query filter); subscriptions = recurring charges + monthly total; investments = holdings + allocation."},
+                    "days": {"type": "integer", "description": "Lookback window for spending/transactions (default 30 for spending, 90 for transactions)."},
+                    "category": {"type": "string", "description": "Filter transactions to a Plaid category, e.g. FOOD_AND_DRINK, TRAVEL, GENERAL_MERCHANDISE."},
+                    "query": {"type": "string", "description": "Filter transactions by merchant/name substring."},
+                    "limit": {"type": "integer", "description": "Max rows for transactions/holdings (default 25)."}
+                },
+                "required": ["action"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "manage_notes",
             "description": "Manage notes and checklists (Google Keep-style): list, add, update, delete, toggle_item. IMPORTANT: For to-do lists / checklists, set note_type='checklist' and pass the items as the `checklist_items` array — do NOT serialize them into `content` as plain text. For freeform notes, use note_type='note' and put the body in `content`. `due_date` accepts natural language like 'tomorrow at 9am' (parsed in the user's timezone) and fires a notification — do not also create a calendar event for the same reminder.",
             "parameters": {

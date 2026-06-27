@@ -753,6 +753,12 @@ logger.info("MCP routes initialized")
 # connect flow, built on the same MCP manager (see routes/connector_routes.py).
 from routes.connector_routes import setup_connector_routes
 app.include_router(setup_connector_routes(mcp_manager))
+
+# Personal Finance — Plaid Link (Hosted) + read-only financial data
+# (balances/transactions/recurring/investments). Owner-scoped; the Plaid
+# access_token is Fernet-encrypted at rest. See routes/finance_routes.py.
+from routes.finance_routes import setup_finance_routes
+app.include_router(setup_finance_routes())
 logger.info("Connector routes initialized")
 
 # AI Interaction tools (debates, pipelines, self-managing AI, UI control)

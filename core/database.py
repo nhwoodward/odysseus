@@ -428,6 +428,30 @@ class ProviderAuthSession(TimestampMixin, Base):
     last_refresh = Column(DateTime, nullable=True)
     auth_mode = Column(String, nullable=True)
 
+
+class PlaidItem(TimestampMixin, Base):
+    """A connected Plaid Item (one financial institution) for personal finance.
+
+    Owner-scoped and READ-ONLY. The Plaid ``access_token`` is long-lived and
+    grants read access to the user's accounts, so it is Fernet-encrypted at rest
+    via EncryptedText — never log it. Rows are created by the Plaid Link (Hosted)
+    flow in ``routes/finance_routes.py``; financial data is pulled on demand via
+    ``src/plaid_client.py`` (transactions / balances / liabilities / investments).
+    """
+    __tablename__ = "plaid_items"
+
+    id = Column(String, primary_key=True, index=True)
+    owner = Column(String, nullable=True, index=True)
+    item_id = Column(String, nullable=False, index=True)       # Plaid item_id
+    access_token = Column(EncryptedText, nullable=True)        # encrypted at rest
+    institution_id = Column(String, nullable=True)
+    institution_name = Column(String, nullable=True)
+    transactions_cursor = Column(Text, nullable=True)          # /transactions/sync cursor
+    accounts = Column(Text, nullable=True)                     # cached account metadata (JSON)
+    status = Column(String, nullable=True, default="active")   # active | error
+    error = Column(String, nullable=True)
+
+
 class McpServer(TimestampMixin, Base):
     """Admin-configured MCP (Model Context Protocol) tool servers."""
     __tablename__ = "mcp_servers"
