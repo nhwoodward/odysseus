@@ -1,4 +1,4 @@
-import { useEffect, useState, type DragEvent } from "react"
+import { useEffect, useState } from "react"
 import { NavLink, useLocation, useNavigate } from "react-router-dom"
 import { Plus, Search, PanelLeft, Settings, Trash2, Moon, Sun, LogOut, EyeOff, Keyboard, ChevronsUpDown, Pencil, Pin, Check, Users, Archive, ArchiveRestore, CheckSquare, Square, X } from "lucide-react"
 import { useUi } from "@/stores/ui"
@@ -13,19 +13,6 @@ import { removePersistentPersonaSession } from "@/lib/persistentPersona"
 import { useEscapeClose } from "@/lib/useEscapeClose"
 import { cn } from "@/lib/utils"
 import { useNoteReminders } from "@/stores/noteReminders"
-
-const BUCKETS = ["Today", "Yesterday", "Previous 7 days", "Older"] as const
-function bucketOf(s: Session): typeof BUCKETS[number] {
-  const t = new Date(s.last_message_at || s.updated_at || 0).getTime()
-  if (!t) return "Older"
-  const day = 86400000
-  const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0)
-  const diff = startOfToday.getTime() - t
-  if (t >= startOfToday.getTime()) return "Today"
-  if (diff <= day) return "Yesterday"
-  if (diff <= 7 * day) return "Previous 7 days"
-  return "Older"
-}
 
 const navRow = (active: boolean) =>
   cn("flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm transition-colors",
@@ -91,11 +78,6 @@ export function Sidebar() {
   const [q, setQ] = useState("")
   const [editId, setEditId] = useState<string | null>(null)
   const [editName, setEditName] = useState("")
-  const [sortMode, setSortMode] = useState<"recent" | "az" | "oldest" | "manual">("recent")
-  const [manualOrder, setManualOrder] = useState<string[]>(() => {
-    try { return JSON.parse(window.localStorage.getItem("odysseus-session-order") || "[]") as string[] } catch { return [] }
-  })
-  const [draggedId, setDraggedId] = useState<string | null>(null)
   // Pinned nav favorites shown as direct sidebar rows. "/chat" is always pinned;
   // everything else lives behind the "More tools" flyout until pinned. Persisted
   // like the other sidebar prefs in this file.
@@ -117,19 +99,6 @@ export function Sidebar() {
   const [selectMode, setSelectMode] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const commitRename = () => { if (editId && editName.trim()) rename.mutate({ id: editId, name: editName.trim() }); setEditId(null) }
-  useEffect(() => { window.localStorage.setItem("odysseus-session-order", JSON.stringify(manualOrder)) }, [manualOrder])
-  const manualRank = (session: Session) => { const rank = manualOrder.indexOf(session.id); return rank < 0 ? Number.MAX_SAFE_INTEGER : rank }
-  const manualSort = (items: Session[]) => [...items].sort((a, b) => manualRank(a) - manualRank(b) || new Date(b.last_message_at || b.updated_at || 0).getTime() - new Date(a.last_message_at || a.updated_at || 0).getTime())
-  const moveChat = (target: Session) => {
-    if (!draggedId || draggedId === target.id) return
-    setManualOrder((old) => {
-      const all = [...new Set([...old, ...list.map((session) => session.id)])].filter((id) => id !== draggedId)
-      const targetIndex = all.indexOf(target.id)
-      all.splice(targetIndex < 0 ? all.length : targetIndex, 0, draggedId)
-      return all
-    })
-    setDraggedId(null); setSortMode("manual")
-  }
 
   const archivedView = view === "archived"
   const { data: archivedData } = useArchivedSessions(archivedView)
@@ -145,11 +114,11 @@ export function Sidebar() {
   // Every non-pinned chat falls into the time/sort buckets (the sidebar no
   // longer groups by project folder — projects are managed on the Projects page
   // and the chat-header picker).
-  const rest = list.filter((s) => !s.is_important)
-  const groups = sortMode === "recent"
-    ? BUCKETS.map((b) => ({ b, items: rest.filter((s) => bucketOf(s) === b) })).filter((g) => g.items.length)
-    : sortMode === "manual" ? [{ b: "Manual order", items: manualSort(rest) }]
-    : [{ b: sortMode === "az" ? "A–Z" : "Oldest first", items: [...rest].sort((x, y) => sortMode === "az" ? (x.name || "").localeCompare(y.name || "") : new Date(x.last_message_at || x.updated_at || 0).getTime() - new Date(y.last_message_at || y.updated_at || 0).getTime()) }]
+  // Simple flat recents: every non-pinned chat, most-recent first. No date
+  // buckets, no sort modes — pinned still floats to its own section above.
+  const rest = list
+    .filter((s) => !s.is_important)
+    .sort((x, y) => new Date(y.last_message_at || y.updated_at || 0).getTime() - new Date(x.last_message_at || x.updated_at || 0).getTime())
 
   // All visible session ids in the active view drive Select-All. Archived rows
   // are not selectable (their actions are Restore/Delete, handled per-row).
@@ -202,11 +171,6 @@ export function Sidebar() {
     </div>
   ) : (
     <div key={s.id}
-      draggable={!selectMode && sortMode === "manual"}
-      onDragStart={(event: DragEvent<HTMLDivElement>) => { setDraggedId(s.id); event.dataTransfer.effectAllowed = "move" }}
-      onDragEnd={() => setDraggedId(null)}
-      onDragOver={(event) => { if (draggedId) event.preventDefault() }}
-      onDrop={(event) => { event.preventDefault(); moveChat(s) }}
       onClick={() => { if (selectMode) toggleSelected(s.id); else navigate(`/chat/${s.id}`) }}
       role="button" tabIndex={0}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (selectMode) toggleSelected(s.id); else navigate(`/chat/${s.id}`) } }}
@@ -338,12 +302,7 @@ export function Sidebar() {
         {archivedView ? null : selectMode ? (
           <button onClick={exitSelectMode} title="Cancel selection" className="text-muted-foreground hover:text-foreground"><X className="size-3.5" /></button>
         ) : (
-          <div className="flex items-center gap-2">
-            <button onClick={enterSelectMode} title="Select chats" className="text-muted-foreground hover:text-foreground"><CheckSquare className="size-3.5" /></button>
-            <select value={sortMode} onChange={(e) => setSortMode(e.target.value as "recent" | "az" | "oldest" | "manual")} aria-label="Sort chats" className="rounded border-0 bg-transparent text-xs text-muted-foreground outline-none hover:text-foreground">
-              <option value="recent">Recent</option><option value="az">A–Z</option><option value="oldest">Oldest</option><option value="manual">Manual</option>
-            </select>
-          </div>
+          <button onClick={enterSelectMode} title="Select chats" className="text-muted-foreground hover:text-foreground"><CheckSquare className="size-3.5" /></button>
         )}
       </div>
       {selectMode && !archivedView && (
@@ -375,12 +334,7 @@ export function Sidebar() {
                 {pinned.map(renderRow)}
               </div>
             )}
-            {groups.map((g) => (
-              <div key={g.b} className="mb-2">
-                <div className="px-2 py-1 text-xs font-medium text-muted-foreground/80">{g.b}</div>
-                {g.items.map(renderRow)}
-              </div>
-            ))}
+            {rest.map(renderRow)}
             {list.length === 0 && <p className="px-2 py-4 text-xs text-muted-foreground">{q ? "No matches." : "No chats yet."}</p>}
           </>
         )}

@@ -309,6 +309,28 @@ def _owner_is_admin(owner: Optional[str]) -> bool:
     """Mirror route-level admin behavior for agent tool execution."""
     return owner_is_admin_or_single_user(owner)
 
+
+def _is_own_mcp_tool(tool: Optional[str], owner: Optional[str]) -> bool:
+    """True when `tool` is an MCP tool from a connector THIS user connected
+    (its McpServer.owner == owner). MCP tools are qualified ``mcp__<server_id>__
+    <tool>`` (see ``_call_mcp_tool``), so a tool is "own" iff it is prefixed by
+    one of the user's owned server ids. Lets a non-admin use connectors they
+    personally added, while the public-tool gate still blocks admin/global and
+    other users' MCP. Fails CLOSED: any error → treated as not-owned (blocked)."""
+    if not owner or not isinstance(tool, str) or not tool.startswith("mcp__"):
+        return False
+    try:
+        from core.database import McpServer, SessionLocal
+        db = SessionLocal()
+        try:
+            owned = db.query(McpServer).filter(McpServer.owner == owner).all()
+        finally:
+            db.close()
+        return any(tool.startswith(f"mcp__{s.id}__") for s in owned)
+    except Exception as exc:
+        logger.warning("own-MCP-tool check failed for owner=%r tool=%s: %s", owner, tool, exc)
+        return False
+
 # ---------------------------------------------------------------------------
 # MCP-backed tool helpers
 # ---------------------------------------------------------------------------
@@ -622,7 +644,7 @@ async def _execute_tool_block_impl(
         logger.warning("Admin tool blocked for non-admin owner=%r tool=%s", owner, tool)
         return desc, result
 
-    if is_public_blocked_tool(tool) and not _owner_is_admin(owner):
+    if is_public_blocked_tool(tool) and not _owner_is_admin(owner) and not _is_own_mcp_tool(tool, owner):
         desc = f"{tool}: BLOCKED"
         result = {
             "error": (

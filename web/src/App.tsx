@@ -41,6 +41,20 @@ const FONT_STACKS: Record<string, string> = {
 }
 const DENSITY_PX: Record<string, string> = { compact: "14px", comfortable: "16px", spacious: "17px" }
 
+// Foreground for a custom accent (the `default` button is bg-primary
+// text-primary-foreground). A hardcoded white reads badly on a LIGHT accent, so
+// pick whichever of near-white / near-black has the higher WCAG contrast against
+// the accent. Falls back to white for an unparseable value.
+function accentForeground(hex: string): string {
+  const m = hex.replace("#", "")
+  const full = m.length === 3 ? m.split("").map((c) => c + c).join("") : m
+  if (full.length !== 6 || /[^0-9a-fA-F]/.test(full)) return "#ffffff"
+  const lin = (v: number) => { const s = v / 255; return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4 }
+  const L = 0.2126 * lin(parseInt(full.slice(0, 2), 16)) + 0.7152 * lin(parseInt(full.slice(2, 4), 16)) + 0.0722 * lin(parseInt(full.slice(4, 6), 16))
+  // contrast(white) = 1.05/(L+0.05); contrast(black) = (L+0.05)/0.05
+  return 1.05 / (L + 0.05) >= (L + 0.05) / 0.05 ? "#fafafa" : "#09090b"
+}
+
 function RouteFallback() {
   return (
     <div className="flex h-full items-center justify-center">
@@ -65,7 +79,7 @@ function ThemedApp() {
   useEffect(() => { document.documentElement.classList.toggle("dark", theme === "dark") }, [theme])
   useEffect(() => {
     const root = document.documentElement
-    if (accent) { root.style.setProperty("--primary", accent); root.style.setProperty("--ring", accent); root.style.setProperty("--primary-foreground", "#ffffff"); root.style.setProperty("--sidebar-primary", accent) }
+    if (accent) { root.style.setProperty("--primary", accent); root.style.setProperty("--ring", accent); root.style.setProperty("--primary-foreground", accentForeground(accent)); root.style.setProperty("--sidebar-primary", accent) }
     else { for (const v of ["--primary", "--ring", "--primary-foreground", "--sidebar-primary"]) root.style.removeProperty(v) }
     root.style.fontFamily = FONT_STACKS[font] || ""
     root.style.fontSize = DENSITY_PX[density] || "16px"

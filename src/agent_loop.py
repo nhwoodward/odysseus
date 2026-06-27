@@ -39,7 +39,7 @@ from src.agent_tools import (
 logger = logging.getLogger(__name__)
 
 
-def _load_mcp_disabled_map(owner: Optional[str] = None, mcp_mgr=None) -> Dict[str, Optional[set]]:
+def _load_mcp_disabled_map(owner: Optional[str] = None, mcp_mgr=None, restrict_to_owned: bool = False) -> Dict[str, Optional[set]]:
     """Load per-server disabled tool sets from the database.
 
     A ``None`` value for a server is a fail-closed sentinel: that server's
@@ -78,7 +78,12 @@ def _load_mcp_disabled_map(owner: Optional[str] = None, mcp_mgr=None) -> Dict[st
                     )
                     disabled_map[srv.id] = None
         if owner:
-            foreign = {srv.id for srv in servers if getattr(srv, "owner", None) and srv.owner != owner}
+            if restrict_to_owned:
+                # Non-admin: only the user's OWN connectors are visible — hide
+                # everything else, INCLUDING shared/global (owner IS NULL) servers.
+                foreign = {srv.id for srv in servers if getattr(srv, "owner", None) != owner}
+            else:
+                foreign = {srv.id for srv in servers if getattr(srv, "owner", None) and srv.owner != owner}
     finally:
         db.close()
     if foreign and mcp_mgr is not None:
@@ -1880,11 +1885,15 @@ async def stream_agent_loop(
             mcp_mgr = None
     guide_only = bool(tool_policy and tool_policy.mode == "guide_only")
     public_blocked_tools = blocked_tools_for_owner(owner)
+    # Non-admins keep MCP, but restricted to connectors THEY connected
+    # (owner == user). Their own connectors stay visible; admin/global (owner IS
+    # NULL) and other users' servers are hidden in _load_mcp_disabled_map
+    # (restrict_to_owned) and rejected at the runtime gate (tool_execution).
+    # Previously this blanket-set mcp_mgr = None, which also hid the user's own
+    # connectors — so a connected connector was invisible to the agent.
+    _restrict_mcp_to_owner = bool(public_blocked_tools)
     if public_blocked_tools:
         disabled_tools.update(public_blocked_tools)
-        # MCP tools are namespaced dynamically, so hide all MCP schemas for
-        # public/non-admin users rather than trying to enumerate every tool.
-        mcp_mgr = None
 
     if plan_mode:
         # Plan mode: investigate read-only, propose a plan, don't execute. The
@@ -1908,7 +1917,7 @@ async def stream_agent_loop(
         sorted(_intent.get("domains") or []),
         _retrieval_query[:200],
     )
-    _mcp_disabled_map = _load_mcp_disabled_map(owner, mcp_mgr) if mcp_mgr else {}
+    _mcp_disabled_map = _load_mcp_disabled_map(owner, mcp_mgr, restrict_to_owned=_restrict_mcp_to_owner) if mcp_mgr else {}
     if plan_mode and mcp_mgr:
         # Allow read-only MCP tools to investigate, block write/unknown ones:
         # hide them from the schemas AND reject them at runtime by qualified name.
@@ -2336,11 +2345,12 @@ async def stream_agent_loop(
                     s for s in FUNCTION_TOOL_SCHEMAS
                     if s.get("function", {}).get("name") in _schema_names
                 ]
-                _mcp_filtered = [
-                    s for s in mcp_schemas
-                    if s.get("function", {}).get("name") in _relevant_tools
-                ]
-                all_tool_schemas = base_schemas + _mcp_filtered
+                # MCP tools are user-connected connectors (few, intentionally
+                # added) — never RAG-filter them away. A meta query like "are you
+                # connected to X?" doesn't semantically match a tool description
+                # ("Send email"…), so filtering would drop ALL MCP tools and the
+                # agent would report no access. Always offer the full MCP set.
+                all_tool_schemas = base_schemas + mcp_schemas
             else:
                 base_schemas = FUNCTION_TOOL_SCHEMAS if _needs_admin else [
                     s for s in FUNCTION_TOOL_SCHEMAS
