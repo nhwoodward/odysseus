@@ -2107,7 +2107,7 @@ async def stream_agent_loop(
         # via vLLM's `--enable-auto-tool-choice`. Belt-and-suspenders
         # with the per-endpoint flag above.
         "minimax", "kimi", "yi-", "phi-3", "phi-4", "command-r",
-        "glm-4", "internlm", "hermes",
+        "glm-4", "glm-5", "glm-6", "internlm", "hermes",
         # deepseek-v2/v3/chat support tools via the cloud API; deepseek-r1
         # (reasoning model) does not — handled by the blocklist below.
         "deepseek-v", "deepseek-chat",
@@ -2364,9 +2364,15 @@ async def stream_agent_loop(
                     and t.get("name") not in disabled_tools
                 ]
         else:
-            # Local: only MCP schemas when message suggests MCP tool usage
+            # Non-API (prompt/XML) models get base tools via the prompt; MCP
+            # tools come through function schemas. Offer them when the turn wants
+            # MCP — by keyword OR because RAG surfaced an MCP tool as relevant (a
+            # user-connected connector the model should reach even when no
+            # hardcoded keyword matches — the keyword list can't know connector
+            # tool names).
             _last_content = _last_user.lower()
-            _wants_mcp = any(kw in _last_content for kw in _MCP_KEYWORDS)
+            _rag_wants_mcp = any((n or "").startswith("mcp__") for n in (_relevant_tools or ()))
+            _wants_mcp = _rag_wants_mcp or any(kw in _last_content for kw in _MCP_KEYWORDS)
             all_tool_schemas = mcp_schemas if (_wants_mcp and mcp_schemas) else []
         agent_stream_timeout = int(get_setting("agent_stream_timeout_seconds", 300) or 300)
 
