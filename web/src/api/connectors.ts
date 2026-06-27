@@ -80,9 +80,10 @@ export function useConnectorAvailability(enabled: boolean) {
   })
 }
 
-export function useConnectorCatalog() {
+export function useConnectorCatalog(enabled = true) {
   return useQuery({
     queryKey: ["connector-catalog"],
+    enabled,
     retry: false,
     queryFn: () => apiJson<{ connectors: CatalogEntry[]; categories: string[] }>("/api/connectors/catalog"),
   })

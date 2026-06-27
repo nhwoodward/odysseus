@@ -2,7 +2,7 @@
 // Brand marks for the connectors directory. simple-icons supplies normalized
 // 24x24 single-path SVGs + the official brand hex; Slack & Canva were removed
 // from simple-icons (trademark policy) so their last-published marks are inlined.
-import { siNotion, siLinear, siGithub, siStripe, siSentry, siAtlassian, siAsana, siHubspot, siBox, siVercel, siNeon, siCloudflare, siPaypal, siPostgresql, siBrave, siTodoist, siFigma, siWebflow, siWix, siIntercom, siSquare, siGooglemaps, siGitlab, siAirtable, siSupabase, siMongodb, siSqlite } from "simple-icons"
+import { siNotion, siLinear, siGithub, siStripe, siSentry, siAtlassian, siAsana, siHubspot, siBox, siVercel, siNeon, siCloudflare, siPaypal, siPostgresql, siBrave, siTodoist, siFigma, siSupabase, siIntercom, siWebflow, siWix, siPosthog, siGrafana, siAirtable, siHuggingface, siSquare, siGitlab, siRedis, siKubernetes, siSanity, siGooglemaps, siMongodb, siSqlite } from "simple-icons"
 
 export interface Brand {
   path: string
@@ -28,14 +28,20 @@ const SI: Record<string, Brand> = {
   brave: siBrave,
   todoist: siTodoist,
   figma: siFigma,
+  supabase: siSupabase,
+  intercom: siIntercom,
   webflow: siWebflow,
   wix: siWix,
-  intercom: siIntercom,
-  square: siSquare,
-  googlemaps: siGooglemaps,
-  gitlab: siGitlab,
+  posthog: siPosthog,
+  grafana: siGrafana,
   airtable: siAirtable,
-  supabase: siSupabase,
+  huggingface: siHuggingface,
+  square: siSquare,
+  gitlab: siGitlab,
+  redis: siRedis,
+  kubernetes: siKubernetes,
+  sanity: siSanity,
+  googlemaps: siGooglemaps,
   mongodb: siMongodb,
   sqlite: siSqlite,
 }

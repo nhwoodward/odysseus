@@ -122,6 +122,31 @@ CONNECTOR_CATALOG: Dict[str, Dict[str, Any]] = {
         "transport": "http", "url": "https://mcp.paypal.com/http",
     },
 
+    "posthog": {
+        "name": "PostHog", "category": "Analytics", "icon": "Bug", "brand": "posthog",
+        "description": "Query product analytics, insights, feature flags, and session data.",
+        "capabilities": ["read"], "kind": "remote", "auth_type": "oauth",
+        "transport": "http", "url": "https://mcp.posthog.com/mcp",
+    },
+    "grafana": {
+        "name": "Grafana", "category": "Monitoring", "icon": "Bug", "brand": "grafana",
+        "description": "Explore dashboards, datasources, and incidents in Grafana Cloud.",
+        "capabilities": ["read"], "kind": "remote", "auth_type": "oauth",
+        "transport": "http", "url": "https://mcp.grafana.com/mcp",
+    },
+    "plaid": {
+        "name": "Plaid", "category": "Payments", "icon": "CreditCard",
+        "description": "Inspect Plaid Items, Link conversion, and usage analytics (Production access).",
+        "capabilities": ["read"], "kind": "remote", "auth_type": "oauth",
+        "transport": "http", "url": "https://api.dashboard.plaid.com/mcp/",
+    },
+    "huggingface": {
+        "name": "Hugging Face", "category": "Developer", "icon": "Brain", "brand": "huggingface",
+        "description": "Search models, datasets, and Spaces on the Hugging Face Hub.",
+        "capabilities": ["read"], "kind": "remote", "auth_type": "oauth",
+        "transport": "http", "url": "https://huggingface.co/mcp",
+    },
+
     # ── Local (stdio / npx) connectors ───────────────────────────────────────
     "filesystem": {
         "name": "Filesystem", "category": "Files", "icon": "FolderOpen",
@@ -361,12 +386,44 @@ CONNECTOR_CATALOG: Dict[str, Dict[str, Any]] = {
              "secret": True, "placeholder": "fc-…"},
         ],
     },
+    "redis": {
+        "name": "Redis", "category": "Data", "icon": "Database", "brand": "redis",
+        "description": "Read and write keys against a Redis instance.",
+        "capabilities": ["read", "write"], "kind": "local", "auth_type": "api_key",
+        "transport": "stdio", "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-redis", ""], "env": {},
+        "help": "Paste your Redis connection URL.",
+        "fields": [
+            {"key": "__arg2", "label": "Redis URL", "help": "redis://user:pass@host:6379", "secret": True, "placeholder": "redis://localhost:6379"},
+        ],
+    },
+    "kubernetes": {
+        "name": "Kubernetes", "category": "Developer", "icon": "Boxes", "brand": "kubernetes",
+        "description": "Inspect and manage Kubernetes resources via your kubeconfig.",
+        "capabilities": ["read", "write"], "kind": "local", "auth_type": "none",
+        "transport": "stdio", "command": "npx", "args": ["-y", "mcp-server-kubernetes"], "env": {},
+        "help": "Uses your current kubeconfig context — make sure `kubectl` is configured.",
+        "fields": [],
+    },
+    "sanity": {
+        "name": "Sanity", "category": "Design", "icon": "Palette", "brand": "sanity",
+        "description": "Query and edit content in your Sanity studio datasets.",
+        "capabilities": ["read", "write"], "kind": "local", "auth_type": "api_key",
+        "transport": "stdio", "command": "npx", "args": ["-y", "@sanity/mcp-server"],
+        "env": {"SANITY_API_TOKEN": "", "SANITY_PROJECT_ID": "", "SANITY_DATASET": "production"},
+        "help": "Create a token at sanity.io/manage → API → Tokens.",
+        "fields": [
+            {"key": "SANITY_API_TOKEN", "label": "API token", "help": "From sanity.io/manage", "secret": True, "placeholder": "sk…"},
+            {"key": "SANITY_PROJECT_ID", "label": "Project ID", "help": "Your Sanity project id", "secret": False, "placeholder": "abc12345"},
+            {"key": "SANITY_DATASET", "label": "Dataset", "help": "usually 'production'", "secret": False, "placeholder": "production"},
+        ],
+    },
 }
 
 # Ordered categories for the gallery UI.
 CATEGORY_ORDER = [
     "Productivity", "Developer", "Communication", "CRM & Sales",
-    "Payments", "Design", "Monitoring", "Search", "Data", "Files", "Automation",
+    "Payments", "Design", "Monitoring", "Analytics", "Search", "Data", "Files", "Automation",
 ]
 
 
