@@ -244,9 +244,6 @@ export function Sidebar() {
             <MoreToolsMenu variant="icon" items={moreItems} onTogglePin={togglePin} reminderTos={moreReminderTos} reminderText={reminderCountLabel(firedNoteReminders)} />
           )}
         </div>
-        <NavLink to="/settings" title="Settings" data-tour={tourNav("/settings")} className={({ isActive }) => cn(iconBtn(isActive), "mt-auto")}>
-          <Settings className="size-5" />
-        </NavLink>
         <Account collapsed />
         </aside>
       )}
@@ -347,14 +344,8 @@ export function Sidebar() {
         )}
       </div>
       </div>
-      {/* Pinned footer: Settings always one click away, then the account menu. */}
-      <div className="border-t px-2 py-1">
-        <NavLink to="/settings" data-tour={tourNav("/settings")}
-          className={({ isActive }) => navRow(isActive)}>
-          <Settings className="size-4 shrink-0" />
-          <span className="min-w-0 flex-1 truncate">Settings</span>
-        </NavLink>
-      </div>
+      {/* Account stays pinned at the bottom (its own mt-auto / border-t) below the
+          single scroll region above. Settings lives inside the account popover. */}
       <Account collapsed={false} />
       </aside>
     </>
