@@ -22,6 +22,7 @@ import { FinanceDisclaimer } from "./finance/FinanceDisclaimer"
 import { CashFlowCard } from "./finance/CashFlowCard"
 import { NetWorthCard } from "./finance/NetWorthCard"
 import { SpendingBreakdown } from "./finance/SpendingBreakdown"
+import { FinanceStatCards } from "./finance/FinanceStatCards"
 import { BillsTab } from "./finance/BillsTab"
 import { AccountsTab } from "./finance/AccountsTab"
 import { TransactionsFeed } from "./finance/TransactionsFeed"
@@ -75,6 +76,7 @@ function CashflowError() {
 function Overview({ summary, cashflow, cashflowError, networth, networthError }: { summary: FinanceSummary; cashflow?: FinanceCashflow; cashflowError?: boolean; networth?: NetWorthHistory; networthError?: boolean }) {
   return (
     <div className="space-y-4">
+      <FinanceStatCards summary={summary} cashflow={cashflow} networth={networth} />
       <NetWorthCard summary={summary} history={networth} error={networthError} />
       <div className="grid gap-3 lg:grid-cols-2">
         {cashflow ? <CashFlowCard data={cashflow} /> : cashflowError ? <CashflowError /> : <Card className="p-4"><SkeletonList rows={3} /></Card>}
