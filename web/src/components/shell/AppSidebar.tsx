@@ -12,48 +12,58 @@ import {
   Sidebar, SidebarHeader, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent,
   SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarMenuAction, SidebarRail, useSidebar,
 } from "@/components/ui/sidebar"
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import type { Session } from "@/types"
 import { removePersistentPersonaSession } from "@/lib/persistentPersona"
-import { useEscapeClose } from "@/lib/useEscapeClose"
 import { cn } from "@/lib/utils"
 import { useNoteReminders } from "@/stores/noteReminders"
 
 const tourNav = (to: string) => `nav-${to.replace(/^\//, "") || "chat"}`
 const reminderCountLabel = (count: number) => count > 99 ? "99+" : String(count)
 
-function Account() {
-  const { state } = useSidebar()
-  const collapsed = state === "collapsed"
+function NavUser() {
+  const { isMobile } = useSidebar()
   const { data: status } = useAuthStatus()
   const { theme, toggleTheme } = useUi()
   const incognito = useComposer((s) => s.incognito)
   const toggle = useComposer((s) => s.toggle)
   const navigate = useNavigate()
-  const [open, setOpen] = useState(false)
-  useEscapeClose(open, () => setOpen(false))
   const name = status?.username || status?.user || "Account"
-  const item = "flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
+  const role = status?.is_admin ? "Admin" : "Member"
+  const initials = name.slice(0, 2).toUpperCase()
+  const ident = (
+    <>
+      <Avatar className="size-8 rounded-lg">
+        <AvatarFallback className="rounded-lg bg-muted text-xs font-medium uppercase">{initials}</AvatarFallback>
+      </Avatar>
+      <div className="grid flex-1 text-left text-sm leading-tight">
+        <span className="truncate font-medium">{name}</span>
+        <span className="truncate text-xs text-muted-foreground">{role}</span>
+      </div>
+    </>
+  )
   return (
-    <div className="relative">
-      {open && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute bottom-full left-0 z-20 mb-1 w-56 origin-bottom animate-pop-in overflow-hidden rounded-xl border bg-popover p-1 shadow-lg">
-            <NavLink to="/settings" onClick={() => setOpen(false)} className={item}><Settings className="size-4" />Settings</NavLink>
-            <button onClick={() => { toggleTheme() }} className={item}>{theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}{theme === "dark" ? "Light mode" : "Dark mode"}</button>
-            <button onClick={() => { toggle("incognito"); navigate("/chat"); setOpen(false) }} className={cn(item, incognito && "text-foreground")}><EyeOff className="size-4" />Incognito {incognito ? "on" : "off"}</button>
-            <button onClick={() => { window.dispatchEvent(new CustomEvent("odysseus:open-shortcuts")); setOpen(false) }} className={item}><Keyboard className="size-4" />Keyboard shortcuts</button>
-            <button onClick={logout} className={item}><LogOut className="size-4" />Log out</button>
-          </div>
-        </>
-      )}
-      <SidebarMenuButton onClick={() => setOpen((o) => !o)} aria-expanded={open} size="lg" tooltip={name}>
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium uppercase">{name[0]}</span>
-        {!collapsed && <span className="min-w-0 flex-1 truncate text-left text-sm font-medium">{name}</span>}
-        {!collapsed && <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />}
-      </SidebarMenuButton>
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <SidebarMenuButton size="lg" tooltip={name} className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground">
+          {ident}
+          <ChevronsUpDown className="ml-auto size-4" />
+        </SidebarMenuButton>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent side={isMobile ? "bottom" : "right"} align="end" sideOffset={4} className="min-w-56 rounded-lg">
+        <DropdownMenuLabel className="p-0 font-normal">
+          <div className="flex items-center gap-2 px-1 py-1.5">{ident}</div>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => { navigate("/settings") }}><Settings />Settings</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => toggleTheme()}>{theme === "dark" ? <Sun /> : <Moon />}{theme === "dark" ? "Light mode" : "Dark mode"}</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => { toggle("incognito"); navigate("/chat") }} className={cn(incognito && "text-foreground")}><EyeOff />Incognito {incognito ? "on" : "off"}</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => window.dispatchEvent(new CustomEvent("odysseus:open-shortcuts"))}><Keyboard />Keyboard shortcuts</DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={logout}><LogOut />Log out</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 
@@ -218,7 +228,7 @@ export function AppSidebar() {
   )
 
   return (
-    <Sidebar collapsible="icon" data-tour="sidebar">
+    <Sidebar collapsible="icon" variant="inset" data-tour="sidebar">
       <SidebarHeader className="gap-2">
         <div className="px-1 pt-1 text-sm font-semibold group-data-[collapsible=icon]:hidden">Odysseus <span className="font-normal text-muted-foreground">/ v2</span></div>
         <SidebarMenu>
@@ -322,12 +332,29 @@ export function AppSidebar() {
             )}
           </SidebarGroupContent>
         </SidebarGroup>
+
+        <SidebarGroup className="py-0">
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild size="sm" isActive={navActive("/settings")} tooltip="Settings">
+                  <NavLink to="/settings"><Settings /><span>Settings</span></NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton size="sm" tooltip="Keyboard shortcuts" onClick={() => window.dispatchEvent(new CustomEvent("odysseus:open-shortcuts"))}>
+                  <Keyboard /><span>Keyboard shortcuts</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
 
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <Account />
+            <NavUser />
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
