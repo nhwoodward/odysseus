@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils"
 import { FinanceOnboarding, EnvBadge } from "./finance/FinanceOnboarding"
 import { InstitutionList } from "./finance/InstitutionList"
 import { FinanceDisclaimer } from "./finance/FinanceDisclaimer"
-import { CashFlowCard } from "./finance/CashFlowCard"
+import { FinanceCashChart } from "./finance/FinanceCashChart"
 import { NetWorthCard } from "./finance/NetWorthCard"
 import { SpendingBreakdown } from "./finance/SpendingBreakdown"
 import { FinanceStatCards } from "./finance/FinanceStatCards"
@@ -77,9 +77,9 @@ function Overview({ summary, cashflow, cashflowError, networth, networthError }:
   return (
     <div className="space-y-4">
       <FinanceStatCards summary={summary} cashflow={cashflow} networth={networth} />
-      <NetWorthCard summary={summary} history={networth} error={networthError} />
+      {cashflow ? <FinanceCashChart data={cashflow} /> : cashflowError ? <CashflowError /> : <Card className="p-4"><SkeletonList rows={4} /></Card>}
       <div className="grid gap-3 lg:grid-cols-2">
-        {cashflow ? <CashFlowCard data={cashflow} /> : cashflowError ? <CashflowError /> : <Card className="p-4"><SkeletonList rows={3} /></Card>}
+        <NetWorthCard summary={summary} history={networth} error={networthError} />
         {cashflow ? <SpendingBreakdown categories={cashflow.categories} /> : cashflowError ? <CashflowError /> : <Card className="p-4"><SkeletonList rows={3} /></Card>}
       </div>
       {summary.pending && <p className="text-xs text-muted-foreground">Plaid is still preparing some data — refresh in a moment.</p>}
