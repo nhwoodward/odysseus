@@ -2,6 +2,8 @@ import { lazy, Suspense, useEffect, useRef, useState } from "react"
 import { ChevronRight, Brain, Telescope, Loader2, Volume2, Square, BookOpen, Copy, Check, RotateCcw, Pencil, ArrowRight, FileCode2, File, AlertTriangle, CircleAlert, Play, MoreHorizontal, Trash2, GitFork, Scissors, Sparkles, ScanText, ListChecks } from "lucide-react"
 import { usePanel } from "@/stores/panel"
 import { Mascot } from "@/components/ui/Mascot"
+import { Bubble, BubbleContent } from "@/components/ui/bubble"
+import { Marker, MarkerContent } from "@/components/ui/marker"
 import { StreamingMarkdown, Markdown } from "./Markdown"
 import { ToolThread } from "./ToolThread"
 import { BrowserSiteCard } from "./BrowserPreview"
@@ -178,11 +180,17 @@ function ThinkingBar({ m, hasBody, doc, hasReasoning, hasResearch, hasTools }: {
   const stalled = !!m.streaming && m.lastTickAt != null && now - m.lastTickAt > STALL_MS
   const showLabel = preContent || stalled
   return (
-    <div className="flex animate-fade-in items-center gap-2.5 pt-0.5 text-sm text-muted-foreground">
+    // role=status (aria-live=polite) so screen readers announce the streaming
+    // state. The label changes ("Thinking…"→"Still working…") are what get
+    // announced; the elapsed timer is aria-hidden so the per-second tick can't
+    // spam the live region.
+    <Marker role="status" className="animate-fade-in gap-2.5 pt-0.5">
       <Mascot size={9} title="Working" />
-      {showLabel && <span className={cn("transition-colors duration-300", stalled ? "text-muted-foreground/70" : "shimmer-text")}>{stalled ? "Still working…" : "Thinking…"}</span>}
-      {elapsed && <span className="text-label tabular-nums text-muted-foreground/70">{elapsed}</span>}
-    </div>
+      <MarkerContent className="flex items-center gap-2.5">
+        {showLabel && <span className={cn("transition-colors duration-300", stalled ? "text-muted-foreground/70" : "shimmer-text")}>{stalled ? "Still working…" : "Thinking…"}</span>}
+        {elapsed && <span aria-hidden="true" className="text-label tabular-nums text-muted-foreground/70">{elapsed}</span>}
+      </MarkerContent>
+    </Marker>
   )
 }
 
@@ -269,7 +277,11 @@ export function Message({ m, onRegenerate, onEdit, onDelete, onFork, onRewrite, 
     return (
       <div className="group flex flex-col items-end gap-2 animate-msg-in">
         {!!m.attachments?.length && <Attachments items={m.attachments} />}
-        {m.content && <div className="max-w-[75%] whitespace-pre-wrap rounded-2xl bg-secondary px-4 py-2.5 text-subhead">{m.content}</div>}
+        {m.content && (
+          <Bubble variant="secondary" align="end" className="max-w-[75%]">
+            <BubbleContent className="whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-subhead leading-normal">{m.content}</BubbleContent>
+          </Bubble>
+        )}
         <div className="mt-0.5 flex items-center gap-0.5 text-label opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100">
           <CopyButton text={m.content} />
           {onEdit && <button onClick={onEdit} title="Edit & resend" className={actionBtn}><Pencil className="size-3.5" /></button>}
