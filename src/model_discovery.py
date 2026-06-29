@@ -1,5 +1,6 @@
 import subprocess
 import json
+import threading
 import time
 import httpx
 import logging
@@ -14,6 +15,24 @@ logger = logging.getLogger(__name__)
 _hosts_cache: List[str] = []
 _hosts_cache_time: float = 0
 _HOSTS_CACHE_TTL = 60  # seconds
+
+# Short connect timeout for the local/LAN port scan. A reachable LLM endpoint
+# on loopback / the docker bridge / a Tailscale peer accepts the TCP connection
+# in well under 50ms, so a 0.7s connect cap is generous. Critically it BOUNDS
+# how long a scan blocks on a *firewalled* port: the host's ufw DROPs (does not
+# reject) container->host SYNs to closed ports, so without this cap each closed
+# host.docker.internal port hangs the full read timeout (~3s) and dozens of
+# scan threads pile into a CPU-saturating busy state (loud fan, ~98C).
+_SCAN_TIMEOUT = httpx.Timeout(2.5, connect=0.7)
+
+# Serialize + briefly cache discovery so the discovery scheduler, the keepalive
+# warmup loop, and any UI /models hit don't each launch a full host x port sweep
+# concurrently — that overlap is what pinned a core. One scan at a time; recent
+# result reused within the TTL.
+_discovery_lock = threading.Lock()
+_discovery_cache: Optional[Dict[str, List[Dict[str, Any]]]] = None
+_discovery_cache_time: float = 0.0
+_DISCOVERY_CACHE_TTL = 25  # seconds
 
 
 def _parse_tailscale_status(raw: str) -> Dict[str, Any]:
@@ -150,7 +169,7 @@ class ModelDiscovery:
     def _fingerprint_provider(self, host: str, port: int) -> Optional[str]:
         """Identify the server software via its native API, independent of port."""
         try:
-            r = httpx.get(f"http://{host}:{port}/api/v1/models", timeout=1.5)
+            r = httpx.get(f"http://{host}:{port}/api/v1/models", timeout=_SCAN_TIMEOUT)
             if r.is_success:
                 models = (r.json() or {}).get("models")
                 if (
@@ -169,7 +188,7 @@ class ModelDiscovery:
         """Check a single host:port for models."""
         base = f"http://{host}:{port}/v1"
         try:
-            r = httpx.get(f"{base}/models", timeout=3)
+            r = httpx.get(f"{base}/models", timeout=_SCAN_TIMEOUT)
             if not r.is_success:
                 return None
             data = r.json() or {}
@@ -187,8 +206,36 @@ class ModelDiscovery:
             pass
         return None
 
-    def discover_models(self) -> Dict[str, List[Dict[str, Any]]]:
-        """Discover available models from all reachable hosts."""
+    def discover_models(self, *, force: bool = False) -> Dict[str, List[Dict[str, Any]]]:
+        """Discover available models from all reachable hosts.
+
+        The result is briefly cached and the underlying sweep is serialized, so
+        concurrent callers (discovery scheduler + keepalive warmup + UI) share
+        one recent scan instead of each launching a full host x port sweep.
+        With the host firewall DROPping container->host SYNs to closed ports,
+        that overlap otherwise pins a CPU core. Pass force=True to bypass the
+        cache.
+        """
+        global _discovery_cache, _discovery_cache_time
+        if not force and _discovery_cache is not None and (
+            time.time() - _discovery_cache_time
+        ) < _DISCOVERY_CACHE_TTL:
+            return _discovery_cache
+
+        with _discovery_lock:
+            # Another caller may have refreshed the cache while we waited on the
+            # lock — re-check before paying for a fresh sweep.
+            if not force and _discovery_cache is not None and (
+                time.time() - _discovery_cache_time
+            ) < _DISCOVERY_CACHE_TTL:
+                return _discovery_cache
+            result = self._scan_models()
+            _discovery_cache = result
+            _discovery_cache_time = time.time()
+            return result
+
+    def _scan_models(self) -> Dict[str, List[Dict[str, Any]]]:
+        """The actual (uncached) host x port sweep. Caller holds _discovery_lock."""
         hosts = self._get_hosts()
         items = []
 
