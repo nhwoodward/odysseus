@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { NavLink, useLocation, useNavigate } from "react-router-dom"
-import { Plus, Search, Settings, Trash2, Moon, Sun, LogOut, EyeOff, Keyboard, ChevronsUpDown, Pencil, Pin, Check, Users, Archive, ArchiveRestore, CheckSquare, Square, X } from "lucide-react"
+import { Plus, Search, Settings, Trash2, Moon, Sun, LogOut, EyeOff, Keyboard, ChevronsUpDown, Pencil, Pin, Check, Users, Archive, ArchiveRestore, CheckSquare, Square, X, MoreHorizontal } from "lucide-react"
 import { useUi } from "@/stores/ui"
 import { useComposer } from "@/stores/composer"
 import { useSessions, useSessionMutations, useArchivedSessions } from "@/api/sessions"
@@ -12,6 +12,7 @@ import {
   Sidebar, SidebarHeader, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent,
   SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarMenuAction, SidebarRail, useSidebar,
 } from "@/components/ui/sidebar"
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 import type { Session } from "@/types"
 import { removePersistentPersonaSession } from "@/lib/persistentPersona"
 import { useEscapeClose } from "@/lib/useEscapeClose"
@@ -153,7 +154,7 @@ export function AppSidebar() {
       onClick={() => { if (selectMode) toggleSelected(s.id); else navigate(`/chat/${s.id}`) }}
       role="button" tabIndex={0}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (selectMode) toggleSelected(s.id); else navigate(`/chat/${s.id}`) } }}
-      className={cn("group/row flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1.5 text-sm",
+      className={cn("group/row flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-2 text-sm",
         s.id === sessionId ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground")}>
       {selectMode && (
         selected.has(s.id)
@@ -164,25 +165,55 @@ export function AppSidebar() {
       {(s.name || "").startsWith("[GRP]") && <Users className="size-3.5 shrink-0 text-muted-foreground" />}
       <span className="flex-1 truncate">{s.name || "Untitled"}</span>
       {!selectMode && (
-        <span className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover/row:opacity-100 group-focus-within/row:opacity-100">
-          <button onClick={(e) => { e.stopPropagation(); setImportant.mutate({ id: s.id, important: !s.is_important }) }} title={s.is_important ? "Unpin" : "Pin"} aria-label={s.is_important ? "Unpin" : "Pin"} className={cn("hover:text-foreground", s.is_important && "text-foreground")}><Pin className="size-3.5" /></button>
-          <button onClick={(e) => { e.stopPropagation(); setEditId(s.id); setEditName(s.name || "") }} title="Rename" aria-label="Rename" className="hover:text-foreground"><Pencil className="size-3.5" /></button>
-          <button onClick={(e) => { e.stopPropagation(); archive.mutate(s.id); if (s.id === sessionId) navigate("/chat") }} title="Archive" aria-label="Archive" className="hover:text-foreground"><Archive className="size-3.5" /></button>
-          <button onClick={(e) => { e.stopPropagation(); deleteRow(s) }} title="Delete" aria-label="Delete" className="hover:text-destructive"><Trash2 className="size-3.5" /></button>
-        </span>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} aria-label="Chat options"
+              className="shrink-0 rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 group-hover/row:opacity-100 data-[state=open]:text-foreground data-[state=open]:opacity-100">
+              <MoreHorizontal className="size-4" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuItem onClick={() => setImportant.mutate({ id: s.id, important: !s.is_important })}>
+              <Pin />{s.is_important ? "Unpin" : "Pin"}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => { setEditId(s.id); setEditName(s.name || "") }}>
+              <Pencil />Rename
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => { archive.mutate(s.id); if (s.id === sessionId) navigate("/chat") }}>
+              <Archive />Archive
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem variant="destructive" onClick={() => deleteRow(s)}>
+              <Trash2 />Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       )}
     </div>
   )
 
   const renderArchivedRow = (s: { id: string; name: string; is_important?: boolean }) => (
     <div key={s.id}
-      className="group/arow flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground">
+      className="group/arow flex items-center gap-1.5 rounded-md px-2 py-2 text-sm text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground">
       {s.is_important && <Pin className="size-3 shrink-0 fill-current text-muted-foreground" />}
       <span className="flex-1 truncate">{s.name || "Untitled"}</span>
-      <span className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover/arow:opacity-100">
-        <button onClick={() => unarchive.mutate(s.id)} title="Restore" aria-label="Restore" className="hover:text-foreground"><ArchiveRestore className="size-3.5" /></button>
-        <button onClick={() => deleteRow(s as Session)} title="Delete" aria-label="Delete" className="hover:text-destructive"><Trash2 className="size-3.5" /></button>
-      </span>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button aria-label="Archived chat options"
+            className="shrink-0 rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 group-hover/arow:opacity-100 data-[state=open]:text-foreground data-[state=open]:opacity-100">
+            <MoreHorizontal className="size-4" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-40">
+          <DropdownMenuItem onClick={() => unarchive.mutate(s.id)}>
+            <ArchiveRestore />Restore
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem variant="destructive" onClick={() => deleteRow(s as Session)}>
+            <Trash2 />Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   )
 
