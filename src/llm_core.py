@@ -227,10 +227,14 @@ def _mark_host_dead(url: str) -> bool:
     with _host_health_lock:
         n = _host_fails.get(key, 0) + 1
         _host_fails[key] = n
-        if n >= _HOST_FAIL_THRESHOLD:
+        cooled = n >= _HOST_FAIL_THRESHOLD
+        if cooled:
             _dead_hosts[key] = time.time() + DEAD_HOST_COOLDOWN
-            return True
-        return False
+    if cooled:
+        # Host just confirmed dead — flush the connection pools so a wedged
+        # half-open keepalive socket to it cannot busy-spin the event loop.
+        _reset_http_client_soon()
+    return cooled
 
 def _clear_host_dead(url: str) -> None:
     key = _host_key(url)
@@ -245,15 +249,83 @@ def _clear_host_dead(url: str) -> None:
 _http_client: Optional[httpx.AsyncClient] = None
 _http_limits = httpx.Limits(max_connections=100, max_keepalive_connections=30, keepalive_expiry=30.0)
 
-def _get_http_client() -> httpx.AsyncClient:
-    """Return process-wide AsyncClient. Per-request timeout is passed at call time."""
+# Separate client for LOCAL LLM hosts (LM Studio / Ollama on the docker host,
+# LAN boxes). Unlike cloud APIs, these can vanish at any moment — a host
+# reboot, or the user stopping the server to reclaim RAM. A pooled *keepalive*
+# socket to a host that disappeared can go half-open and wedge the asyncio
+# selector in a silent 100%-CPU busy-spin (the odysseus-boot-spin failure:
+# event loop pinned in _run_once with a dead fd stuck "ready"). So local hosts
+# get a NO-keepalive client — every request opens and closes its own
+# connection, so no idle socket ever lingers to wedge. Cost is one fresh TCP
+# handshake per call, sub-millisecond on loopback / the docker bridge. The
+# cloud keepalive pool above is untouched.
+_http_client_local: Optional[httpx.AsyncClient] = None
+_http_limits_local = httpx.Limits(max_connections=100, max_keepalive_connections=0)
+
+_LOCAL_LLM_HOSTNAMES = {"localhost", "127.0.0.1", "0.0.0.0", "::1", "host.docker.internal"}
+
+def _is_local_llm_host(url: str) -> bool:
+    """True for loopback / docker-host / private-LAN URLs — hosts that can
+    disappear under us and so must never hold idle keepalive sockets."""
+    try:
+        host = (urlparse(url or "").hostname or "").lower()
+    except Exception:
+        return False
+    if not host:
+        return False
+    if host in _LOCAL_LLM_HOSTNAMES:
+        return True
+    import ipaddress
+    try:
+        return ipaddress.ip_address(host).is_private
+    except ValueError:
+        return False
+
+def _get_http_client(url: Optional[str] = None) -> httpx.AsyncClient:
+    """Return a process-wide AsyncClient bound to the running event loop.
+    Per-request timeout is passed at call time. Local LLM hosts get the
+    no-keepalive client (see above); everything else shares the warm pool."""
+    from src.tls_overrides import llm_verify
+    if url is not None and _is_local_llm_host(url):
+        global _http_client_local
+        if _http_client_local is None or _http_client_local.is_closed:
+            _http_client_local = httpx.AsyncClient(
+                limits=_http_limits_local, http2=False, verify=llm_verify(),
+            )
+        return _http_client_local
     global _http_client
     if _http_client is None or _http_client.is_closed:
-        from src.tls_overrides import llm_verify
         _http_client = httpx.AsyncClient(
             limits=_http_limits, http2=False, verify=llm_verify(),
         )
     return _http_client
+
+async def _aclose_quietly(client: httpx.AsyncClient) -> None:
+    try:
+        await client.aclose()
+    except Exception:
+        pass
+
+def _reset_http_client_soon() -> None:
+    """Tear down the shared AsyncClients so any half-open pooled socket — e.g.
+    a keepalive connection to a host that just died — gets closed and the next
+    call rebuilds a clean pool. Runtime recovery guard (paired with the
+    no-keepalive local client) against the asyncio selector busy-spin a wedged
+    fd causes. The aclose() runs as a background task so callers never block;
+    no-ops in a sync context (no running loop) and lets GC reclaim the refs."""
+    global _http_client, _http_client_local
+    clients = [c for c in (_http_client, _http_client_local)
+               if c is not None and not c.is_closed]
+    _http_client = None
+    _http_client_local = None
+    if not clients:
+        return
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        return
+    for c in clients:
+        loop.create_task(_aclose_quietly(c))
 
 def _get_cached_response(cache_key: str) -> Optional[str]:
     """Get cached response if it exists."""
@@ -1643,7 +1715,7 @@ async def llm_call_async(
         start = time.time()
         try:
             note_model_activity(target_url, model)
-            client = _get_http_client()
+            client = _get_http_client(target_url)
             r = await httpx_post_kimi_aware_async(client, target_url, h, json=payload, timeout=call_timeout)
             duration = time.time() - start
             if not r.is_success:
@@ -1778,7 +1850,7 @@ async def stream_llm(url: str, model: str, messages: List[Dict], temperature: fl
         input_tokens = 0
         output_tokens = 0
         try:
-            client = _get_http_client()
+            client = _get_http_client(target_url)
             async with client.stream('POST', target_url, json=payload, headers=h, timeout=stream_timeout) as r:
                 _clear_host_dead(target_url)
                 if r.status_code != 200:
@@ -1839,7 +1911,7 @@ async def stream_llm(url: str, model: str, messages: List[Dict], temperature: fl
         _ollama_tool_calls: List[Dict] = []
         _harmony_router = _HarmonyStreamRouter()
         try:
-            client = _get_http_client()
+            client = _get_http_client(target_url)
             async with client.stream('POST', target_url, json=payload, headers=h, timeout=stream_timeout) as r:
                 _clear_host_dead(target_url)
                 if r.status_code != 200:
@@ -1905,7 +1977,7 @@ async def stream_llm(url: str, model: str, messages: List[Dict], temperature: fl
         _anth_block_idx = -1
         _anth_block_type = ""
         try:
-            client = _get_http_client()
+            client = _get_http_client(target_url)
             async with client.stream('POST', target_url, json=payload, headers=h, timeout=stream_timeout) as r:
                 _clear_host_dead(target_url)
                 if r.status_code != 200:
@@ -2043,7 +2115,7 @@ async def stream_llm(url: str, model: str, messages: List[Dict], temperature: fl
 
     h = apply_kimi_code_headers(h, target_url)
     try:
-        client = _get_http_client()
+        client = _get_http_client(target_url)
         async with client.stream('POST', target_url, json=payload, headers=h, timeout=stream_timeout) as r:
             _clear_host_dead(target_url)
             if r.status_code != 200:
