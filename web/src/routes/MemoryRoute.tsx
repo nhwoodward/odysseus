@@ -1,33 +1,15 @@
-import { useMemo, useRef, useState } from "react"
-import {
-  Check,
-  CheckSquare,
-  Download,
-  Loader2,
-  MessageSquare,
-  Pencil,
-  Pin,
-  Plus,
-  Settings2,
-  Sparkles,
-  Square,
-  Trash2,
-  Upload,
-  X,
-} from "lucide-react"
-import { EmptyState } from "@/components/ui/empty-state"
+import { useRef, useState } from "react"
+import { Check, Download, Loader2, MessageSquare, Plus, Settings2, Sparkles, Upload, X } from "lucide-react"
 import { useMemory, useMemoryMutations, type MemoryImportSuggestion } from "@/api/memory"
 import { usePrefs, useSetPref } from "@/api/prefs"
 import { useSessions } from "@/api/sessions"
 import { Button } from "@/components/ui/button"
 import { IconButton } from "@/components/ui/IconButton"
 import { Switch } from "@/components/ui/switch"
-import { cn } from "@/lib/utils"
 import { toast } from "@/stores/toast"
-import type { Memory } from "@/types"
+import { MemoryTable } from "./memory/MemoryTable"
+import { CATS } from "./memory/util"
 
-const CATS = ["fact", "preference", "identity", "project", "goal", "task", "contact"]
-type SortMode = "newest" | "oldest" | "az" | "uses" | "category" | "source"
 type ReviewItem = { text: string; category: string; active: boolean }
 
 function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
@@ -107,78 +89,20 @@ function normalizeSuggestion(item: MemoryImportSuggestion | string): ReviewItem 
   return text ? { text, category: item.category || "fact", active: true } : null
 }
 
-function memoryCategory(m: Memory) {
-  return m.category || (m.categories || [])[0] || "fact"
-}
-
-function memoryTimestamp(m: Memory) {
-  return typeof m.timestamp === "number" ? m.timestamp : 0
-}
-
-function memoryUses(m: Memory) {
-  return typeof m.uses === "number" ? m.uses : 0
-}
-
-function relativeTime(timestamp?: number) {
-  if (!timestamp) return ""
-  const diff = Math.max(0, Math.floor(Date.now() / 1000) - timestamp)
-  if (diff < 60) return "just now"
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
-  if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`
-  if (diff < 2592000) return `${Math.floor(diff / 604800)}w ago`
-  if (diff < 31536000) return `${Math.floor(diff / 2592000)}mo ago`
-  return `${Math.floor(diff / 31536000)}y ago`
-}
-
-function sourceLabel(source?: string) {
-  return source === "auto" ? "auto" : "manual"
-}
-
-function sortMemories(items: Memory[], sort: SortMode) {
-  return [...items].sort((a, b) => {
-    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1
-    if (sort === "oldest") return memoryTimestamp(a) - memoryTimestamp(b)
-    if (sort === "az") return (a.text || "").localeCompare(b.text || "")
-    if (sort === "uses") return memoryUses(b) - memoryUses(a) || memoryTimestamp(b) - memoryTimestamp(a)
-    if (sort === "category") return memoryCategory(a).localeCompare(memoryCategory(b)) || (a.text || "").localeCompare(b.text || "")
-    if (sort === "source") return (a.source || "").localeCompare(b.source || "") || memoryTimestamp(b) - memoryTimestamp(a)
-    return memoryTimestamp(b) - memoryTimestamp(a)
-  })
-}
-
 export function MemoryRoute() {
   const fileRef = useRef<HTMLInputElement | null>(null)
   const { data: memories } = useMemory()
   const { data: sessions } = useSessions()
-  const { add, update, remove, bulkRemove, pin, tidy, importFile, extract } = useMemoryMutations()
+  const { add, tidy, importFile, extract } = useMemoryMutations()
   const [text, setText] = useState("")
   const [cat, setCat] = useState("fact")
-  const [filter, setFilter] = useState<string | null>(null)
-  const [sort, setSort] = useState<SortMode>("newest")
-  const [q, setQ] = useState("")
   const [showSettings, setShowSettings] = useState(false)
-  const [editId, setEditId] = useState<string | null>(null)
-  const [editText, setEditText] = useState("")
-  const [editCat, setEditCat] = useState("fact")
-  const [selectMode, setSelectMode] = useState(false)
-  const [selected, setSelected] = useState<Set<string>>(new Set())
   const [review, setReview] = useState<ReviewItem[]>([])
   const [importName, setImportName] = useState("")
   const [showExtract, setShowExtract] = useState(false)
   const [extractSession, setExtractSession] = useState("")
 
-  const list = useMemo(() => {
-    const needle = q.trim().toLowerCase()
-    const filtered = (memories || [])
-      .filter((m) => !filter || m.category === filter || (m.categories || []).includes(filter))
-      .filter((m) => !needle || (m.text || "").toLowerCase().includes(needle))
-    return sortMemories(filtered, sort)
-  }, [filter, memories, q, sort])
-
   const remainingReview = review.filter((item) => item.active)
-  const allVisibleSelected = list.length > 0 && list.every((m) => selected.has(m.id))
-  const selectedCount = selected.size
 
   const submit = async () => {
     const value = text.trim()
@@ -186,51 +110,6 @@ export function MemoryRoute() {
     await add.mutateAsync({ text: value, category: cat })
     setText("")
     toast("Memory added", "success")
-  }
-
-  const startEdit = (m: Memory) => {
-    setEditId(m.id)
-    setEditText(m.text)
-    setEditCat(memoryCategory(m))
-  }
-
-  const saveEdit = async () => {
-    if (!editId || !editText.trim()) return
-    await update.mutateAsync({ id: editId, text: editText, category: editCat })
-    setEditId(null)
-    toast("Memory updated", "success")
-  }
-
-  const toggleSelected = (id: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
-
-  const toggleSelectAllVisible = () => {
-    setSelected((prev) => {
-      const next = new Set(prev)
-      if (allVisibleSelected) list.forEach((m) => next.delete(m.id))
-      else list.forEach((m) => next.add(m.id))
-      return next
-    })
-  }
-
-  const exitSelectMode = () => {
-    setSelectMode(false)
-    setSelected(new Set())
-  }
-
-  const deleteSelected = async () => {
-    const ids = Array.from(selected)
-    if (!ids.length) return
-    if (!confirm(`Delete ${ids.length} selected ${ids.length === 1 ? "memory" : "memories"}?`)) return
-    await bulkRemove.mutateAsync(ids)
-    exitSelectMode()
-    toast(`Deleted ${ids.length} ${ids.length === 1 ? "memory" : "memories"}`, "success")
   }
 
   const runTidy = async () => {
@@ -299,7 +178,7 @@ export function MemoryRoute() {
   }
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-4xl flex-col" data-tour="memory-root">
+    <div className="mx-auto flex h-full w-full max-w-5xl flex-col" data-tour="memory-root">
       <header className="flex h-13 shrink-0 items-center justify-between border-b px-4">
         <span className="text-sm font-semibold">Memory</span>
         <div className="flex items-center gap-1.5">
@@ -402,106 +281,8 @@ export function MemoryRoute() {
           </div>
         )}
 
-        <div className="mb-3 grid gap-2 sm:grid-cols-[1fr_auto_auto]" data-tour="memory-filters">
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search memories..."
-            className="h-9 w-full rounded-md border bg-background px-3 text-sm outline-none focus-visible:border-ring" />
-          <select value={sort} onChange={(e) => setSort(e.target.value as SortMode)} className="h-9 rounded-md border bg-background px-2 text-sm outline-none focus-visible:border-ring" title="Sort memories">
-            <option value="newest">Newest</option>
-            <option value="oldest">Oldest</option>
-            <option value="az">A-Z</option>
-            <option value="uses">Most used</option>
-            <option value="category">Category</option>
-            <option value="source">Source</option>
-          </select>
-          <Button
-            size="sm"
-            variant={selectMode ? "secondary" : "outline"}
-            onClick={() => selectMode ? exitSelectMode() : setSelectMode(true)}
-          >
-            {selectMode ? <X className="size-4" /> : <CheckSquare className="size-4" />}
-            {selectMode ? "Cancel" : "Select"}
-          </Button>
-        </div>
-
-        <div className="mb-4 flex flex-wrap gap-1.5">
-          <button onClick={() => setFilter(null)} className={cn("rounded-full border px-3 py-1 text-xs", !filter ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}>All</button>
-          {CATS.map((c) => (
-            <button key={c} onClick={() => setFilter(c)} className={cn("rounded-full border px-3 py-1 text-xs capitalize", filter === c ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}>{c}</button>
-          ))}
-        </div>
-
-        {selectMode && (
-          <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border bg-muted/35 px-3 py-2">
-            <button onClick={toggleSelectAllVisible} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
-              {allVisibleSelected ? <CheckSquare className="size-4" /> : <Square className="size-4" />}
-              All visible
-            </button>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">{selectedCount} selected</span>
-              <Button size="sm" variant="destructive" disabled={!selectedCount || bulkRemove.isPending} onClick={deleteSelected}><Trash2 className="size-4" />Delete</Button>
-            </div>
-          </div>
-        )}
-
-        <div className="space-y-2" data-tour="memory-list">
-          {list.map((m) => {
-            const category = memoryCategory(m)
-            const isSelected = selected.has(m.id)
-            const timestamp = memoryTimestamp(m)
-            const when = relativeTime(timestamp)
-            const uses = memoryUses(m)
-            return (
-              <div key={m.id} className={cn("group flex items-start gap-3 rounded-md border bg-card p-3", isSelected && "border-primary/70 bg-primary/5")}>
-                {selectMode && (
-                  <button onClick={() => toggleSelected(m.id)} title={isSelected ? "Deselect memory" : "Select memory"} aria-label={isSelected ? "Deselect memory" : "Select memory"} className="mt-0.5 text-muted-foreground hover:text-foreground">
-                    {isSelected ? <CheckSquare className="size-4" /> : <Square className="size-4" />}
-                  </button>
-                )}
-                <div className="min-w-0 flex-1">
-                  {editId === m.id ? (
-                    <div className="flex flex-wrap gap-2">
-                      <input
-                        autoFocus
-                        value={editText}
-                        onChange={(e) => setEditText(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === "Enter") void saveEdit(); if (e.key === "Escape") setEditId(null) }}
-                        className="h-8 min-w-52 flex-1 rounded-md border bg-background px-2 text-sm outline-none focus-visible:border-ring"
-                      />
-                      <select value={editCat} onChange={(e) => setEditCat(e.target.value)} className="h-8 rounded-md border bg-background px-2 text-sm capitalize">
-                        {CATS.map((c) => <option key={c} value={c}>{c}</option>)}
-                      </select>
-                      <IconButton icon={<Check />} label="Save" onClick={saveEdit} className="text-muted-foreground" />
-                    </div>
-                  ) : (
-                    <>
-                      <p className="text-sm" onDoubleClick={() => startEdit(m)}>{m.text}</p>
-                      <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                        <span className="inline-block rounded-full bg-muted px-2 py-0.5 text-label capitalize text-muted-foreground">{category}</span>
-                        <span className="text-label text-muted-foreground">{sourceLabel(m.source)}</span>
-                        {uses > 0 && <span className="text-label text-muted-foreground" title={`Injected into chat context ${uses} ${uses === 1 ? "time" : "times"}`}>{uses}x</span>}
-                        {when && <span className="text-label text-muted-foreground" title={new Date(timestamp * 1000).toLocaleString()}>{when}</span>}
-                        {m.pinned && <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-label text-muted-foreground"><Pin className="size-3" />Pinned</span>}
-                      </div>
-                    </>
-                  )}
-                </div>
-                {editId !== m.id && (
-                  <div className={cn("flex shrink-0 gap-1.5", selectMode ? "opacity-100" : "opacity-100 md:opacity-0 md:transition-opacity md:group-hover:opacity-100")}>
-                    <button onClick={async () => { await pin.mutateAsync({ id: m.id, pinned: !m.pinned }); toast(m.pinned ? "Memory unpinned" : "Pinned - always in context", "success") }} title={m.pinned ? "Unpin memory" : "Pin memory"} aria-label={m.pinned ? "Unpin memory" : "Pin memory"} className={cn("text-muted-foreground hover:text-foreground", m.pinned && "text-foreground")}><Pin className="size-3.5" /></button>
-                    <button onClick={() => startEdit(m)} className="text-muted-foreground hover:text-foreground" title="Edit memory" aria-label="Edit memory"><Pencil className="size-3.5" /></button>
-                    <button onClick={() => { if (confirm("Delete this memory?")) remove.mutate(m.id) }} className="text-muted-foreground hover:text-destructive" title="Delete memory" aria-label="Delete memory"><Trash2 className="size-4" /></button>
-                  </div>
-                )}
-              </div>
-            )
-          })}
-          {list.length === 0 && (
-            <EmptyState
-              icon={Sparkles}
-              title={q.trim() || filter ? "No matches" : "No memories yet"}
-              description={q.trim() || filter ? "Try a different search or filter." : "Memories the assistant saves about you will appear here."}
-            />
-          )}
+        <div data-tour="memory-list">
+          <MemoryTable memories={memories || []} />
         </div>
       </div>
     </div>
