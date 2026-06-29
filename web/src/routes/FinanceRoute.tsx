@@ -25,7 +25,7 @@ import { SpendingBreakdown } from "./finance/SpendingBreakdown"
 import { FinanceStatCards } from "./finance/FinanceStatCards"
 import { BillsTab } from "./finance/BillsTab"
 import { AccountsTab } from "./finance/AccountsTab"
-import { TransactionsFeed } from "./finance/TransactionsFeed"
+import { FinanceTransactionsTable } from "./finance/FinanceTransactionsTable"
 import { PALETTE, prettyCat, relTime } from "./finance/util"
 
 function Stat({ icon: Icon, label, value, sub }: { icon: LucideIcon; label: string; value: string; sub?: string }) {
@@ -92,7 +92,7 @@ function SpendingTab({ cashflow, cashflowError }: { cashflow?: FinanceCashflow; 
   return (
     <div className="space-y-4">
       {cashflow ? <SpendingBreakdown categories={cashflow.categories} /> : cashflowError ? <CashflowError /> : <Card className="p-4"><SkeletonList rows={4} /></Card>}
-      {isLoading ? <SkeletonList rows={6} /> : <TransactionsFeed transactions={data?.transactions || []} />}
+      {isLoading ? <SkeletonList rows={6} /> : <FinanceTransactionsTable transactions={data?.transactions || []} />}
     </div>
   )
 }
