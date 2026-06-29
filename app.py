@@ -1008,7 +1008,11 @@ async def _startup_event():
         except BaseException as e:
             logger.warning(f"Built-in MCP registration failed (non-critical): {type(e).__name__}: {e}")
         try:
-            await asyncio.wait_for(mcp_manager.connect_all_enabled(), timeout=20)
+            # 60s (not 20s): this runs in the background after the UI is already
+            # serving, and a stdio/npx connector on a fresh image may cold-download
+            # its package (~25s) then take a retry to connect cleanly. Too tight a
+            # window cancels that mid-download → a silent "Connection closed".
+            await asyncio.wait_for(mcp_manager.connect_all_enabled(), timeout=60)
         except asyncio.TimeoutError:
             logger.warning("User MCP startup timed out (non-critical)")
         except BaseException as e:

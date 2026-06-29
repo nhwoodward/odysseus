@@ -61,6 +61,17 @@ RUN if [ "$INSTALL_BROWSER" = "true" ]; then \
         && rm -rf /var/lib/apt/lists/*; \
     fi
 
+# Pre-bake the curated npx-based MCP connector package(s) the user runs so they
+# connect INSTANTLY at boot. Otherwise the first `npx -y <pkg>` cold-downloads
+# the package (~25s), which both races the 20s startup connect window AND can
+# corrupt the stdio JSON-RPC stream during install — surfacing as a silent
+# "Connection closed" that needs a manual reconnect, recurring on every rebuild.
+# Installing globally means `npx -y <pkg>` finds it locally and never downloads.
+# Add space-separated package names to MCP_PREBAKE_PKGS to pre-bake more.
+ARG MCP_PREBAKE_PKGS="@cablate/mcp-google-map"
+RUN for pkg in $MCP_PREBAKE_PKGS; do npm install -g "$pkg" || echo "warn: MCP prebake of $pkg failed"; done; \
+    chmod -R a+rwX /npm-cache 2>/dev/null || true
+
 # Optional: bake Claude Code + Ollama so the chat's `delegate_to_claude_code`
 # agent tool can hand a coding/build task to a headless Claude Code, backed by
 # an Ollama Cloud model (default kimi-k2.7-code:cloud) via the local ollama

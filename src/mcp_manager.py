@@ -157,26 +157,46 @@ class McpManager:
         env: Optional[Dict[str, str]] = None,
         url: Optional[str] = None,
     ) -> bool:
-        """Connect to an MCP server via stdio, SSE, or Streamable HTTP transport."""
-        try:
-            if transport == "stdio":
-                res = await self._connect_stdio(server_id, name, command, args or [], env or {})
-            elif transport == "sse":
-                res = await self._connect_sse(server_id, name, url)
-            elif transport == "http":
-                res = await self._start_http_connect(server_id, name, url)
-            else:
-                logger.error(f"Unknown MCP transport: {transport}")
-                res = False
-            if res:
+        """Connect to an MCP server via stdio, SSE, or Streamable HTTP transport.
+
+        stdio (npx) connectors are retried: on a fresh image the FIRST attempt can
+        fail while `npx` cold-downloads the package (the install output corrupts
+        the JSON-RPC stream / the download overruns the connect window). That first
+        attempt warms the npm cache, so a short retry connects cleanly — meaning an
+        un-pre-baked connector self-heals at boot instead of needing a manual
+        reconnect. Pre-baked packages (see Dockerfile MCP_PREBAKE_PKGS) connect on
+        the first try. Non-stdio transports are not retried here.
+        """
+        import asyncio
+        attempts = 3 if transport == "stdio" else 1
+        for attempt in range(1, attempts + 1):
+            try:
+                if transport == "stdio":
+                    res = await self._connect_stdio(server_id, name, command, args or [], env or {})
+                elif transport == "sse":
+                    res = await self._connect_sse(server_id, name, url)
+                elif transport == "http":
+                    res = await self._start_http_connect(server_id, name, url)
+                else:
+                    logger.error(f"Unknown MCP transport: {transport}")
+                    res = False
+                if res:
+                    self._generation += 1
+                return res
+            except Exception as e:
+                if transport == "stdio" and attempt < attempts:
+                    backoff = 4 * attempt
+                    logger.info(
+                        f"MCP {name} ({server_id}): connect attempt {attempt}/{attempts} "
+                        f"failed ({e}); retrying in {backoff}s (npm cache may still be warming)"
+                    )
+                    await asyncio.sleep(backoff)
+                    continue
+                logger.error(f"Failed to connect MCP server {name} ({server_id}): {e}")
+                error_message = _format_mcp_connection_error(name, command or "", args or [], e)
+                self._connections[server_id] = {"status": "error", "error": error_message, "name": name}
                 self._generation += 1
-            return res
-        except Exception as e:
-            logger.error(f"Failed to connect MCP server {name} ({server_id}): {e}")
-            error_message = _format_mcp_connection_error(name, command or "", args or [], e)
-            self._connections[server_id] = {"status": "error", "error": error_message, "name": name}
-            self._generation += 1
-            return False
+                return False
 
     async def _connect_stdio(self, server_id: str, name: str, command: str, args: List[str], env: Dict[str, str]) -> bool:
         """Connect to an MCP server via stdio transport."""
