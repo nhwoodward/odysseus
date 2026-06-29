@@ -85,6 +85,69 @@ export PATH="/app/.local/bin:$PATH"
 # || true so a setup failure never prevents the container from starting.
 gosu "$PUID:$PGID" python /app/setup.py || true
 
+# ── Wait for the LLM backend before serving ────────────────────────────
+# Footgun this fixes: on a host reboot Docker auto-starts this container
+# (restart: unless-stopped) while the host LLM server (LM Studio on
+# :12345) may not be up yet — it's launched by hand, often minutes later.
+# uvicorn then starts against a dead backend; a pooled keepalive socket to
+# the absent host gets stuck "ready" in the asyncio selector and the event
+# loop busy-spins at 100% on one core — silent, self-sustaining (it does
+# NOT recover when the backend returns), cleared only by a restart. On this
+# Strix Halo box that pins the APU near 98 C and runs the fan flat out.
+#
+# Fix: block here, at ~0% CPU, until the LLM endpoint actually answers, so
+# the app only ever starts against a live backend. All knobs optional:
+#   ODYSSEUS_WAIT_FOR_LLM=0        disable the gate entirely
+#   ODYSSEUS_LLM_WAIT_URL=...      endpoint to probe (default LM Studio)
+#   ODYSSEUS_LLM_WAIT_TIMEOUT=0    seconds before starting anyway; 0 = forever
+#   ODYSSEUS_LLM_WAIT_INTERVAL=3   seconds between probes
+ODYSSEUS_WAIT_FOR_LLM="${ODYSSEUS_WAIT_FOR_LLM:-1}"
+case "$ODYSSEUS_WAIT_FOR_LLM" in
+    0|false|no|off|"")
+        echo "[entrypoint] LLM wait gate disabled (ODYSSEUS_WAIT_FOR_LLM=$ODYSSEUS_WAIT_FOR_LLM)."
+        ;;
+    *)
+        ODYSSEUS_LLM_WAIT_URL="${ODYSSEUS_LLM_WAIT_URL:-http://host.docker.internal:12345/v1/models}"
+        ODYSSEUS_LLM_WAIT_TIMEOUT="${ODYSSEUS_LLM_WAIT_TIMEOUT:-0}"
+        ODYSSEUS_LLM_WAIT_INTERVAL="${ODYSSEUS_LLM_WAIT_INTERVAL:-3}"
+        export ODYSSEUS_LLM_WAIT_URL ODYSSEUS_LLM_WAIT_TIMEOUT ODYSSEUS_LLM_WAIT_INTERVAL
+        # Single long-lived python process (one interpreter start, then it
+        # sleeps between probes -> genuinely ~0% CPU while waiting). `|| true`
+        # keeps the gate fail-open: a bug here must never brick startup.
+        python - <<'PY' || true
+import os, sys, time, urllib.request, urllib.error
+url = os.environ["ODYSSEUS_LLM_WAIT_URL"]
+timeout = float(os.environ.get("ODYSSEUS_LLM_WAIT_TIMEOUT", "0") or 0)
+interval = float(os.environ.get("ODYSSEUS_LLM_WAIT_INTERVAL", "3") or 3)
+print(f"[entrypoint] Waiting for LLM backend at {url} "
+      f"(timeout={timeout:.0f}s, 0=forever)...", flush=True)
+start = time.monotonic()
+last_beat = 0.0
+while True:
+    try:
+        urllib.request.urlopen(url, timeout=3)
+        ok = True
+    except urllib.error.HTTPError:
+        ok = True          # an HTTP error still means the server is listening
+    except Exception:
+        ok = False
+    if ok:
+        print("[entrypoint] LLM backend reachable — starting Odysseus.", flush=True)
+        break
+    waited = time.monotonic() - start
+    if timeout > 0 and waited >= timeout:
+        print(f"[entrypoint] LLM backend still unreachable after {waited:.0f}s "
+              f"— starting anyway.", flush=True)
+        break
+    if waited - last_beat >= 30:
+        last_beat = waited
+        print(f"[entrypoint] still waiting for LLM backend ({waited:.0f}s elapsed)...",
+              flush=True)
+    time.sleep(interval)
+PY
+        ;;
+esac
+
 # Drop root and run the actual app. `gosu` is preferred over `su` /
 # `sudo` because it cleans up the process tree (no extra shell layer)
 # so signals (SIGTERM from `docker stop`) reach uvicorn directly.

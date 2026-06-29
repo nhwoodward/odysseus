@@ -70,6 +70,110 @@ What is the system/code/task state right now? What was the last thing discussed?
 Keep the summary under 1000 tokens. Be dense — every token should carry information. Do not include pleasantries or meta-commentary."""
 
 
+# ---------------------------------------------------------------------------
+# Message accessors + history-partition planner (used by maybe_compact)
+# ---------------------------------------------------------------------------
+# session.history holds ChatMessage objects; the prompt array holds dicts.
+# These accessors read either shape so the planner can run on real history
+# AND be unit-tested with plain dicts.
+def _msg_role(m) -> Optional[str]:
+    return m.get("role") if isinstance(m, dict) else getattr(m, "role", None)
+
+
+def _msg_content(m) -> Any:
+    return m.get("content") if isinstance(m, dict) else getattr(m, "content", None)
+
+
+def _meta(m) -> Dict[str, Any]:
+    md = m.get("metadata") if isinstance(m, dict) else getattr(m, "metadata", None)
+    return md or {}
+
+
+def _is_research_primer(m) -> bool:
+    """A research-spinoff primer — the seeded report that grounds a "Discuss"
+    chat. It is the conversation's whole knowledge base and must never be
+    dropped or summarized away."""
+    return bool(_meta(m).get("research_spinoff_from"))
+
+
+def _is_prior_summary(m) -> bool:
+    """A system message produced by a previous compaction."""
+    if _msg_role(m) != "system":
+        return False
+    if _meta(m).get("compacted"):
+        return True
+    c = _msg_content(m)
+    return isinstance(c, str) and c.startswith("[Conversation summary")
+
+
+def _next_compaction_index(prior_summaries: List) -> int:
+    indices = [_meta(m).get("compaction_index") for m in prior_summaries]
+    indices = [i for i in indices if isinstance(i, int)]
+    return (max(indices) + 1) if indices else (len(prior_summaries) + 1)
+
+
+def _plan_history_compaction(history: List, *, min_body: int = 4,
+                             min_keep: int = 2, min_summarize: int = 2):
+    """Partition the REAL persisted history into a gapless compaction plan.
+
+    Returns ``(preserved_prefix, prior_summaries, summarize, keep)`` or ``None``
+    when there is too little real conversation to compact.
+
+    The cut is a single split index into one list, so ``summarize`` and ``keep``
+    tile the conversational body exactly — no turn can fall between them (that
+    positional gap, computed against the inflated prompt array, was the bug).
+    NB: session.history carries no role:"tool" rows / tool_calls (those are
+    ephemeral in the agent loop), so no tool-batch boundary handling is needed.
+    """
+    n = len(history)
+    # Peel the leading structural system run: research primers and/or prior
+    # compaction summaries. The loop stops at the first ordinary turn, so every
+    # element of `lead` is a primer or a prior summary.
+    i = 0
+    while i < n and _msg_role(history[i]) == "system" and (
+            _is_research_primer(history[i]) or _is_prior_summary(history[i])):
+        i += 1
+    lead, body = list(history[:i]), list(history[i:])
+
+    # Defensive: lift any research primer mis-placed inside the body OUT before
+    # splitting, so it is preserved verbatim and never summarized.
+    body_primers = [m for m in body if _is_research_primer(m)]
+    body = [m for m in body if not _is_research_primer(m)]
+    preserved_prefix = [m for m in lead if _is_research_primer(m)] + body_primers
+    prior_summaries = [m for m in lead if _is_prior_summary(m)]
+
+    # Too little REAL conversation? The 85% is ephemeral RAG/memory bloat —
+    # refuse to compact (the caller falls back to trim_for_context).
+    if len(body) < min_body:
+        return None
+
+    # Keep the recent half of the body verbatim; summarize the rest.
+    k = max(min_keep, len(body) // 2)
+    split = len(body) - k
+    if split < min_summarize:
+        return None
+    return preserved_prefix, prior_summaries, body[:split], body[split:]
+
+
+def _summary_input_text(prior_summaries: List, summarize: List) -> str:
+    """Build the text fed to the summary LLM from the REAL messages being
+    removed: fold any prior summary in full, then the older turns. Skips slash
+    UI rows and empty (e.g. tool-call-only) content."""
+    parts: List[str] = []
+    for m in prior_summaries:
+        txt = _content_as_text(_msg_content(m))
+        if txt:
+            parts.append(f"PRIOR_SUMMARY: {txt[:4000]}")
+    for m in summarize:
+        if _meta(m).get("source") == "slash":
+            continue
+        txt = _content_as_text(_msg_content(m))
+        if not txt:
+            continue
+        parts.append(f"{(_msg_role(m) or 'user').upper()}: {txt[:2000]}")
+    return "\n".join(parts)
+
+
 def _sanitize_tool_messages(msgs: List[Dict]) -> List[Dict]:
     """Drop orphaned `tool` messages and dangling assistant `tool_calls`.
 
@@ -249,8 +353,6 @@ def trim_for_context(messages: List[Dict], context_length: int, reserve_tokens: 
     # "Discuss" chat) must never be dropped — it is the conversation's whole
     # knowledge base. Treat any system message carrying research_spinoff_from
     # metadata as essential alongside the leading system prompt.
-    def _is_research_primer(m):
-        return bool((m.get("metadata") or {}).get("research_spinoff_from"))
     _primers = [m for m in system_msgs if _is_research_primer(m)]
     _non_primer = [m for m in system_msgs if not _is_research_primer(m)]
     essential_system = (_non_primer[:1] if _non_primer else []) + _primers
@@ -332,34 +434,45 @@ async def maybe_compact(
         f"Context at {pct:.1f}% ({used}/{context_length} tokens) — compacting"
     )
 
-    # Split into system preface and conversation
-    system_msgs = []
-    convo_msgs = []
-    for msg in messages:
-        if msg.get("role") == "system":
-            system_msgs.append(msg)
-        else:
-            convo_msgs.append(msg)
+    # The INFLATED prompt array carries ephemeral messages (preset/policy system
+    # prompts; memory/RAG/web/skills + datetime as role:user) that are NOT in
+    # session.history. It is used ONLY to rebuild THIS request's prompt — never
+    # to index into the persisted history (indexing across the two mismatched
+    # lists was the data-loss bug).
+    system_msgs = [m for m in messages if m.get("role") == "system"]
+    convo_msgs = [m for m in messages if m.get("role") != "system"]
 
-    if len(convo_msgs) < 4:
-        return messages, context_length, False
+    # Decide what to summarize vs keep by partitioning the REAL persisted
+    # history directly — a single cut on one list is gapless by construction, so
+    # no persisted turn can fall between the summarized and the kept region.
+    history = list(getattr(session, "history", None) or [])
+    plan = _plan_history_compaction(history) if history else None
 
-    # Split conversation: summarize older half, keep recent half
-    split_point = len(convo_msgs) // 2
-    older = convo_msgs[:split_point]
-    recent = convo_msgs[split_point:]
-
-    # Build the text to summarize
-    convo_text = "\n".join(
-        f"{msg.get('role', 'user').upper()}: {_content_as_text(msg.get('content'))[:2000]}"
-        for msg in older
-    )
-
-    # Count prior compactions from existing summary messages
-    compaction_count = sum(
-        1 for m in system_msgs
-        if "[Conversation summary" in m.get("content", "")
-    )
+    if history:
+        if plan is None:
+            # Too little real conversation to compact — the 85% is ephemeral
+            # RAG/memory/skills bloat. Let trim_for_context shrink the prompt
+            # instead of summarizing (and leave history untouched).
+            return messages, context_length, False
+        preserved_prefix, prior_summaries, summarize, keep = plan
+        summary_src = _summary_input_text(prior_summaries, summarize)
+        n_summarized = len(summarize)
+        compaction_index = _next_compaction_index(prior_summaries)
+    else:
+        # Stateless fallback (no session.history — e.g. compare mode / tests):
+        # summarize the older half of the inflated conversation.
+        if len(convo_msgs) < 4:
+            return messages, context_length, False
+        older = convo_msgs[: len(convo_msgs) // 2]
+        summary_src = "\n".join(
+            f"{m.get('role', 'user').upper()}: {_content_as_text(m.get('content'))[:2000]}"
+            for m in older
+        )
+        n_summarized = len(older)
+        compaction_index = sum(
+            1 for m in system_msgs
+            if "[Conversation summary" in (m.get("content") or "")
+        ) + 1
 
     # Use utility model if configured, otherwise fall back to session model
     util_url, util_model, util_headers = resolve_endpoint("utility", owner=owner)
@@ -368,13 +481,13 @@ async def maybe_compact(
     compact_headers = util_headers if util_url else headers
 
     prompt = SELF_SUMMARY_SYSTEM_PROMPT.replace(
-        "{count}", str(len(older))
+        "{count}", str(n_summarized)
     ).replace(
-        "{n}", str(compaction_count + 1)
+        "{n}", str(compaction_index)
     )
     summary_messages = [
         {"role": "system", "content": prompt},
-        {"role": "user", "content": convo_text},
+        {"role": "user", "content": summary_src},
     ]
 
     try:
@@ -390,61 +503,61 @@ async def maybe_compact(
     except Exception as e:
         logger.error(f"Compaction summary failed: {e}")
         # Degrade gracefully: keep the conversation intact rather than
-        # silently dropping the older half. was_compacted=False signals the
-        # caller nothing was summarized; trim_for_context handles length.
+        # dropping anything, and DO NOT mutate persisted history.
+        # was_compacted=False signals the caller nothing was summarized;
+        # trim_for_context handles length.
         return messages, context_length, False
 
+    # Persist the REAL-history partition (gapless). Decoupled from the immediate
+    # prompt below: the two may differ for one turn, and the next request
+    # rebuilds the prompt from the freshly-persisted tail via get_context_messages().
+    if history and plan is not None:
+        _update_session_history(
+            session, preserved_prefix, summarize, keep, summary, compaction_index
+        )
+
+    # Immediate prompt for THIS request (inflated shape preserved).
     summary_msg = {
         "role": "system",
         "content": f"[Conversation summary — earlier messages were compacted]\n{summary}",
     }
-
+    recent = convo_msgs[len(convo_msgs) // 2:]
     compacted = system_msgs + [summary_msg] + recent
 
-    # Update session history to match. Pass len(system_msgs) so the
-    # recent_history slice in _update_session_history uses the correct
-    # offset — session.history INCLUDES the system messages, but
-    # split_point is indexed against convo_msgs which does NOT. Without
-    # this, the slice drops the leading system message(s).
-    _update_session_history(session, split_point, summary, system_msg_count=len(system_msgs))
-
     new_used = estimate_tokens(compacted)
+    kept = len(keep) if (history and plan is not None) else len(recent)
     logger.info(
         f"Compacted: {used} -> {new_used} tokens "
-        f"({len(older)} messages summarized, {len(recent)} kept)"
+        f"({n_summarized} summarized, {kept} kept)"
     )
 
     return compacted, context_length, True
 
 
-def _update_session_history(session, split_point: int, summary: str,
-                            system_msg_count: int = 0):
-    """Update the in-memory session history after compaction.
+def _update_session_history(session, preserved_prefix, summarize, keep,
+                            summary, compaction_index):
+    """Persist the compacted history from a precomputed, gapless partition.
 
-    `split_point` is the index in `convo_msgs` (system-stripped). The
-    in-memory `session.history` includes leading system messages, so the
-    actual recent-history slice starts at `system_msg_count + split_point`.
-    Prepending `session.history[:system_msg_count]` to the new history
-    preserves persona, preset, and RAG system messages that would
-    otherwise be dropped.
+    `preserved_prefix` (research primers) and `keep` (recent turns) survive
+    verbatim; `summarize` (and any prior summaries, already folded into
+    `summary`) are replaced by a single summary system message. Because the
+    partition was computed as ONE cut over session.history, ``summarize ∪ keep``
+    tiles the conversational body exactly — no turn is dropped (the old
+    cross-list-index math is gone).
     """
     if not session or not hasattr(session, "history"):
         return
 
-    effective_split = system_msg_count + split_point
-    if effective_split >= len(session.history):
-        return
-
-    # Keep the recent messages, prepend summary AND the leading system
-    # messages so the system prompt survives compaction.
-    system_prefix = list(session.history[:system_msg_count])
-    recent_history = session.history[effective_split:]
     summary_msg = ChatMessage(
         role="system",
         content=f"[Conversation summary]\n{summary}",
-        metadata={"compacted": True, "summarized_count": split_point},
+        metadata={
+            "compacted": True,
+            "summarized_count": len(summarize),
+            "compaction_index": compaction_index,
+        },
     )
-    new_history = system_prefix + [summary_msg] + recent_history
+    new_history = list(preserved_prefix) + [summary_msg] + list(keep)
     try:
         from core.models import get_session_manager_instance
         manager = get_session_manager_instance()
