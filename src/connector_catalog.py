@@ -281,7 +281,7 @@ CONNECTOR_CATALOG: Dict[str, Dict[str, Any]] = {
         "description": "Geocode, search places, and get directions via Google Maps.",
         "capabilities": ["read"], "kind": "local", "auth_type": "api_key",
         "transport": "stdio", "command": "npx",
-        "args": ["-y", "@modelcontextprotocol/server-google-maps"],
+        "args": ["-y", "@cablate/mcp-google-map", "--stdio"],
         "env": {"GOOGLE_MAPS_API_KEY": ""},
         "help": "Create an API key in the Google Cloud console (Maps Platform) and paste it below.",
         "fields": [

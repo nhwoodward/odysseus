@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import type { CSSProperties } from "react"
 import { useLocation } from "react-router-dom"
 import { ChevronLeft, ChevronRight, X } from "lucide-react"
+import { IconButton } from "@/components/ui/IconButton"
 
 interface TourStep {
   text: string
@@ -195,15 +196,13 @@ export function GuidedTourOverlay() {
             <div className="truncate text-sm font-semibold">{guide.title}</div>
             <div className="mt-0.5 text-xs text-muted-foreground">Step {index + 1} of {total}</div>
           </div>
-          <button
+          <IconButton
+            icon={<X />}
+            label="Skip tour"
             type="button"
             onClick={close}
-            className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
-            aria-label="Skip tour"
-            title="Skip tour"
-          >
-            <X className="size-3.5" />
-          </button>
+            className="shrink-0 text-muted-foreground"
+          />
         </div>
         <p className="mt-3 text-sm leading-5 text-foreground">{step.text}</p>
         {missing && <p className="mt-2 text-xs text-muted-foreground">This tour target is not visible yet, but the step is still available here.</p>}

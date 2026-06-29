@@ -658,6 +658,14 @@ export function useChat(sessionId?: string) {
       await sendGroup(text, attachmentIds, sendAs, opts)
       return
     }
+    // Render the user's message + a thinking assistant bubble IMMEDIATELY, before
+    // any network round-trip. The composer clears its textarea synchronously on
+    // submit, so deferring this until after the model lookup + createSession left
+    // a visible empty gap on the first message of a brand-new chat.
+    const optimisticAttachments = opts.attachments?.length
+      ? opts.attachments
+      : (attachmentIds || []).map((id) => ({ id, name: "Attachment" }))
+    setMessages((prev) => [...prev, { role: "user", content: text, attachments: optimisticAttachments }, { role: "assistant", content: "", reasoning: "", tools: [], sources: [], streaming: true, streamStartAt: Date.now(), lastTickAt: Date.now() }])
     // Resolve a model up-front. ModelPicker seeds composer.model from
     // /api/default-chat on mount, but a send fired before that resolves (very
     // first visit, empty persisted store) would create a model-less session,
@@ -674,14 +682,22 @@ export function useChat(sessionId?: string) {
     if (!sid) {
       // New chat: clean up any prior ephemeral incognito session first.
       dropIncognito()
-      const s = await createSession({
-        // Name incognito chats generically so the topic never shows in the
-        // sidebar; incognito skips server-side auto-rename so this name sticks.
-        // It's a normal name (not "Incognito") so the stream isn't 404'd — we
-        // delete the session ourselves on leave instead.
-        name: composer.incognito ? "New chat" : (text.slice(0, 48) || "New chat"),
-        model, endpoint_id: endpointId, endpoint_url: endpointUrl,
-      })
+      let s: { id: string }
+      try {
+        s = await createSession({
+          // Name incognito chats generically so the topic never shows in the
+          // sidebar; incognito skips server-side auto-rename so this name sticks.
+          // It's a normal name (not "Incognito") so the stream isn't 404'd — we
+          // delete the session ourselves on leave instead.
+          name: composer.incognito ? "New chat" : (text.slice(0, 48) || "New chat"),
+          model, endpoint_id: endpointId, endpoint_url: endpointUrl,
+        })
+      } catch {
+        // The optimistic bubbles are already on screen; surface the failure on
+        // the assistant turn instead of leaving a stuck "Thinking…" forever.
+        patchAi((m) => ({ ...m, streaming: false, notice: { kind: "error", text: "Couldn't start the chat. Check your connection and try again." } }))
+        return
+      }
       sid = s.id; sidRef.current = sid; seededRef.current = sid
       if (composer.incognito) incognitoSidRef.current = sid
       qc.invalidateQueries({ queryKey: ["sessions"] })
@@ -689,12 +705,8 @@ export function useChat(sessionId?: string) {
     } else {
       seededRef.current = sid
     }
-    const optimisticAttachments = opts.attachments?.length
-      ? opts.attachments
-      : (attachmentIds || []).map((id) => ({ id, name: "Attachment" }))
-    setMessages((prev) => [...prev, { role: "user", content: text, attachments: optimisticAttachments }, { role: "assistant", content: "", reasoning: "", tools: [], sources: [], streaming: true, streamStartAt: Date.now(), lastTickAt: Date.now() }])
     await streamReply(text, sid, { model, endpointId, attachmentIds, sendAs, forceWeb: opts.forceWeb })
-  }, [streaming, composer, sendGroup, navigate, qc, dropIncognito, streamReply])
+  }, [streaming, composer, sendGroup, navigate, qc, dropIncognito, streamReply, patchAi])
 
   const localReply = useCallback((display: string, reply: string) => {
     if (!display.trim()) return

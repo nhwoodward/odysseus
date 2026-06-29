@@ -2,7 +2,7 @@ import { useMemo, useState } from "react"
 // (icon lookups use a direct map index — see ICONS — not a function call, to
 // satisfy react-hooks/static-components, mirroring components/ui/Toaster.)
 import {
-  Plug, Plus, Search, Loader2, Check, X, Trash2, ExternalLink, ArrowRight, ChevronRight,
+  Plug, Plus, Search, Loader2, Check, X, Trash2, ExternalLink, ArrowRight, ChevronRight, RefreshCw,
   FileText, ListChecks, Code, CreditCard, Bug, Boxes, Users, Palette, Box,
   Zap, Database, Cloud, FolderOpen, Globe, Brain, MessageSquare,
 } from "lucide-react"
@@ -14,6 +14,7 @@ import { inputClass } from "@/components/ui/input"
 import { Markdown } from "@/components/chat/Markdown"
 import { BrandLogo } from "@/components/connectors/BrandLogo"
 import { EmptyState } from "@/components/ui/empty-state"
+import { IconButton } from "@/components/ui/IconButton"
 import { cn } from "@/lib/utils"
 
 const ICONS: Record<string, LucideIcon> = {
@@ -34,6 +35,7 @@ function statusChip(status: string, needsAuth: boolean) {
   if (status === "connected") return { cls: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400", label: "Connected" }
   if (needsAuth) return { cls: "bg-amber-500/15 text-amber-600 dark:text-amber-400", label: "Authorize" }
   if (status === "error") return { cls: "bg-destructive/15 text-destructive", label: "Error" }
+  if (status === "disconnected") return { cls: "bg-muted text-muted-foreground", label: "Disconnected" }
   return { cls: "bg-muted text-muted-foreground", label: "Connecting…" }
 }
 
@@ -43,10 +45,24 @@ const inp = inputClass
 // enable/disable switches (parity with the legacy/settings MCP tool toggles).
 function ConnectionRow({ c, brand, onDisconnect }: { c: Connection; brand?: string; onDisconnect: (id: string) => void }) {
   const [open, setOpen] = useState(false)
+  const [pbOpen, setPbOpen] = useState(false)
+  const [pbUrl, setPbUrl] = useState("")
+  const [pbErr, setPbErr] = useState("")
   const chip = statusChip(c.status, c.needs_auth)
   const expandable = c.status === "connected" && c.tool_count > 0
+  const canReconnect = !!c.catalog_id && c.catalog_id !== "custom"
+  const showActions = c.status === "error" || c.status === "disconnected" || c.needs_auth
   const { data: tools } = useConnectorTools(c.id, open && expandable)
-  const { setTools } = useConnectorMutations()
+  const { setTools, reconnect, exchange } = useConnectorMutations()
+  const submitPasteBack = async () => {
+    setPbErr("")
+    try {
+      await exchange.mutateAsync({ serverId: c.id, callbackUrl: pbUrl })
+      setPbOpen(false); setPbUrl("")
+    } catch (e) {
+      setPbErr(e instanceof Error ? e.message : "Couldn't complete authorization")
+    }
+  }
   const toggle = (name: string, enabled: boolean) => {
     const disabled = new Set((tools || []).filter((t) => t.is_disabled).map((t) => t.name))
     if (enabled) disabled.delete(name)
@@ -59,23 +75,62 @@ function ConnectionRow({ c, brand, onDisconnect }: { c: Connection; brand?: stri
         <BrandLogo brand={brand} fallback={Plug} />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-medium">{c.name}</span>
-          <span className="block truncate text-xs text-muted-foreground">{c.tool_count} tool{c.tool_count === 1 ? "" : "s"}{c.error ? ` · ${c.error}` : ""}</span>
+          <span className="block truncate text-xs text-muted-foreground">{c.tool_count} tool{c.tool_count === 1 ? "" : "s"}</span>
         </span>
-        {c.needs_auth && c.auth_url && (
-          <a href={c.auth_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs font-medium hover:bg-accent">
-            <ExternalLink className="size-3.5" />Authorize
-          </a>
-        )}
         {expandable && (
-          <button onClick={() => setOpen((o) => !o)} title="Manage tools" aria-expanded={open} className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
-            <ChevronRight className={cn("size-4 transition-transform duration-200", open && "rotate-90")} />
-          </button>
+          <IconButton onClick={() => setOpen((o) => !o)} label="Manage tools" aria-expanded={open} className="shrink-0 text-muted-foreground" icon={<ChevronRight className={cn("transition-transform duration-200", open && "rotate-90")} />} />
         )}
         <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-label font-medium", chip.cls)}>{chip.label}</span>
-        <button onClick={() => onDisconnect(c.id)} title="Disconnect" className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-destructive">
-          <Trash2 className="size-4" />
-        </button>
+        <IconButton onClick={() => onDisconnect(c.id)} label="Disconnect" className="shrink-0 text-muted-foreground hover:text-destructive" icon={<Trash2 />} />
       </div>
+      {showActions && (
+        <div className="space-y-2 border-t px-3 py-2.5 text-xs">
+          {c.status === "error" && c.error && <p className="text-destructive">{c.error}</p>}
+          {c.needs_auth && (
+            <p className="text-muted-foreground">
+              Finish in the popup window — you'll be returned to{" "}
+              <span className="font-medium text-foreground">{window.location.origin}</span>.
+            </p>
+          )}
+          <div className="flex flex-wrap items-center gap-2">
+            {canReconnect && (
+              <button
+                onClick={() => c.catalog_id && reconnect.mutate(c.catalog_id)}
+                disabled={reconnect.isPending}
+                className="inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 font-medium hover:bg-accent disabled:opacity-50"
+              >
+                {reconnect.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}Reconnect
+              </button>
+            )}
+            {c.needs_auth && c.auth_url && (
+              <a href={c.auth_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 font-medium hover:bg-accent">
+                <ExternalLink className="size-3.5" />Open authorization
+              </a>
+            )}
+            {c.needs_auth && (
+              <button onClick={() => setPbOpen((o) => !o)} className="text-muted-foreground underline-offset-2 hover:underline">
+                Didn't connect? Paste the URL
+              </button>
+            )}
+          </div>
+          {pbOpen && (
+            <div className="space-y-1.5">
+              <input
+                value={pbUrl}
+                onChange={(e) => setPbUrl(e.target.value)}
+                placeholder="Paste the full URL from your browser's address bar after authorizing"
+                className={inp}
+              />
+              {pbErr && <p className="text-destructive">{pbErr}</p>}
+              <div className="flex justify-end">
+                <button onClick={submitPasteBack} disabled={exchange.isPending || !pbUrl} className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50">
+                  {exchange.isPending && <Loader2 className="size-3.5 animate-spin" />}Complete authorization
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
       {open && expandable && (
         <div className="space-y-1 border-t px-3 py-2">
           {!tools && <p className="py-1 text-xs text-muted-foreground">Loading tools…</p>}

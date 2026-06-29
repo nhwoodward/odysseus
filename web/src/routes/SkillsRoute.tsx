@@ -219,7 +219,7 @@ function SkillEditor({ id, onBack }: { id: string; onBack: () => void }) {
   return (
     <div className="flex h-full flex-col">
       <header className="flex h-13 shrink-0 items-center gap-2 border-b px-3">
-        <Button variant="ghost" size="icon" onClick={onBack} title="Back"><ArrowLeft className="size-4" /></Button>
+        <Button variant="ghost" size="icon" onClick={onBack} title="Back" aria-label="Back"><ArrowLeft className="size-4" /></Button>
         <div className="min-w-0 flex-1 truncate text-sm font-semibold">{data?.name || id}</div>
         <Button size="sm" onClick={save} disabled={!dirty || saveMarkdown.isPending}><Save className="size-4" />{saveMarkdown.isPending ? "Saving…" : dirty ? "Save" : "Saved"}</Button>
       </header>
@@ -452,11 +452,11 @@ export function SkillsRoute() {
                 </div>
                 {!selectMode && (
                   <div className="flex gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
-                    <button onClick={() => setStatus.mutate({ id: k, status: published ? "draft" : "published" })} title={published ? "Unpublish" : "Publish"} className="text-muted-foreground hover:text-foreground">{published ? <EyeOff className="size-4" /> : <Eye className="size-4" />}</button>
-                    <button onClick={() => setRunTarget({ id: k, name: s.name })} title="Run" className="text-muted-foreground hover:text-foreground"><Play className="size-4" /></button>
-                    <button onClick={() => setTestTarget({ id: k, name: s.name })} title="Test" className="text-muted-foreground hover:text-foreground"><FlaskConical className="size-4" /></button>
-                    <button onClick={() => setEditId(k)} title="Edit" className="text-muted-foreground hover:text-foreground"><Pencil className="size-4" /></button>
-                    {s.id && <button onClick={() => remove.mutate(s.id!)} title="Delete" className="text-muted-foreground hover:text-destructive"><Trash2 className="size-4" /></button>}
+                    <button onClick={() => setStatus.mutate({ id: k, status: published ? "draft" : "published" })} title={published ? "Unpublish" : "Publish"} aria-label={published ? "Unpublish" : "Publish"} className="text-muted-foreground hover:text-foreground">{published ? <EyeOff className="size-4" /> : <Eye className="size-4" />}</button>
+                    <button onClick={() => setRunTarget({ id: k, name: s.name })} title="Run" aria-label="Run" className="text-muted-foreground hover:text-foreground"><Play className="size-4" /></button>
+                    <button onClick={() => setTestTarget({ id: k, name: s.name })} title="Test" aria-label="Test" className="text-muted-foreground hover:text-foreground"><FlaskConical className="size-4" /></button>
+                    <button onClick={() => setEditId(k)} title="Edit" aria-label="Edit" className="text-muted-foreground hover:text-foreground"><Pencil className="size-4" /></button>
+                    {s.id && <button onClick={() => remove.mutate(s.id!)} title="Delete" aria-label="Delete" className="text-muted-foreground hover:text-destructive"><Trash2 className="size-4" /></button>}
                   </div>
                 )}
               </div>
@@ -476,7 +476,7 @@ export function SkillsRoute() {
                     <span className="text-sm font-medium">{b.name}</span>
                     {b.is_overridden && <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-micro text-amber-600 dark:text-amber-400">overridden</span>}
                   </div>
-                  <button onClick={() => setBuiltinTarget(b.name)} title="Override" className="text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"><Pencil className="size-4" /></button>
+                  <button onClick={() => setBuiltinTarget(b.name)} title="Override" aria-label="Override" className="text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"><Pencil className="size-4" /></button>
                 </div>
                 {b.description && <p className="mt-0.5 line-clamp-3 text-xs text-muted-foreground">{b.description}</p>}
               </div>

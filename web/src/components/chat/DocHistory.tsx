@@ -71,7 +71,7 @@ export function DocHistory({ docId, onBack, onRestored }: { docId: string; onBac
                   <span className="mt-0.5 block truncate text-xs text-muted-foreground">{v.summary || "—"} · {ago(v.created_at)}</span>
                 </button>
                 {i !== 0 && (
-                  <Button size="icon" variant="ghost" title={`Restore version ${v.version_number}`} disabled={restore.isPending}
+                  <Button size="icon" variant="ghost" title={`Restore version ${v.version_number}`} aria-label={`Restore version ${v.version_number}`} disabled={restore.isPending}
                     onClick={() => doRestore(v)} className={cn(justRestored === v.version_number && "text-emerald-500")}>
                     {justRestored === v.version_number ? <Check className="size-4" /> : <RotateCcw className="size-4" />}
                   </Button>

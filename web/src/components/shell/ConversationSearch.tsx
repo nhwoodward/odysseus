@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { Loader2, Search, X } from "lucide-react"
 import { searchMessages, type SessionSearchResult } from "@/api/sessions"
+import { IconButton } from "@/components/ui/IconButton"
 import { cn } from "@/lib/utils"
 
 function formatTimestamp(iso: string | null) {
@@ -128,7 +129,7 @@ export function ConversationSearch() {
             className="h-10 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           />
           {loading && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
-          <button onClick={close} title="Close search" className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"><X className="size-4" /></button>
+          <IconButton icon={<X />} label="Close search" onClick={close} className="text-muted-foreground" />
         </div>
         <div className="min-h-0 overflow-y-auto p-2">
           {!query.trim() ? (

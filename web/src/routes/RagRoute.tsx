@@ -98,7 +98,7 @@ function DocRow({ doc }: { doc: RagFile }) {
       <span className="shrink-0 text-xs text-muted-foreground">{fmtSize(doc.size)}</span>
       <button
         onClick={() => { if (confirm(`Remove ${doc.name} from the knowledge base?`)) removeFile.mutate(target) }}
-        title="Remove" className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
+        title="Remove" aria-label="Remove" className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
       ><Trash2 className="size-4" /></button>
     </div>
   )
@@ -146,7 +146,7 @@ function ModelRow({ m }: { m: EmbeddingModel }) {
         : m.downloaded ? (
           <span className="flex shrink-0 items-center gap-1.5">
             <span className="flex items-center gap-1 text-xs text-muted-foreground"><Check className="size-3.5" />downloaded</span>
-            {!m.active && <button onClick={() => { if (confirm(`Delete cached model ${m.model}?`)) deleteModel.mutate(m.model) }} title="Delete cache" className="text-muted-foreground hover:text-destructive"><Trash2 className="size-4" /></button>}
+            {!m.active && <button onClick={() => { if (confirm(`Delete cached model ${m.model}?`)) deleteModel.mutate(m.model) }} title="Delete cache" aria-label="Delete cache" className="text-muted-foreground hover:text-destructive"><Trash2 className="size-4" /></button>}
           </span>
         ) : (
           <Button size="sm" variant="outline" disabled={downloadModel.isPending} onClick={() => downloadModel.mutate(m.model)}><Download className="size-4" />Download</Button>

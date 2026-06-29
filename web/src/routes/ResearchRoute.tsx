@@ -14,6 +14,7 @@ import { useModels } from "@/api/models"
 import { Markdown } from "@/components/chat/Markdown"
 import { HtmlPreview } from "@/components/ui/HtmlPreview"
 import { Button } from "@/components/ui/button"
+import { IconButton } from "@/components/ui/IconButton"
 import { cn } from "@/lib/utils"
 import { toast } from "@/stores/toast"
 import type { Source } from "@/types"
@@ -427,14 +428,13 @@ function StartForm({ onStarted }: { onStarted: () => void }) {
               <span className="min-w-0 flex-1 truncate">{item.query}</span>
               {item.category && <span className="hidden rounded-full bg-muted px-2 py-0.5 text-label text-muted-foreground sm:inline">{item.category}</span>}
               {item.model_label && <span className="hidden max-w-32 truncate rounded-full bg-muted px-2 py-0.5 text-label text-muted-foreground md:inline">{item.model_label}</span>}
-              <button
+              <IconButton
                 type="button"
                 onClick={() => setQueued((items) => items.filter((q) => q.id !== item.id))}
-                className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-destructive"
-                title="Remove from queue"
-              >
-                <Trash2 className="size-3.5" />
-              </button>
+                className="shrink-0 text-muted-foreground hover:text-destructive"
+                label="Remove from queue"
+                icon={<Trash2 />}
+              />
             </div>
           ))}
         </div>
@@ -480,17 +480,13 @@ function Detail({
           <button onClick={() => setView("sources")} className={segBtn(view === "sources")}><BookOpen className="size-3.5" />Sources{sources.length ? ` ${sources.length}` : ""}</button>
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          <a href={reportUrl} target="_blank" rel="noopener noreferrer" title="Open report in new tab" className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"><ExternalLink className="size-4" /></a>
-          <button onClick={copy} title="Copy report markdown" className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground">{copied ? <Check className="size-4" /> : <Copy className="size-4" />}</button>
+          <a href={reportUrl} target="_blank" rel="noopener noreferrer" title="Open report in new tab" aria-label="Open report in new tab" className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"><ExternalLink className="size-4" /></a>
+          <IconButton onClick={copy} label="Copy report markdown" className="text-muted-foreground" icon={copied ? <Check /> : <Copy />} />
           <Button variant="outline" size="sm" disabled={spinningOff} onClick={onSpinoff} title="Continue in chat">
             {spinningOff ? <Loader2 className="size-3.5 animate-spin" /> : <MessageSquarePlus className="size-3.5" />}Discuss
           </Button>
-          <button onClick={onArchiveToggle} title={archived ? "Restore" : "Archive"} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground">
-            {archived ? <ArchiveRestore className="size-4" /> : <Archive className="size-4" />}
-          </button>
-          <button onClick={() => { if (confirm("Delete this research report?")) onDelete() }} title="Delete" className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-destructive">
-            <Trash2 className="size-4" />
-          </button>
+          <IconButton onClick={onArchiveToggle} label={archived ? "Restore" : "Archive"} className="text-muted-foreground" icon={archived ? <ArchiveRestore /> : <Archive />} />
+          <IconButton onClick={() => { if (confirm("Delete this research report?")) onDelete() }} label="Delete" className="text-muted-foreground hover:text-destructive" icon={<Trash2 />} />
         </div>
       </header>
       {isLoading ? (
@@ -561,13 +557,12 @@ export function ResearchRoute() {
         <header className="flex h-13 shrink-0 items-center justify-between border-b px-4 text-sm font-semibold">
           <span className="flex items-center gap-2"><Telescope className="size-4" />Research</span>
           <div className="flex items-center gap-1">
-            <button
+            <IconButton
               onClick={() => setSelected(null)}
-              title="New research"
-              className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-            >
-              <Plus className="size-4" />
-            </button>
+              label="New research"
+              className="text-muted-foreground"
+              icon={<Plus />}
+            />
             <button
               onClick={() => { setShowArchived((v) => !v); setSelected(null) }}
               className={cn("rounded-md px-2 py-1 text-xs font-medium", showArchived ? "bg-accent text-foreground" : "font-normal text-muted-foreground hover:text-foreground")}

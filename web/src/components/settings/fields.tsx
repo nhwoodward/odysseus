@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { X, Plus } from "lucide-react"
+import { IconButton } from "@/components/ui/IconButton"
 import { Switch } from "@/components/ui/switch"
 import type { ReactNode } from "react"
 
@@ -89,13 +90,13 @@ export function StringListEditor({ label, hint, value, onChange, placeholder }: 
         {value.map((item, i) => (
           <div key={i} className="flex items-center gap-2">
             <span className="min-w-0 flex-1 truncate rounded-md border bg-background px-3 py-1.5 text-sm">{item}</span>
-            <button onClick={() => onChange(value.filter((_, j) => j !== i))} className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-destructive"><X className="size-4" /></button>
+            <IconButton icon={<X />} label="Remove item" onClick={() => onChange(value.filter((_, j) => j !== i))} className="text-muted-foreground transition-colors hover:text-destructive" />
           </div>
         ))}
         <div className="flex items-center gap-2">
           <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={placeholder} className={inp}
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add() } }} />
-          <button onClick={add} disabled={!draft.trim()} className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-40"><Plus className="size-4" /></button>
+          <IconButton icon={<Plus />} label="Add item" onClick={add} disabled={!draft.trim()} className="text-muted-foreground transition-colors disabled:opacity-40" />
         </div>
       </div>
     </FieldRow>

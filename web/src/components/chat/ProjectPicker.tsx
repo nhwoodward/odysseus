@@ -26,7 +26,7 @@ export function ProjectPicker({ sessionId }: { sessionId: string }) {
 
   return (
     <div className="relative">
-      <button onClick={() => setOpen((o) => !o)} title="Add this chat to a project" aria-haspopup="menu" aria-expanded={open}
+      <button onClick={() => setOpen((o) => !o)} title="Add this chat to a project" aria-label="Add this chat to a project" aria-haspopup="menu" aria-expanded={open}
         className={cn("flex max-w-[160px] items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-colors",
           current ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
         <FolderKanban className="size-3.5 shrink-0" />

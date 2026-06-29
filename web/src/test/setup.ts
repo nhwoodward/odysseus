@@ -30,6 +30,17 @@ Object.defineProperty(globalThis, 'IntersectionObserver', {
   value: MockIntersectionObserver,
 })
 
+// recharts' ResponsiveContainer observes size via ResizeObserver, which jsdom lacks.
+class MockResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+Object.defineProperty(globalThis, 'ResizeObserver', {
+  configurable: true,
+  value: MockResizeObserver,
+})
+
 // jsdom has no matchMedia; framer-motion (and reduced-motion checks) probe it.
 if (!globalThis.matchMedia) {
   Object.defineProperty(globalThis, 'matchMedia', {

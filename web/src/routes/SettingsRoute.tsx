@@ -9,11 +9,13 @@ import { usePresetConfig, useCustomPresetMutations, useExpandPreset, type Preset
 import { AdminSections } from "@/components/settings/AdminSections"
 import { AppSettingsSections, SidebarItemsSettings } from "@/components/settings/AppSettings"
 import { IntegrationsExtraSections } from "@/components/settings/IntegrationsExtra"
+import { FinancePlaidSection } from "@/components/settings/FinancePlaidSection"
 import { AdvancedSections } from "@/components/settings/AdvancedSettings"
 import { PersonalizationSection } from "@/components/settings/Personalization"
 import { UserPrivileges } from "@/components/settings/UserPrivileges"
 import { useSetUserAdmin, useProviders, useDeviceFlow, COPILOT_PROVIDER, CHATGPT_PROVIDER, type DeviceFlowProvider } from "@/api/advanced"
 import { Button } from "@/components/ui/button"
+import { IconButton } from "@/components/ui/IconButton"
 import { inputClass } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 
@@ -220,8 +222,8 @@ function PresetSection() {
             <div className="flex items-center justify-between gap-2">
               <span className="min-w-0 truncate text-sm font-medium">{p.character_name || p.name || p.id}</span>
               <div className="flex items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
-                <button onClick={() => { setCreating(false); setEditing(p) }} title="Edit" className="text-muted-foreground hover:text-foreground"><Pencil className="size-4" /></button>
-                <button onClick={() => { if (confirm(`Delete preset "${p.character_name || p.name || p.id}"?`)) disable.mutate(p) }} title="Delete" className="text-muted-foreground hover:text-destructive"><Trash2 className="size-4" /></button>
+                <button onClick={() => { setCreating(false); setEditing(p) }} title="Edit" aria-label="Edit" className="text-muted-foreground hover:text-foreground"><Pencil className="size-4" /></button>
+                <button onClick={() => { if (confirm(`Delete preset "${p.character_name || p.name || p.id}"?`)) disable.mutate(p) }} title="Delete" aria-label="Delete" className="text-muted-foreground hover:text-destructive"><Trash2 className="size-4" /></button>
               </div>
             </div>
             {p.system_prompt && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{p.system_prompt}</p>}
@@ -432,7 +434,7 @@ export function SettingsRoute() {
               <div className="truncate text-xs text-muted-foreground">{e.url} · {(e.models?.length || 0) + (e.models_extra?.length || 0)} models{e.category ? ` · ${e.category}` : ""}</div>
             </div>
             {isAdmin && (
-              <button onClick={() => { if (confirm("Delete this endpoint?")) del.mutate(e.endpoint_id) }} className="text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"><Trash2 className="size-4" /></button>
+              <button onClick={() => { if (confirm("Delete this endpoint?")) del.mutate(e.endpoint_id) }} aria-label="Delete endpoint" className="text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"><Trash2 className="size-4" /></button>
             )}
           </div>
         ))}
@@ -462,8 +464,8 @@ export function SettingsRoute() {
                 : (
                   <>
                     <label className="flex items-center gap-1.5 text-label text-muted-foreground" title="Administrator">admin<Switch checked={!!u.is_admin} onCheckedChange={(v) => setAdmin.mutate({ username: u.username, is_admin: v })} /></label>
-                    <button onClick={() => { const n = prompt("Rename user", u.username); if (n && n.trim() && n.trim() !== u.username) renameUser.mutate({ username: u.username, new_username: n.trim() }) }} className="text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100" title="Rename user"><Pencil className="size-4" /></button>
-                    <button onClick={() => { if (confirm(`Delete user "${u.username}"?`)) removeUser.mutate(u.username) }} className="text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100" title="Delete user"><Trash2 className="size-4" /></button>
+                    <button onClick={() => { const n = prompt("Rename user", u.username); if (n && n.trim() && n.trim() !== u.username) renameUser.mutate({ username: u.username, new_username: n.trim() }) }} className="text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100" title="Rename user" aria-label="Rename user"><Pencil className="size-4" /></button>
+                    <button onClick={() => { if (confirm(`Delete user "${u.username}"?`)) removeUser.mutate(u.username) }} className="text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100" title="Delete user" aria-label="Delete user"><Trash2 className="size-4" /></button>
                   </>
                 )}
             </div>
@@ -510,7 +512,7 @@ export function SettingsRoute() {
       </aside>
       <div className={cn("min-w-0 flex-1 flex-col md:flex", mobileDetail ? "flex" : "hidden")}>
         <header className="flex h-13 shrink-0 items-center gap-1 border-b px-4 text-sm font-semibold">
-          <button type="button" onClick={() => setMobileDetail(false)} className="-ml-1.5 rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground md:hidden" aria-label="Back to settings"><ChevronLeft className="size-4" /></button>
+          <IconButton type="button" onClick={() => setMobileDetail(false)} className="-ml-1.5 text-muted-foreground md:hidden" label="Back to settings" icon={<ChevronLeft />} />
           {current?.label || "Settings"}
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto">
@@ -519,7 +521,7 @@ export function SettingsRoute() {
             {page === "personalization" && <PersonalizationSection />}
             {page === "account" && <><AccountSecurity /><PresetSection />{accountSection}</>}
             {page === "models" && <>{aiDefaultsSection}{endpointsSection}{isAdmin && <DeviceConnectSection />}</>}
-            {page === "integrations" && <IntegrationsExtraSections />}
+            {page === "integrations" && <><IntegrationsExtraSections /><FinancePlaidSection /></>}
             {page === "users" && isAdmin && (usersSection || <p className="text-sm text-muted-foreground">No users to manage.</p>)}
             {page === "system" && isAdmin && <AppSettingsSections />}
             {page === "tools" && isAdmin && <AdminSections />}

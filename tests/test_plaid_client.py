@@ -8,6 +8,15 @@ import pytest
 from src import plaid_client as plaid
 
 
+@pytest.fixture(autouse=True)
+def _reset_shared_client():
+    # plaid_client now reuses one module-level AsyncClient; reset it around each
+    # test so each test's monkeypatched httpx.AsyncClient is the one that's used.
+    plaid._client = None
+    yield
+    plaid._client = None
+
+
 class _FakeResp:
     def __init__(self, status, data):
         self.status_code = status
@@ -21,6 +30,8 @@ def _fake_client(captured, status=200, data=None):
     payload = data if data is not None else {"ok": True}
 
     class _C:
+        is_closed = False
+
         def __init__(self, *a, **k):
             pass
 

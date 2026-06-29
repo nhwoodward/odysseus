@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { memo, useEffect, useMemo, useRef, useState } from "react"
 import { useParams, useSearchParams } from "react-router-dom"
 import { MoreHorizontal, Download, Copy, EyeOff, FileText, Users, ArrowDown } from "lucide-react"
 import { useChat } from "@/lib/useChat"
@@ -16,6 +16,7 @@ import { ContextPanel } from "@/components/chat/ContextPanel"
 import { ShareMenu } from "@/components/chat/ShareMenu"
 import { ProjectPicker } from "@/components/chat/ProjectPicker"
 import { Mascot } from "@/components/ui/Mascot"
+import { IconButton } from "@/components/ui/IconButton"
 import { apiJson } from "@/lib/api"
 import { toast } from "@/stores/toast"
 import { useEscapeClose } from "@/lib/useEscapeClose"
@@ -51,7 +52,7 @@ function ExportMenu({ sid, messages }: { sid: string; messages: ChatMessage[] })
   const copy = async () => { try { await navigator.clipboard.writeText(messages.map((m) => `${m.role === "user" ? "You" : "Assistant"}: ${m.content}`).join("\n\n")) } catch { /* ignore */ } setOpen(false) }
   return (
     <div className="relative">
-      <button onClick={() => setOpen((o) => !o)} title="Export / more" aria-haspopup="menu" aria-expanded={open} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"><MoreHorizontal className="size-4" /></button>
+      <IconButton icon={<MoreHorizontal />} label="Export / more" onClick={() => setOpen((o) => !o)} aria-haspopup="menu" aria-expanded={open} className="text-muted-foreground" />
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
@@ -75,6 +76,46 @@ const SUGGESTIONS = [
   "Brainstorm ideas for a project",
 ]
 
+// Stable, index-parameterized handlers for a message row. Built once per thread
+// (all deps are stable useChat callbacks) so the memo below isn't broken by
+// fresh closures on every render.
+interface RowActions {
+  regenerate: (index: number) => void
+  respond: (text: string) => void
+  edit: (index: number) => void
+  remove: (index: number) => void
+  fork: (index: number) => void
+  rewrite: (index: number, instruction: string) => void
+  editSubmit: (index: number, role: ChatMessage["role"], text: string) => void
+  editCancel: () => void
+}
+
+// A single message row. Memo'd so that while tokens stream into the LAST message
+// (useChat's patchAi replaces only that one object and keeps every earlier
+// message's identity), the other rows skip re-rendering entirely — they'd
+// otherwise each re-run parseArtifact/cleanRoundText/collectDeliverables per
+// token. Props are all referentially stable mid-stream except the streaming
+// row's `m`, so only it re-renders.
+const MessageRow = memo(function MessageRow({ m, index, streaming, incognito, editing, actions }: {
+  m: ChatMessage; index: number; streaming: boolean; incognito: boolean; editing: boolean; actions: RowActions
+}) {
+  const assistant = m.role === "assistant"
+  return (
+    <Message
+      m={m}
+      onRegenerate={assistant && !streaming ? () => actions.regenerate(index) : undefined}
+      onRespond={assistant && !streaming ? actions.respond : undefined}
+      editing={editing}
+      onEdit={!streaming ? () => actions.edit(index) : undefined}
+      onDelete={!streaming ? () => actions.remove(index) : undefined}
+      onFork={!streaming && !incognito ? () => actions.fork(index) : undefined}
+      onRewrite={assistant && !streaming ? (instruction) => actions.rewrite(index, instruction) : undefined}
+      onEditSubmit={(text) => actions.editSubmit(index, m.role, text)}
+      onEditCancel={actions.editCancel}
+    />
+  )
+})
+
 export function ChatConsole() {
   const { sessionId } = useParams()
   const [searchParams] = useSearchParams()
@@ -97,7 +138,40 @@ export function ChatConsole() {
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
   // Stick to the bottom as tokens stream in — but ONLY when the user is already
   // there. If they scrolled up to read, don't yank them back down every token.
-  useEffect(() => { if (atBottom && scrollRef.current) scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight }) }, [messages, atBottom])
+  // Coalesced into a single rAF so a burst of tokens triggers one scroll/reflow
+  // per frame instead of a synchronous scrollHeight read on every token.
+  useEffect(() => {
+    if (!atBottom) return
+    const el = scrollRef.current
+    if (!el) return
+    const id = requestAnimationFrame(() => { el.scrollTo({ top: el.scrollHeight }) })
+    return () => cancelAnimationFrame(id)
+  }, [messages, atBottom])
+
+  // The useChat handlers (regenerate/editResend/editAssistant/deleteMessage/
+  // rewriteMessage) close over `messages`, so their identities change on every
+  // streamed token. If `actions` depended on them it would be recreated each
+  // token and defeat MessageRow's memo. Instead keep the latest messages and
+  // handlers in refs (updated post-commit) and let a single stable `actions`
+  // object — built once — delegate through them. Row handlers only fire from
+  // user events, which run after commit, so the refs are always current by then.
+  const messagesRef = useRef(messages)
+  const handlersRef = useRef({ regenerate, send, deleteMessage, forkFrom, rewriteMessage, editAssistant, editResend })
+  useEffect(() => { messagesRef.current = messages })
+  useEffect(() => { handlersRef.current = { regenerate, send, deleteMessage, forkFrom, rewriteMessage, editAssistant, editResend } })
+  const actions = useMemo<RowActions>(() => ({
+    regenerate: (i) => { const msgs = messagesRef.current; for (let j = i - 1; j >= 0; j--) { if (msgs[j].role === "user") { handlersRef.current.regenerate(j); break } } },
+    respond: (text) => handlersRef.current.send(text),
+    edit: (i) => setEditingIndex(i),
+    remove: (i) => handlersRef.current.deleteMessage(i),
+    fork: (i) => handlersRef.current.forkFrom(i),
+    rewrite: (i, instruction) => handlersRef.current.rewriteMessage(i, instruction),
+    editSubmit: (i, role, text) => {
+      if (role === "assistant") void handlersRef.current.editAssistant(i, text).then((saved) => { if (saved) setEditingIndex(null) })
+      else { setEditingIndex(null); handlersRef.current.editResend(i, text) }
+    },
+    editCancel: () => setEditingIndex(null),
+  }), [])
   const onScroll = () => { const el = scrollRef.current; if (el) setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 160) }
   // Reset transient view state when switching threads.
   // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional reset on thread change
@@ -231,28 +305,15 @@ export function ChatConsole() {
             </div>
           ) : (
             <div className="mx-auto w-full max-w-[768px] space-y-6 px-4 py-6">{messages.map((m, i) => (
-              <Message key={i} m={m}
-                onRegenerate={m.role === "assistant" && !streaming ? () => {
-                  for (let j = i - 1; j >= 0; j--) { if (messages[j].role === "user") { regenerate(j); break } }
-                } : undefined}
-                onRespond={m.role === "assistant" && !streaming ? (text) => send(text) : undefined}
-                editing={editingIndex === i}
-                onEdit={!streaming ? () => setEditingIndex(i) : undefined}
-                onDelete={!streaming ? () => deleteMessage(i) : undefined}
-                onFork={!streaming && !incognito ? () => forkFrom(i) : undefined}
-                onRewrite={m.role === "assistant" && !streaming ? (instruction) => rewriteMessage(i, instruction) : undefined}
-                onEditSubmit={(text) => {
-                  if (m.role === "assistant") void editAssistant(i, text).then((saved) => { if (saved) setEditingIndex(null) })
-                  else { setEditingIndex(null); editResend(i, text) }
-                }}
-                onEditCancel={() => setEditingIndex(null)}
-              />
+              <MessageRow key={i} m={m} index={i} streaming={streaming} incognito={incognito}
+                editing={editingIndex === i} actions={actions} />
             ))}</div>
           )}
         </div>
         {!atBottom && messages.length > 0 && (
           <button onClick={() => { const el = scrollRef.current; if (el) { el.scrollTo({ top: el.scrollHeight, behavior: "smooth" }); setAtBottom(true) } }}
             title="Jump to latest"
+            aria-label="Jump to latest"
             className="absolute bottom-28 left-1/2 z-10 -translate-x-1/2 animate-fade-in rounded-full border bg-popover p-2 text-muted-foreground shadow-md transition-colors hover:text-foreground">
             <ArrowDown className="size-4" />
           </button>

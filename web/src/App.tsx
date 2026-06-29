@@ -9,6 +9,7 @@ import { Toaster } from "@/components/ui/Toaster"
 import { OnboardingDialog } from "@/components/onboarding/OnboardingDialog"
 import { ChatConsole } from "@/routes/ChatConsole" // eager — the default landing route
 import { useUi } from "@/stores/ui"
+import { normalizeAccent, accentForeground } from "@/lib/accent"
 
 // Code-split every non-landing route so the initial chunk stays small (the app
 // previously bundled all ~18 routes — and katex/highlight.js/framer-motion —
@@ -42,20 +43,6 @@ const FONT_STACKS: Record<string, string> = {
 }
 const DENSITY_PX: Record<string, string> = { compact: "14px", comfortable: "16px", spacious: "17px" }
 
-// Foreground for a custom accent (the `default` button is bg-primary
-// text-primary-foreground). A hardcoded white reads badly on a LIGHT accent, so
-// pick whichever of near-white / near-black has the higher WCAG contrast against
-// the accent. Falls back to white for an unparseable value.
-function accentForeground(hex: string): string {
-  const m = hex.replace("#", "")
-  const full = m.length === 3 ? m.split("").map((c) => c + c).join("") : m
-  if (full.length !== 6 || /[^0-9a-fA-F]/.test(full)) return "#ffffff"
-  const lin = (v: number) => { const s = v / 255; return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4 }
-  const L = 0.2126 * lin(parseInt(full.slice(0, 2), 16)) + 0.7152 * lin(parseInt(full.slice(2, 4), 16)) + 0.0722 * lin(parseInt(full.slice(4, 6), 16))
-  // contrast(white) = 1.05/(L+0.05); contrast(black) = (L+0.05)/0.05
-  return 1.05 / (L + 0.05) >= (L + 0.05) / 0.05 ? "#fafafa" : "#09090b"
-}
-
 function RouteFallback() {
   return (
     <div className="flex h-full items-center justify-center">
@@ -80,7 +67,11 @@ function ThemedApp() {
   useEffect(() => { document.documentElement.classList.toggle("dark", theme === "dark") }, [theme])
   useEffect(() => {
     const root = document.documentElement
-    if (accent) { root.style.setProperty("--primary", accent); root.style.setProperty("--ring", accent); root.style.setProperty("--primary-foreground", accentForeground(accent)); root.style.setProperty("--sidebar-primary", accent) }
+    // Only apply the override for a *valid* hex accent; a bad/edge value (named
+    // colour, alpha hex, garbage) falls through to the theme tokens rather than
+    // forcing a light-on-light primary button.
+    const acc = normalizeAccent(accent)
+    if (acc) { root.style.setProperty("--primary", acc); root.style.setProperty("--ring", acc); root.style.setProperty("--primary-foreground", accentForeground(acc)); root.style.setProperty("--sidebar-primary", acc) }
     else { for (const v of ["--primary", "--ring", "--primary-foreground", "--sidebar-primary"]) root.style.removeProperty(v) }
     root.style.fontFamily = FONT_STACKS[font] || ""
     root.style.fontSize = DENSITY_PX[density] || "16px"

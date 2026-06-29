@@ -23,7 +23,7 @@ export function ShareMenu({ resourceType, resourceId, label = "Share", placement
 
   return (
     <div className="relative">
-      <button onClick={() => setOpen((o) => !o)} title="Share a read-only link" aria-haspopup="menu" aria-expanded={open}
+      <button onClick={() => setOpen((o) => !o)} title="Share a read-only link" aria-label="Share a read-only link" aria-haspopup="menu" aria-expanded={open}
         className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
         <Share2 className="size-3.5" />{label}
       </button>
@@ -41,7 +41,7 @@ export function ShareMenu({ resourceType, resourceId, label = "Share", placement
                 <div className="flex items-center gap-1.5">
                   <input readOnly value={url} onFocus={(e) => e.currentTarget.select()}
                     className="h-9 w-full rounded-md border bg-background px-2.5 text-xs outline-none focus-visible:border-ring" />
-                  <Button size="icon" variant="outline" title="Copy link" onClick={copy}>
+                  <Button size="icon" variant="outline" title="Copy link" aria-label="Copy link" onClick={copy}>
                     {copied ? <Check className="size-4 text-emerald-500" /> : <Copy className="size-4" />}
                   </Button>
                 </div>

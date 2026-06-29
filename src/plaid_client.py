@@ -13,6 +13,7 @@ investments) plus Link token create/exchange. Access tokens are NEVER logged.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from typing import Any, Dict, Optional
@@ -20,6 +21,22 @@ from typing import Any, Dict, Optional
 import httpx
 
 logger = logging.getLogger(__name__)
+
+# A single pooled client reused across calls: the finance dashboard fans out many
+# concurrent Plaid requests (one per institution × balances/transactions/recurring/
+# investments), and building a fresh AsyncClient per call threw away keep-alive so
+# every request paid a new TCP+TLS handshake. The semaphore bounds total in-flight
+# requests so a many-institution user can't open a pathological number of sockets
+# or trip Plaid's per-client rate limits.
+_client: Optional[httpx.AsyncClient] = None
+_sem = asyncio.Semaphore(8)
+
+
+def _http() -> httpx.AsyncClient:
+    global _client
+    if _client is None or _client.is_closed:
+        _client = httpx.AsyncClient(timeout=30, limits=httpx.Limits(max_connections=16, max_keepalive_connections=8))
+    return _client
 
 _ENV_BASES = {
     "sandbox": "https://sandbox.plaid.com",
@@ -112,8 +129,8 @@ async def call(path: str, payload: Optional[Dict[str, Any]] = None) -> Dict[str,
     body: Dict[str, Any] = {"client_id": cid, "secret": secret, **(payload or {})}
     url = base_url() + path
     try:
-        async with httpx.AsyncClient(timeout=30) as client:
-            r = await client.post(url, json=body)
+        async with _sem:
+            r = await _http().post(url, json=body)
     except httpx.HTTPError as e:
         raise PlaidError(f"Plaid request to {path} failed: {e}", code="transport_error") from e
 

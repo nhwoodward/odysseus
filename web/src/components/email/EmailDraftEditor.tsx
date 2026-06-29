@@ -4,6 +4,7 @@ import { saveDraft, sendEmail, uploadComposeAttachment, deleteComposeAttachment 
 import { useDocMutations } from "@/api/documents"
 import { buildEmailDraft, parseEmailDraft, type EmailDraftFields } from "@/lib/emailDraft"
 import { Button } from "@/components/ui/button"
+import { IconButton } from "@/components/ui/IconButton"
 
 const inp = "h-9 w-full rounded-md border bg-background px-3 text-sm outline-none focus-visible:border-ring"
 
@@ -107,10 +108,10 @@ export function EmailDraftEditor({
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
       <header className="flex h-13 shrink-0 items-center gap-2 border-b px-3">
-        {onBack && <Button variant="ghost" size="icon" onClick={onBack} title="Back"><ArrowLeft className="size-4" /></Button>}
+        {onBack && <Button variant="ghost" size="icon" onClick={onBack} title="Back" aria-label="Back"><ArrowLeft className="size-4" /></Button>}
         <div className="min-w-0 flex-1 truncate text-sm font-semibold">{title || fields.subject || "Email draft"}</div>
         {status && <span className="shrink-0 text-xs text-muted-foreground">{status}</span>}
-        {onClose && <button onClick={onClose} title="Close draft" className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"><X className="size-4" /></button>}
+        {onClose && <IconButton icon={<X />} label="Close draft" onClick={onClose} className="text-muted-foreground" />}
       </header>
       <div className="shrink-0 space-y-2 border-b p-3">
         <input value={fields.to} onChange={(e) => setField("to", e.target.value)} placeholder="To" className={inp} />
@@ -127,7 +128,7 @@ export function EmailDraftEditor({
               <Paperclip className="size-3.5 shrink-0" />
               <span className="max-w-64 truncate text-foreground">{att.filename}</span>
               {att.size ? <span>{Math.round(att.size / 1024)} KB</span> : null}
-              <button type="button" onClick={() => removeAttachment(att.token)} title={`Remove ${att.filename}`} className="rounded p-0.5 hover:bg-accent hover:text-foreground"><X className="size-3" /></button>
+              <button type="button" onClick={() => removeAttachment(att.token)} title={`Remove ${att.filename}`} aria-label={`Remove ${att.filename}`} className="rounded p-0.5 hover:bg-accent hover:text-foreground"><X className="size-3" /></button>
             </span>
           ))}
         </div>

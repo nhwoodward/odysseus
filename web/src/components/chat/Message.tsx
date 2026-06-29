@@ -1,10 +1,9 @@
-import { useEffect, useRef, useState } from "react"
+import { lazy, Suspense, useEffect, useRef, useState } from "react"
 import { ChevronRight, Brain, Telescope, Loader2, Volume2, Square, BookOpen, Copy, Check, RotateCcw, Pencil, ArrowRight, FileCode2, File, AlertTriangle, CircleAlert, Play, MoreHorizontal, Trash2, GitFork, Scissors, Sparkles, ScanText, ListChecks } from "lucide-react"
 import { usePanel } from "@/stores/panel"
 import { Mascot } from "@/components/ui/Mascot"
 import { StreamingMarkdown, Markdown } from "./Markdown"
 import { ToolThread } from "./ToolThread"
-import { AgentTimeline } from "./AgentTimeline"
 import { BrowserSiteCard } from "./BrowserPreview"
 import { parseArtifact, cleanRoundText, stripSourcesFence } from "@/lib/artifact"
 import { collectDeliverables } from "@/lib/agentRun"
@@ -14,6 +13,11 @@ import { useVoiceCaps, speak } from "@/api/voice"
 import { useEscapeClose } from "@/lib/useEscapeClose"
 import { cn } from "@/lib/utils"
 import type { AskUserPrompt, ChatAttachment, ChatMessage, Artifact } from "@/types"
+
+// AgentTimeline pulls in framer-motion (~40KB gzip). It only renders for agent
+// turns that ran tools — never on the empty landing chat or a plain reply — so
+// lazy-load it to keep the motion chunk out of the eager landing bundle.
+const AgentTimeline = lazy(() => import("./AgentTimeline").then((m) => ({ default: m.AgentTimeline })))
 
 function formatSize(bytes?: number) {
   if (bytes == null) return ""
@@ -300,12 +304,14 @@ export function Message({ m, onRegenerate, onEdit, onDelete, onFork, onRewrite, 
       {m.reasoning && <Reasoning text={m.reasoning} live={!!m.streaming && !m.content} />}
       {m.plan && <Plan text={m.plan} />}
       {useRounds ? (
-        <AgentTimeline
-          rounds={cleaned!}
-          streaming={!!m.streaming}
-          streamStartAt={m.streamStartAt}
-          deliverables={collectDeliverables(m)}
-        />
+        <Suspense fallback={<div className="flex py-2"><Loader2 className="size-4 animate-spin text-muted-foreground" /></div>}>
+          <AgentTimeline
+            rounds={cleaned!}
+            streaming={!!m.streaming}
+            streamStartAt={m.streamStartAt}
+            deliverables={collectDeliverables(m)}
+          />
+        </Suspense>
       ) : (m.tools && m.tools.length > 0 && <ToolThread tools={m.tools} />)}
       {/* Recover a website the agent built in an ephemeral browser tab (injected
          via the builtin browser MCP, never saved as a document) so it surfaces

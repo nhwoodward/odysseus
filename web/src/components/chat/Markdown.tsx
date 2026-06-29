@@ -111,7 +111,7 @@ function CodeBlock({ node: _node, children, ...props }: ComponentPropsWithoutRef
         </span>
       </div>
       {editing
-        ? <textarea value={draft} onChange={(event) => setDraft(event.target.value)} spellCheck={false} className="min-h-40 w-full resize-y border-0 bg-muted/40 p-4 font-mono text-sm outline-none" />
+        ? <textarea value={draft} onChange={(event) => setDraft(event.target.value)} spellCheck={false} className="min-h-40 w-full resize-y border-0 bg-muted/40 p-4 font-mono text-sm outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring" />
         : <pre ref={ref} {...props}>{draft === nodeText(Children.toArray(children)).replace(/\n$/, "") ? children : <code className={cls}>{draft}</code>}</pre>}
       {output && <div className="border-t bg-muted/30 p-3">
         <div className="mb-1.5 text-label font-semibold text-muted-foreground">Output</div>

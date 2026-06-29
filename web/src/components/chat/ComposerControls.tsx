@@ -15,6 +15,7 @@ import { usePanel } from "@/stores/panel"
 import { toast } from "@/stores/toast"
 import { useEscapeClose } from "@/lib/useEscapeClose"
 import { Switch } from "@/components/ui/switch"
+import { IconButton } from "@/components/ui/IconButton"
 import { BUILTIN_PERSONAS } from "@/lib/personas"
 import { getPersistentPersonaName, setPersistentPersonaSession } from "@/lib/persistentPersona"
 import { cn } from "@/lib/utils"
@@ -41,12 +42,21 @@ export function SourcesMenu() {
   const connected = conns.filter((s) => s.status === "connected")
   return (
     <div className="relative">
-      <button onClick={() => setOpen((o) => !o)} title="Connected sources" aria-haspopup="menu" aria-expanded={open} className="relative rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground">
-        <Plug className="size-4" />
-        {connected.length > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 flex size-3.5 items-center justify-center rounded-full bg-primary text-[9px] font-semibold text-primary-foreground">{connected.length}</span>
-        )}
-      </button>
+      <IconButton
+        onClick={() => setOpen((o) => !o)}
+        label="Connected sources"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="relative text-muted-foreground"
+        icon={
+          <>
+            <Plug />
+            {connected.length > 0 && (
+              <span className="absolute -right-0.5 -top-0.5 flex size-3.5 items-center justify-center rounded-full bg-primary text-[9px] font-semibold text-primary-foreground">{connected.length}</span>
+            )}
+          </>
+        }
+      />
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
@@ -132,7 +142,7 @@ export function ModelPicker() {
       <span className="block truncate">{option.model}</span>
       {prefix && <span className="block truncate text-micro text-muted-foreground">{option.endpointName}</span>}
     </button>
-    <button onClick={() => toggleFavorite(option.key)} title={favorites.includes(option.key) ? "Remove favorite" : "Favorite model"} className="mr-1 rounded p-1 text-muted-foreground hover:text-foreground">
+    <button onClick={() => toggleFavorite(option.key)} title={favorites.includes(option.key) ? "Remove favorite" : "Favorite model"} aria-label={favorites.includes(option.key) ? "Remove favorite" : "Favorite model"} className="mr-1 rounded p-1 text-muted-foreground hover:text-foreground">
       <Star className={cn("size-3.5", favorites.includes(option.key) && "fill-current text-foreground")} />
     </button>
   </div>
@@ -154,7 +164,7 @@ export function ModelPicker() {
             <label className="m-1 flex items-center gap-2 rounded-md border bg-background px-2">
               <Search className="size-3.5 text-muted-foreground" />
               <input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search models" className="h-8 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground" />
-              {query && <button onClick={() => setQuery("")}><X className="size-3.5 text-muted-foreground" /></button>}
+              {query && <button onClick={() => setQuery("")} aria-label="Clear search"><X className="size-3.5 text-muted-foreground" /></button>}
             </label>
             <div className="min-h-0 overflow-y-auto">
             {special("Favorites", <Star className="size-3" />, favorites)}
@@ -513,6 +523,7 @@ export function ToolsMenu() {
                     onClick={clearPrompt}
                     className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                     title="Clear prompt options"
+                    aria-label="Clear prompt options"
                   >
                     <X className="size-3.5" />
                   </button>
@@ -594,6 +605,7 @@ export function ToolsMenu() {
                   disabled={!!lockedPersonaName}
                   className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                   title="Reset persona fields"
+                  aria-label="Reset persona fields"
                 >
                   <RotateCcw className="size-3.5" />
                 </button>
@@ -614,6 +626,7 @@ export function ToolsMenu() {
                   disabled={!!lockedPersonaName}
                   className="inline-flex size-9 shrink-0 items-center justify-center rounded-md border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                   title="Create new persona"
+                  aria-label="Create new persona"
                 >
                   <Plus className="size-4" />
                 </button>
@@ -654,6 +667,7 @@ export function ToolsMenu() {
                   disabled={templateMutations.expand.isPending || (!personaName.trim() && !personaPrompt.trim())}
                   className="inline-flex size-8 items-center justify-center rounded-md border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
                   title="AI expand persona"
+                  aria-label="AI expand persona"
                 >
                   {templateMutations.expand.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Wand2 className="size-3.5" />}
                 </button>
@@ -664,6 +678,7 @@ export function ToolsMenu() {
                       disabled={creatingPersistent || !personaName.trim()}
                       className="inline-flex size-8 items-center justify-center rounded-md border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
                       title="Create persistent persona chat"
+                      aria-label="Create persistent persona chat"
                     >
                       {creatingPersistent ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}
                     </button>
@@ -672,6 +687,7 @@ export function ToolsMenu() {
                       disabled={!personaPick.startsWith("template:") && !templates?.some((t) => t.name.toLowerCase() === personaName.trim().toLowerCase())}
                       className="inline-flex size-8 items-center justify-center rounded-md border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-destructive disabled:pointer-events-none disabled:opacity-50"
                       title="Delete saved persona"
+                      aria-label="Delete saved persona"
                     >
                       <Trash2 className="size-3.5" />
                     </button>
@@ -702,6 +718,7 @@ export function ToolsMenu() {
                         disabled={!groupPresetPick}
                         className="inline-flex size-9 shrink-0 items-center justify-center rounded-md border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-destructive disabled:pointer-events-none disabled:opacity-50"
                         title="Delete saved group"
+                        aria-label="Delete saved group"
                       >
                         <Trash2 className="size-4" />
                       </button>
@@ -726,13 +743,12 @@ export function ToolsMenu() {
                             {p.personaName || p.display}
                             {p.personaName && <span className="ml-1.5 text-xs text-muted-foreground">{p.display}</span>}
                           </span>
-                          <button
+                          <IconButton
                             onClick={() => c.removeGroupParticipant(p.id)}
-                            className="shrink-0 rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-destructive"
-                            title={`Remove ${p.personaName || p.display}`}
-                          >
-                            <Trash2 className="size-3.5" />
-                          </button>
+                            className="shrink-0 text-muted-foreground hover:text-destructive"
+                            label={`Remove ${p.personaName || p.display}`}
+                            icon={<Trash2 />}
+                          />
                         </div>
                         <select value={p.personaId || ""} onChange={(e) => setParticipantPersona(p.id, e.target.value)} className="h-8 w-full rounded-md border bg-background px-2 text-xs text-muted-foreground outline-none focus-visible:border-ring">
                           <option value="">No persona</option>
@@ -756,6 +772,7 @@ export function ToolsMenu() {
                       disabled={!groupPick || c.groupParticipants.length >= 8}
                       className="inline-flex size-9 shrink-0 items-center justify-center rounded-md border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
                       title="Add group participant"
+                      aria-label="Add group participant"
                     >
                       <Plus className="size-4" />
                     </button>

@@ -25,7 +25,7 @@ export function Toaster() {
           >
             <Icon className={cn("mt-0.5 size-4 shrink-0", t.kind === "error" ? "text-destructive" : t.kind === "success" ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground")} />
             <span className="min-w-0 flex-1 break-words text-foreground">{t.message}</span>
-            <button onClick={() => dismiss(t.id)} title="Dismiss" className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"><X className="size-3.5" /></button>
+            <button onClick={() => dismiss(t.id)} title="Dismiss" aria-label="Dismiss" className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"><X className="size-3.5" /></button>
           </div>
         )
       })}

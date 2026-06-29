@@ -10,6 +10,7 @@ import { useTokenMutations } from "@/api/tokens"
 import { useMcpServers } from "@/api/admin"
 import { apiFetch } from "@/lib/api"
 import { Button } from "@/components/ui/button"
+import { IconButton } from "@/components/ui/IconButton"
 import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
 
@@ -89,10 +90,10 @@ export function EmailAccountsSection() {
               <div className="truncate text-sm font-medium">{a.name} {a.is_default && <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-micro font-normal text-muted-foreground">default</span>}</div>
               <div className="truncate text-xs text-muted-foreground">{a.from_address || a.imap_user} · {a.imap_host || "no imap"}</div>
             </div>
-            {!a.is_default && <button onClick={() => setDefault.mutate(a.id)} title="Set default" className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"><Star className="size-4" /></button>}
-            <button onClick={() => window.open(`/api/email/oauth/google/authorize?account_id=${encodeURIComponent(a.id)}`, "_blank", "noopener")} title="Connect Google Workspace" className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"><ExternalLink className="size-4" /></button>
-            <button onClick={() => setEditId(a.id)} title="Edit" className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"><Pencil className="size-4" /></button>
-            <button onClick={() => { if (confirm(`Delete account "${a.name}"?`)) remove.mutate(a.id) }} title="Delete" className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"><Trash2 className="size-4" /></button>
+            {!a.is_default && <IconButton icon={<Star />} label="Set default" onClick={() => setDefault.mutate(a.id)} className="shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />}
+            <IconButton icon={<ExternalLink />} label="Connect Google Workspace" onClick={() => window.open(`/api/email/oauth/google/authorize?account_id=${encodeURIComponent(a.id)}`, "_blank", "noopener")} className="shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+            <IconButton icon={<Pencil />} label="Edit" onClick={() => setEditId(a.id)} className="shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+            <IconButton icon={<Trash2 />} label="Delete" onClick={() => { if (confirm(`Delete account "${a.name}"?`)) remove.mutate(a.id) }} className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100" />
           </div>
         ))}
         {(accounts || []).length === 0 && <p className="py-1 text-sm text-muted-foreground">No email accounts.</p>}
@@ -143,8 +144,8 @@ export function CalendarAccountsSection() {
         {(accounts || []).map((a) => editId === a.id ? <CalDavForm key={a.id} initial={a} onClose={() => setEditId(null)} /> : (
           <div key={a.id} className="group flex items-center gap-2 rounded-lg border bg-card p-3">
             <div className="min-w-0 flex-1"><div className="truncate text-sm font-medium">{a.label}</div><div className="truncate text-xs text-muted-foreground">{a.username} · {a.url}</div></div>
-            <button onClick={() => setEditId(a.id)} title="Edit" className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"><Pencil className="size-4" /></button>
-            <button onClick={() => { if (confirm(`Delete "${a.label}"?`)) remove.mutate(a.id) }} title="Delete" className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"><Trash2 className="size-4" /></button>
+            <IconButton icon={<Pencil />} label="Edit" onClick={() => setEditId(a.id)} className="shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+            <IconButton icon={<Trash2 />} label="Delete" onClick={() => { if (confirm(`Delete "${a.label}"?`)) remove.mutate(a.id) }} className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100" />
           </div>
         ))}
         {(accounts || []).length === 0 && <p className="py-1 text-sm text-muted-foreground">No calendar accounts.</p>}
@@ -249,8 +250,8 @@ export function ContactsSection() {
         <div className="max-h-64 space-y-1 overflow-y-auto">
           {filtered.map((contact) => <div key={contact.uid} className="group flex items-center gap-2 rounded-md border px-2.5 py-2">
             <div className="min-w-0 flex-1"><div className="truncate text-sm font-medium">{contact.name || contact.emails[0]}</div><div className="truncate text-xs text-muted-foreground">{[contact.emails.join(", "), contact.phones.join(", "), contact.address].filter(Boolean).join(" · ")}</div></div>
-            <button onClick={() => beginEdit(contact)} title="Edit contact" className="text-muted-foreground opacity-0 hover:text-foreground group-hover:opacity-100"><Pencil className="size-3.5" /></button>
-            <button onClick={() => { if (confirm(`Delete ${contact.name || "this contact"}?`)) mutations.remove.mutate(contact.uid) }} title="Delete contact" className="text-muted-foreground opacity-0 hover:text-destructive group-hover:opacity-100"><Trash2 className="size-3.5" /></button>
+            <IconButton icon={<Pencil />} label="Edit contact" onClick={() => beginEdit(contact)} className="text-muted-foreground opacity-0 group-hover:opacity-100" />
+            <IconButton icon={<Trash2 />} label="Delete contact" onClick={() => { if (confirm(`Delete ${contact.name || "this contact"}?`)) mutations.remove.mutate(contact.uid) }} className="text-muted-foreground opacity-0 hover:text-destructive group-hover:opacity-100" />
           </div>)}
           {!filtered.length && <p className="py-2 text-xs text-muted-foreground">No contacts found.</p>}
         </div>

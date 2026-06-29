@@ -1,6 +1,7 @@
 import { useCallback, type RefObject } from "react"
 import { Bold, Code, Code2, Heading1, Heading2, Italic, Link2, List, ListOrdered } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { IconButton } from "@/components/ui/IconButton"
 
 // A pragmatic markdown-source toolbar: it wraps/inserts markdown syntax around
 // the current selection in a plain <textarea>. This is NOT a WYSIWYG editor —
@@ -91,7 +92,7 @@ function makeCodeBlock(value: string, start: number, end: number): Edit {
   return { value: next, selStart: s, selEnd: s + body.length }
 }
 
-const btn = "inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-40 disabled:pointer-events-none"
+const btn = "text-muted-foreground disabled:opacity-40 disabled:pointer-events-none"
 
 export function MarkdownToolbar({ textareaRef, value, onChange, disabled, className }: MarkdownToolbarProps) {
   const apply = useCallback(
@@ -115,18 +116,18 @@ export function MarkdownToolbar({ textareaRef, value, onChange, disabled, classN
 
   return (
     <div className={cn("flex shrink-0 flex-wrap items-center gap-0.5 border-b px-2 py-1", className)} role="toolbar" aria-label="Formatting">
-      <button type="button" className={btn} disabled={disabled} title="Bold" aria-label="Bold" onClick={() => apply((v, s, e) => wrapSelection(v, s, e, "**", "**", "bold text"))}><Bold className="size-4" /></button>
-      <button type="button" className={btn} disabled={disabled} title="Italic" aria-label="Italic" onClick={() => apply((v, s, e) => wrapSelection(v, s, e, "*", "*", "italic text"))}><Italic className="size-4" /></button>
-      <button type="button" className={btn} disabled={disabled} title="Inline code" aria-label="Inline code" onClick={() => apply((v, s, e) => wrapSelection(v, s, e, "`", "`", "code"))}><Code className="size-4" /></button>
+      <IconButton icon={<Bold />} label="Bold" type="button" className={btn} disabled={disabled} onClick={() => apply((v, s, e) => wrapSelection(v, s, e, "**", "**", "bold text"))} />
+      <IconButton icon={<Italic />} label="Italic" type="button" className={btn} disabled={disabled} onClick={() => apply((v, s, e) => wrapSelection(v, s, e, "*", "*", "italic text"))} />
+      <IconButton icon={<Code />} label="Inline code" type="button" className={btn} disabled={disabled} onClick={() => apply((v, s, e) => wrapSelection(v, s, e, "`", "`", "code"))} />
       <span className="mx-1 h-5 w-px bg-border" aria-hidden />
-      <button type="button" className={btn} disabled={disabled} title="Heading 1" aria-label="Heading 1" onClick={() => apply((v, s, e) => prefixLines(v, s, e, "# "))}><Heading1 className="size-4" /></button>
-      <button type="button" className={btn} disabled={disabled} title="Heading 2" aria-label="Heading 2" onClick={() => apply((v, s, e) => prefixLines(v, s, e, "## "))}><Heading2 className="size-4" /></button>
+      <IconButton icon={<Heading1 />} label="Heading 1" type="button" className={btn} disabled={disabled} onClick={() => apply((v, s, e) => prefixLines(v, s, e, "# "))} />
+      <IconButton icon={<Heading2 />} label="Heading 2" type="button" className={btn} disabled={disabled} onClick={() => apply((v, s, e) => prefixLines(v, s, e, "## "))} />
       <span className="mx-1 h-5 w-px bg-border" aria-hidden />
-      <button type="button" className={btn} disabled={disabled} title="Bulleted list" aria-label="Bulleted list" onClick={() => apply((v, s, e) => prefixLines(v, s, e, "- "))}><List className="size-4" /></button>
-      <button type="button" className={btn} disabled={disabled} title="Numbered list" aria-label="Numbered list" onClick={() => apply((v, s, e) => prefixLines(v, s, e, "1. ", true))}><ListOrdered className="size-4" /></button>
+      <IconButton icon={<List />} label="Bulleted list" type="button" className={btn} disabled={disabled} onClick={() => apply((v, s, e) => prefixLines(v, s, e, "- "))} />
+      <IconButton icon={<ListOrdered />} label="Numbered list" type="button" className={btn} disabled={disabled} onClick={() => apply((v, s, e) => prefixLines(v, s, e, "1. ", true))} />
       <span className="mx-1 h-5 w-px bg-border" aria-hidden />
-      <button type="button" className={btn} disabled={disabled} title="Link" aria-label="Link" onClick={() => apply(makeLink)}><Link2 className="size-4" /></button>
-      <button type="button" className={btn} disabled={disabled} title="Code block" aria-label="Code block" onClick={() => apply(makeCodeBlock)}><Code2 className="size-4" /></button>
+      <IconButton icon={<Link2 />} label="Link" type="button" className={btn} disabled={disabled} onClick={() => apply(makeLink)} />
+      <IconButton icon={<Code2 />} label="Code block" type="button" className={btn} disabled={disabled} onClick={() => apply(makeCodeBlock)} />
     </div>
   )
 }

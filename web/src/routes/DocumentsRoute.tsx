@@ -43,11 +43,13 @@ import { MarkdownToolbar } from "@/components/documents/MarkdownToolbar"
 import { PdfDocumentEditor } from "@/components/documents/PdfDocumentEditor"
 import { EmailDraftEditor } from "@/components/email/EmailDraftEditor"
 import { HtmlPreview } from "@/components/ui/HtmlPreview"
+import { SkeletonList } from "@/components/ui/skeleton"
 import { detectRenderLang } from "@/lib/artifact"
 import { buildEmailDraft } from "@/lib/emailDraft"
 import { readImportedDocuments } from "@/lib/documentImport"
 import { isPdfBackedDocument } from "@/lib/pdfDocument"
 import { Button } from "@/components/ui/button"
+import { IconButton } from "@/components/ui/IconButton"
 import { useEscapeClose } from "@/lib/useEscapeClose"
 import { cn } from "@/lib/utils"
 import type { DocItem } from "@/types"
@@ -227,7 +229,7 @@ function Editor({ id, onBack, onOpen }: { id: string; onBack: () => void; onOpen
   return (
     <div className="flex h-full flex-col">
       <header className="flex min-h-13 shrink-0 flex-wrap items-center gap-2 border-b px-3 py-1.5 sm:flex-nowrap sm:py-0">
-        <Button variant="ghost" size="icon" onClick={onBack} title="Back"><ArrowLeft className="size-4" /></Button>
+        <Button variant="ghost" size="icon" onClick={onBack} title="Back" aria-label="Back"><ArrowLeft className="size-4" /></Button>
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
@@ -245,21 +247,19 @@ function Editor({ id, onBack, onOpen }: { id: string; onBack: () => void; onOpen
             <button onClick={() => setView("code")} className={segBtn(view === "code")}><Code2 className="size-3.5" />Code</button>
           </div>
         )}
-        <button onClick={() => setShowVersions((open) => !open)} title="Version history" className={cn("hidden rounded-md p-1.5 hover:bg-accent sm:inline-flex", showVersions ? "text-foreground" : "text-muted-foreground hover:text-foreground")}>
-          <History className="size-4" />
-        </button>
+        <IconButton icon={<History />} label="Version history" onClick={() => setShowVersions((open) => !open)} className={cn("hidden sm:inline-flex", showVersions ? "text-foreground" : "text-muted-foreground")} />
         {canSignedReply && <Button variant="outline" size="sm" disabled={signedBusy} onClick={signedReply} className="hidden sm:inline-flex"><Reply className="size-4" />{signedBusy ? "Preparing..." : "Signed reply"}</Button>}
-        {aiTarget && <button onClick={() => void editWithAI()} title="Edit with AI — opens in chat; select text and ask for a rewrite" className="hidden rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground sm:inline-flex"><Sparkles className="size-4" /></button>}
-        <button onClick={() => downloadDocument({ id, title, language, current_content: content })} title="Download" className="hidden rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground sm:inline-flex"><Download className="size-4" /></button>
-        <button onClick={() => void exportPdf()} title="Export to PDF" className="hidden rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground sm:inline-flex"><FileDown className="size-4" /></button>
-        <button onClick={del} title="Delete" className="hidden rounded-md p-1.5 text-muted-foreground hover:text-destructive sm:inline-flex"><Trash2 className="size-4" /></button>
+        {aiTarget && <IconButton icon={<Sparkles />} label="Edit with AI — opens in chat; select text and ask for a rewrite" onClick={() => void editWithAI()} className="hidden text-muted-foreground sm:inline-flex" />}
+        <IconButton icon={<Download />} label="Download" onClick={() => downloadDocument({ id, title, language, current_content: content })} className="hidden text-muted-foreground sm:inline-flex" />
+        <IconButton icon={<FileDown />} label="Export to PDF" onClick={() => void exportPdf()} className="hidden text-muted-foreground sm:inline-flex" />
+        <IconButton icon={<Trash2 />} label="Delete" onClick={del} className="hidden text-muted-foreground hover:text-destructive sm:inline-flex" />
         <Button size="sm" onClick={save} disabled={!dirty || update.isPending || previewVersion != null}><Save className="size-4" />{update.isPending ? "Saving..." : dirty ? "Save" : "Saved"}</Button>
       </header>
       {(signedErr || notice || previewVersion) && (
         <div className={cn("flex shrink-0 items-center gap-2 border-b px-4 py-2 text-xs", signedErr ? "text-destructive" : "text-muted-foreground")}>
           <span className="min-w-0 flex-1">{signedErr || (previewVersion ? `Previewing v${previewVersion}` : notice)}</span>
           {previewVersion && <Button size="sm" variant="outline" onClick={() => restoreVersion(previewVersion)}><RotateCcw className="size-3.5" />Restore</Button>}
-          {previewVersion && <button onClick={returnToLatest} title="Return to latest" className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"><X className="size-3.5" /></button>}
+          {previewVersion && <IconButton icon={<X />} label="Return to latest" onClick={returnToLatest} className="text-muted-foreground" />}
         </div>
       )}
       {showVersions && (
@@ -286,7 +286,7 @@ function Editor({ id, onBack, onOpen }: { id: string; onBack: () => void; onOpen
           </div>
         </section>
       )}
-      {isLoading ? <div className="p-6 text-sm text-muted-foreground">Loading...</div> : showPreview ? (
+      {isLoading ? <SkeletonList rows={3} className="p-4" /> : showPreview ? (
         <HtmlPreview content={content} renderLang={renderLang} title={title} />
       ) : (
         <div className="flex min-h-0 flex-1 flex-col">
@@ -410,14 +410,14 @@ function DocumentRow({
       </div>
       {!selectMode && (
         <div className="flex shrink-0 items-center gap-0.5">
-          <button type="button" onClick={(e) => { e.stopPropagation(); openActionMenu() }} title="Actions" aria-haspopup="menu" aria-expanded={actionMenuOpen} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground sm:hidden"><MoreHorizontal className="size-4" /></button>
+          <IconButton type="button" icon={<MoreHorizontal />} label="Actions" onClick={(e) => { e.stopPropagation(); openActionMenu() }} aria-haspopup="menu" aria-expanded={actionMenuOpen} className="text-muted-foreground sm:hidden" />
           <div className="hidden items-center gap-0.5 sm:flex">
-            {doc.session_id && <button type="button" onClick={(e) => { e.stopPropagation(); onOpenSource() }} title="Open in original chat" className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"><ExternalLink className="size-4" /></button>}
-            <button type="button" onClick={(e) => { e.stopPropagation(); onClone() }} disabled={cloneBusy} title="Clone to selected chat" className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50"><Copy className="size-4" /></button>
-            <button type="button" onClick={(e) => { e.stopPropagation(); void downloadDocument(doc) }} title="Download" className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"><Download className="size-4" /></button>
-            <button type="button" onClick={(e) => { e.stopPropagation(); onExportPdf() }} title="Export to PDF" className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"><FileDown className="size-4" /></button>
-            <button type="button" onClick={(e) => { e.stopPropagation(); onArchive() }} title={archived ? "Restore" : "Archive"} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground">{archived ? <RotateCcw className="size-4" /> : <Archive className="size-4" />}</button>
-            <button type="button" onClick={(e) => { e.stopPropagation(); onDelete() }} title="Delete" className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-destructive"><Trash2 className="size-4" /></button>
+            {doc.session_id && <IconButton type="button" icon={<ExternalLink />} label="Open in original chat" onClick={(e) => { e.stopPropagation(); onOpenSource() }} className="text-muted-foreground" />}
+            <IconButton type="button" icon={<Copy />} label="Clone to selected chat" onClick={(e) => { e.stopPropagation(); onClone() }} disabled={cloneBusy} className="text-muted-foreground disabled:opacity-50" />
+            <IconButton type="button" icon={<Download />} label="Download" onClick={(e) => { e.stopPropagation(); void downloadDocument(doc) }} className="text-muted-foreground" />
+            <IconButton type="button" icon={<FileDown />} label="Export to PDF" onClick={(e) => { e.stopPropagation(); onExportPdf() }} className="text-muted-foreground" />
+            <IconButton type="button" icon={archived ? <RotateCcw /> : <Archive />} label={archived ? "Restore" : "Archive"} onClick={(e) => { e.stopPropagation(); onArchive() }} className="text-muted-foreground" />
+            <IconButton type="button" icon={<Trash2 />} label="Delete" onClick={(e) => { e.stopPropagation(); onDelete() }} className="text-muted-foreground hover:text-destructive" />
           </div>
         </div>
       )}
@@ -747,7 +747,7 @@ export function DocumentsRoute() {
               placeholder="Search documents..."
               className="h-9 w-full rounded-md border bg-background pl-8 pr-8 text-sm outline-none focus-visible:border-ring"
             />
-            {query && <button onClick={() => setQuery("")} title="Clear search" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"><X className="size-4" /></button>}
+            {query && <button onClick={() => setQuery("")} title="Clear search" aria-label="Clear search" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"><X className="size-4" /></button>}
           </div>
           <select value={sort} onChange={(e) => { setSort(e.target.value as DocumentSort); clearSelection() }} className="h-9 rounded-md border bg-background px-2 text-sm outline-none focus-visible:border-ring" aria-label="Sort documents">
             <option value="recent">Recent</option>
@@ -792,7 +792,7 @@ export function DocumentsRoute() {
           <Button size="sm" variant="outline" disabled={selectedVisibleIds.length === 0 || !!busy} onClick={() => void runBulk("clone")}><Copy className="size-3.5" />Clone</Button>
           <Button size="sm" variant="outline" disabled={selectedVisibleIds.length === 0 || !!busy} onClick={() => void runBulk("archive")}>{archived ? <RotateCcw className="size-3.5" /> : <Archive className="size-3.5" />}{archived ? "Restore" : "Archive"}</Button>
           <Button size="sm" variant="destructive" disabled={selectedVisibleIds.length === 0 || !!busy} onClick={() => void runBulk("delete")}><Trash2 className="size-3.5" />Delete</Button>
-          <button type="button" onClick={clearSelection} disabled={!!busy} title="Cancel selection" className="ml-auto rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50"><X className="size-3.5" /></button>
+          <IconButton type="button" icon={<X />} label="Cancel selection" onClick={clearSelection} disabled={!!busy} className="ml-auto text-muted-foreground disabled:opacity-50" />
         </div>
       )}
       {notice && <div className={cn("shrink-0 border-b px-4 py-2 text-xs", /couldn.t|could not|failed/i.test(notice) ? "text-destructive" : "text-muted-foreground")}>{notice}</div>}

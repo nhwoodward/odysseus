@@ -33,8 +33,15 @@ from src.settings import load_settings, save_settings
 
 logger = logging.getLogger(__name__)
 
-# Read-only products we request at Link time (balances come implicitly).
-_PRODUCTS = ["transactions", "investments", "liabilities"]
+# Read-only products we request at Link time (balances come implicitly). Only
+# `transactions` is REQUIRED — Plaid filters out any institution that doesn't
+# support every product in `products`, which blocks banks with no brokerage
+# (USAA sold its investments to Schwab in 2020; Amex; most checking accounts)
+# with "connectivity not supported". `investments`/`liabilities` go in
+# `required_if_supported_products` so they're pulled + billed only when the
+# institution supports them, and non-supporting institutions still link.
+_PRODUCTS = ["transactions"]
+_OPTIONAL_PRODUCTS = ["investments", "liabilities"]
 _COUNTRY_CODES = ["US"]
 
 
@@ -129,6 +136,7 @@ def setup_finance_routes() -> APIRouter:
             "user": {"client_user_id": owner or "local"},
             "client_name": "Odysseus",
             "products": _PRODUCTS,
+            "required_if_supported_products": _OPTIONAL_PRODUCTS,
             "country_codes": _COUNTRY_CODES,
             "language": "en",
             "hosted_link": {"completion_redirect_uri": f"{origin}/v2/finance"},
@@ -229,26 +237,59 @@ def setup_finance_routes() -> APIRouter:
     async def summary(request: Request):
         return await finance_service.summary(require_user(request))
 
+    @router.get("/cashflow")
+    async def cashflow(request: Request):
+        return await finance_service.cashflow(require_user(request))
+
+    @router.get("/networth")
+    async def networth(request: Request):
+        # Net-worth trend (Phase 1) — reads the accumulated daily snapshots.
+        return finance_service.net_worth_history(require_user(request))
+
     return router
 
 
 def _extract_public_token(session: Dict[str, Any]) -> Optional[str]:
-    """Pull the public_token out of a /link/token/get response. Plaid reports the
-    finished session via a callback list; the exact shape can evolve, so look in
-    the documented spots and fall back to a recursive scan."""
-    lt = session.get("link_token") or {}
-    # Documented: results.item_add_results[].public_token
-    results = (lt.get("results") or session.get("results") or {})
-    for add in (results.get("item_add_results") or []):
-        if add.get("public_token"):
-            return add["public_token"]
-    # Some responses surface metadata callbacks with a public_token field.
-    if session.get("public_token"):
+    """Pull the public_token out of a /link/token/get response.
+
+    For Hosted Link the completed result lives at
+    ``link_sessions[].results.item_add_results[].public_token``. IMPORTANT: the
+    top-level ``link_token`` in this response is a STRING (the token itself), not
+    an object — older code that did ``session.get("link_token").get(...)`` raised
+    AttributeError and 500'd the exchange on every poll, so the token was never
+    stored. We read the documented spots (each level guarded) and fall back to a
+    recursive scan so a future shape change can't silently break the exchange."""
+    def _from_results(results: Any) -> Optional[str]:
+        if not isinstance(results, dict):
+            return None
+        for add in (results.get("item_add_results") or []):
+            if isinstance(add, dict) and isinstance(add.get("public_token"), str):
+                return add["public_token"]
+        return None
+
+    # Primary (Hosted Link): link_sessions[].results.item_add_results[].public_token
+    for ls in (session.get("link_sessions") or []):
+        if not isinstance(ls, dict):
+            continue
+        pt = _from_results(ls.get("results"))
+        if pt:
+            return pt
+        # Deprecated but still present on some responses.
+        on_success = ls.get("on_success")
+        if isinstance(on_success, dict) and isinstance(on_success.get("public_token"), str):
+            return on_success["public_token"]
+
+    # Legacy top-level results shape, then a bare public_token.
+    pt = _from_results(session.get("results"))
+    if pt:
+        return pt
+    if isinstance(session.get("public_token"), str):
         return session["public_token"]
 
+    # Last resort: recursively scan for any public_token (shape-change safety net).
     found: Optional[str] = None
 
-    def _scan(obj):
+    def _scan(obj: Any) -> None:
         nonlocal found
         if found:
             return

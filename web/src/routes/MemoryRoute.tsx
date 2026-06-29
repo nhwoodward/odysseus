@@ -20,6 +20,7 @@ import { useMemory, useMemoryMutations, type MemoryImportSuggestion } from "@/ap
 import { usePrefs, useSetPref } from "@/api/prefs"
 import { useSessions } from "@/api/sessions"
 import { Button } from "@/components/ui/button"
+import { IconButton } from "@/components/ui/IconButton"
 import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
 import { toast } from "@/stores/toast"
@@ -315,7 +316,7 @@ export function MemoryRoute() {
             Import
           </Button>
           <Button size="sm" variant="outline" onClick={exportMemories} title="Export memories"><Download className="size-4" />Export</Button>
-          <button data-tour="memory-settings" onClick={() => setShowSettings((s) => !s)} title="Memory settings" className={cn("rounded-md p-1.5 hover:bg-accent hover:text-foreground", showSettings ? "text-foreground" : "text-muted-foreground")}><Settings2 className="size-4" /></button>
+          <IconButton data-tour="memory-settings" icon={<Settings2 />} label="Memory settings" onClick={() => setShowSettings((s) => !s)} className={showSettings ? "text-foreground" : "text-muted-foreground"} />
         </div>
         <input
           ref={fileRef}
@@ -346,7 +347,7 @@ export function MemoryRoute() {
           <div className="mb-4 rounded-lg border bg-card p-3">
             <div className="mb-2 flex items-center justify-between gap-2">
               <div className="text-sm font-medium">Extract from a chat session</div>
-              <button onClick={() => setShowExtract(false)} title="Close" className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"><X className="size-4" /></button>
+              <IconButton icon={<X />} label="Close" onClick={() => setShowExtract(false)} className="text-muted-foreground" />
             </div>
             <p className="mb-2 text-xs text-muted-foreground">Analyze a conversation for facts worth remembering, then review the suggestions before saving.</p>
             <div className="flex flex-wrap gap-2">
@@ -394,7 +395,7 @@ export function MemoryRoute() {
                     <span className="mt-1 inline-block rounded-full bg-muted px-2 py-0.5 text-label capitalize text-muted-foreground">{item.category}</span>
                   </div>
                   <Button size="sm" variant="outline" disabled={add.isPending} onClick={() => saveReviewItem(idx)}><Check className="size-4" />Save</Button>
-                  <button onClick={() => setReview((prev) => prev.map((x, i) => i === idx ? { ...x, active: false } : x))} title="Reject suggestion" className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"><X className="size-4" /></button>
+                  <IconButton icon={<X />} label="Reject suggestion" onClick={() => setReview((prev) => prev.map((x, i) => i === idx ? { ...x, active: false } : x))} className="text-muted-foreground" />
                 </div>
               ))}
             </div>
@@ -452,7 +453,7 @@ export function MemoryRoute() {
             return (
               <div key={m.id} className={cn("group flex items-start gap-3 rounded-md border bg-card p-3", isSelected && "border-primary/70 bg-primary/5")}>
                 {selectMode && (
-                  <button onClick={() => toggleSelected(m.id)} title={isSelected ? "Deselect memory" : "Select memory"} className="mt-0.5 text-muted-foreground hover:text-foreground">
+                  <button onClick={() => toggleSelected(m.id)} title={isSelected ? "Deselect memory" : "Select memory"} aria-label={isSelected ? "Deselect memory" : "Select memory"} className="mt-0.5 text-muted-foreground hover:text-foreground">
                     {isSelected ? <CheckSquare className="size-4" /> : <Square className="size-4" />}
                   </button>
                 )}
@@ -469,7 +470,7 @@ export function MemoryRoute() {
                       <select value={editCat} onChange={(e) => setEditCat(e.target.value)} className="h-8 rounded-md border bg-background px-2 text-sm capitalize">
                         {CATS.map((c) => <option key={c} value={c}>{c}</option>)}
                       </select>
-                      <button onClick={saveEdit} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"><Check className="size-4" /></button>
+                      <IconButton icon={<Check />} label="Save" onClick={saveEdit} className="text-muted-foreground" />
                     </div>
                   ) : (
                     <>
@@ -486,9 +487,9 @@ export function MemoryRoute() {
                 </div>
                 {editId !== m.id && (
                   <div className={cn("flex shrink-0 gap-1.5", selectMode ? "opacity-100" : "opacity-100 md:opacity-0 md:transition-opacity md:group-hover:opacity-100")}>
-                    <button onClick={async () => { await pin.mutateAsync({ id: m.id, pinned: !m.pinned }); toast(m.pinned ? "Memory unpinned" : "Pinned - always in context", "success") }} title={m.pinned ? "Unpin memory" : "Pin memory"} className={cn("text-muted-foreground hover:text-foreground", m.pinned && "text-foreground")}><Pin className="size-3.5" /></button>
-                    <button onClick={() => startEdit(m)} className="text-muted-foreground hover:text-foreground" title="Edit memory"><Pencil className="size-3.5" /></button>
-                    <button onClick={() => { if (confirm("Delete this memory?")) remove.mutate(m.id) }} className="text-muted-foreground hover:text-destructive" title="Delete memory"><Trash2 className="size-4" /></button>
+                    <button onClick={async () => { await pin.mutateAsync({ id: m.id, pinned: !m.pinned }); toast(m.pinned ? "Memory unpinned" : "Pinned - always in context", "success") }} title={m.pinned ? "Unpin memory" : "Pin memory"} aria-label={m.pinned ? "Unpin memory" : "Pin memory"} className={cn("text-muted-foreground hover:text-foreground", m.pinned && "text-foreground")}><Pin className="size-3.5" /></button>
+                    <button onClick={() => startEdit(m)} className="text-muted-foreground hover:text-foreground" title="Edit memory" aria-label="Edit memory"><Pencil className="size-3.5" /></button>
+                    <button onClick={() => { if (confirm("Delete this memory?")) remove.mutate(m.id) }} className="text-muted-foreground hover:text-destructive" title="Delete memory" aria-label="Delete memory"><Trash2 className="size-4" /></button>
                   </div>
                 )}
               </div>

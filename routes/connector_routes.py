@@ -215,14 +215,45 @@ def setup_connector_routes(mcp_manager: McpManager) -> APIRouter:
             elif key:
                 env[key] = val
 
-        server_id = str(uuid.uuid4())[:8]
         db = SessionLocal()
         try:
-            db.add(McpServer(
-                id=server_id, name=entry["name"], transport=transport,
-                command=command, args=json.dumps(args), env=json.dumps(env),
-                url=url, is_enabled=True, owner=user, catalog_id=catalog_id,
-            ))
+            # Re-templating upsert: reconnecting an existing connector refreshes its
+            # command/args/url/transport from the (possibly updated) catalog instead of
+            # piling up duplicate rows or re-running stale args (e.g. a catalog package
+            # bump must take effect on the next connect, not only on fresh adds).
+            # Previously-stored secret env values are preserved when the user doesn't
+            # re-supply them, and OAuth tokens are left untouched so remote reconnects
+            # don't force a re-auth.
+            existing = (
+                db.query(McpServer)
+                .filter(McpServer.owner == user, McpServer.catalog_id == catalog_id)
+                .first()
+            )
+            if existing is not None:
+                server_id = existing.id
+                try:
+                    prev_env = json.loads(existing.env) if existing.env else {}
+                except (TypeError, ValueError):
+                    prev_env = {}
+                for f in entry.get("fields", []):
+                    k = f.get("key", "")
+                    if k and not k.startswith("__arg") and not field_vals.get(k) and prev_env.get(k):
+                        env[k] = prev_env[k]
+                existing.name = entry["name"]
+                existing.transport = transport
+                existing.command = command
+                existing.args = json.dumps(args)
+                existing.env = json.dumps(env)
+                existing.url = url
+                existing.is_enabled = True
+                existing.last_error = None
+            else:
+                server_id = str(uuid.uuid4())[:8]
+                db.add(McpServer(
+                    id=server_id, name=entry["name"], transport=transport,
+                    command=command, args=json.dumps(args), env=json.dumps(env),
+                    url=url, is_enabled=True, owner=user, catalog_id=catalog_id,
+                ))
             db.commit()
         finally:
             db.close()

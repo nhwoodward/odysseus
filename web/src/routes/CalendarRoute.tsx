@@ -3,38 +3,28 @@ import {
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
 } from "react"
-import { useNavigate } from "react-router-dom"
 import { EmptyState } from "@/components/ui/empty-state"
+import { SkeletonCards } from "@/components/ui/skeleton"
 import {
   AlertTriangle,
-  Bell,
   CalendarPlus,
   ChevronLeft,
   ChevronRight,
-  Download,
-  ExternalLink,
-  Image,
-  MoreVertical,
-  Pencil,
   Plus,
   RefreshCw,
   Search,
   Tag,
-  Trash2,
   Upload,
   X,
   ZoomIn,
   ZoomOut,
 } from "lucide-react"
 import {
-  cookbookTaskId,
   createCalendarReminder,
   exportIcs,
-  uploadCalendarBackgroundImage,
   useCalendarMutations,
   useCalendars,
   useEventMutations,
@@ -43,62 +33,29 @@ import {
   useQuickAddEvent,
   useSync,
   type CalEvent,
-  type Calendar as CalendarInfo,
   type EventInput,
   type EventPatch,
 } from "@/api/calendar"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-
-const inp = "h-9 w-full rounded-md border bg-background px-3 text-sm outline-none focus-visible:border-ring"
-
-const RECUR_OPTIONS: { label: string; value: string }[] = [
-  { label: "Does not repeat", value: "" },
-  { label: "Daily", value: "FREQ=DAILY" },
-  { label: "Weekly", value: "FREQ=WEEKLY" },
-  { label: "Every weekday (Mon-Fri)", value: "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR" },
-  { label: "Monthly", value: "FREQ=MONTHLY" },
-  { label: "Yearly", value: "FREQ=YEARLY" },
-]
-
-const EVENT_TYPES = [
-  { label: "Work", value: "work" },
-  { label: "Personal", value: "personal" },
-  { label: "Health", value: "health" },
-  { label: "Travel", value: "travel" },
-  { label: "Meal", value: "meal" },
-  { label: "Social", value: "social" },
-  { label: "Admin", value: "admin" },
-  { label: "Other", value: "other" },
-]
-
-const IMPORTANCE_OPTIONS = [
-  { label: "Low", value: "low" },
-  { label: "Normal", value: "normal" },
-  { label: "High", value: "high" },
-  { label: "Critical", value: "critical" },
-]
-
-const REMINDER_OPTIONS = [
-  { label: "No reminder", value: "" },
-  { label: "At event time", value: "0" },
-  { label: "5 minutes before", value: "5" },
-  { label: "10 minutes before", value: "10" },
-  { label: "15 minutes before", value: "15" },
-  { label: "30 minutes before", value: "30" },
-  { label: "1 hour before", value: "60" },
-  { label: "2 hours before", value: "120" },
-  { label: "1 day before", value: "1440" },
-  { label: "Custom minutes", value: "custom" },
-]
-
-// Quick "Remind me" presets, measured in minutes before the event start.
-const QUICK_REMINDER_PRESETS: { label: string; minutes: number }[] = [
-  { label: "At event time", minutes: 0 },
-  { label: "10 minutes before", minutes: 10 },
-  { label: "1 hour before", minutes: 60 },
-  { label: "1 day before", minutes: 1440 },
-]
+import { CalendarRow } from "@/components/calendar/CalendarRow"
+import { EventCard } from "@/components/calendar/EventCard"
+import { EventForm } from "@/components/calendar/EventForm"
+import { NewCalendar } from "@/components/calendar/NewCalendar"
+import {
+  EVENT_TYPES,
+  RECUR_OPTIONS,
+  calBgImageStyle,
+  dateKey,
+  eventEnd,
+  eventStart,
+  inp,
+  pad,
+  parseDate,
+  sameDay,
+  solidEventColor,
+  type FormState,
+} from "@/components/calendar/util"
 
 const VIEWS = [
   { label: "Week", value: "week" },
@@ -132,27 +89,6 @@ interface UndoAction {
   run: () => Promise<void>
 }
 
-interface FormState {
-  summary: string
-  allDay: boolean
-  start: string
-  end: string
-  location: string
-  description: string
-  recur: string
-  customRrule: string
-  calendarHref: string
-  color: string
-  eventType: string
-  importance: string
-  reminder: string
-  reminderCustom: string
-}
-
-function pad(n: number): string {
-  return String(n).padStart(2, "0")
-}
-
 function startOfDay(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate())
 }
@@ -174,20 +110,6 @@ function startOfWeek(d: Date, weekStart: WeekStart): Date {
   const mondayOffset = day === 0 ? -6 : 1 - day
   const sundayOffset = -day
   return addDays(startOfDay(d), weekStart === "monday" ? mondayOffset : sundayOffset)
-}
-
-function parseDate(value?: string): Date | null {
-  if (!value) return null
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    const [year, month, day] = value.split("-").map(Number)
-    return new Date(year, month - 1, day)
-  }
-  const d = new Date(value)
-  return isNaN(d.getTime()) ? null : d
-}
-
-function dateKey(d: Date): string {
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
 function dateFromKey(key: string): Date {
@@ -234,32 +156,6 @@ function pointerMinutesForHeight(clientY: number, grid: HTMLElement, hourHeight:
   return clamp(roundToSlot((y / hourHeight) * 60), 0, WEEK_TOTAL_MINUTES)
 }
 
-function isCalBgImage(color?: string): boolean {
-  return typeof color === "string" && color.startsWith("bg:")
-}
-
-function calBgImageUrl(color?: string): string {
-  return isCalBgImage(color) ? (color || "").slice(3) : ""
-}
-
-function solidEventColor(color?: string, fallback = "var(--muted-foreground)"): string {
-  return color && !isCalBgImage(color) ? color : fallback
-}
-
-function colorInputValue(color?: string): string {
-  return color && !isCalBgImage(color) && /^#[0-9a-f]{6}$/i.test(color) ? color : "#5b8abf"
-}
-
-function calBgImageStyle(color?: string, overlay = "70%"): CSSProperties | undefined {
-  const url = calBgImageUrl(color)
-  if (!url) return undefined
-  return {
-    backgroundImage: `linear-gradient(color-mix(in srgb, var(--card) ${overlay}, transparent), color-mix(in srgb, var(--card) ${overlay}, transparent)), url(${JSON.stringify(url)})`,
-    backgroundSize: "cover",
-    backgroundPosition: "center",
-  }
-}
-
 function eventIdentity(ev: CalEvent): string {
   return ev.uid
 }
@@ -268,20 +164,8 @@ function eventMutationUid(ev: CalEvent): string {
   return ev.series_uid || ev.uid
 }
 
-function sameDay(a: Date, b: Date): boolean {
-  return dateKey(a) === dateKey(b)
-}
-
 function sameMonth(a: Date, b: Date): boolean {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth()
-}
-
-function eventStart(ev: CalEvent): Date | null {
-  return parseDate(ev.dtstart)
-}
-
-function eventEnd(ev: CalEvent): Date | null {
-  return parseDate(ev.dtend) || eventStart(ev)
 }
 
 function eventOverlapsDay(ev: CalEvent, day: Date): boolean {
@@ -311,25 +195,6 @@ function matchRecur(rrule?: string): string {
   if (!r) return ""
   const known = RECUR_OPTIONS.find((o) => o.value && o.value === r)
   return known ? known.value : "custom"
-}
-
-function eventTypeLabel(value?: string): string {
-  return EVENT_TYPES.find((t) => t.value === value)?.label || value || ""
-}
-
-function importanceLabel(value?: string): string {
-  return IMPORTANCE_OPTIONS.find((i) => i.value === value)?.label || value || "Normal"
-}
-
-function timeLabel(ev: CalEvent): string {
-  if (ev.all_day) return "All day"
-  const start = eventStart(ev)
-  if (!start) return ""
-  const end = eventEnd(ev)
-  const fmt = { hour: "numeric", minute: "2-digit" } as const
-  if (end && !sameDay(start, end)) return start.toLocaleString([], { month: "short", day: "numeric", ...fmt })
-  if (end && end > start) return `${start.toLocaleTimeString([], fmt)} - ${end.toLocaleTimeString([], fmt)}`
-  return start.toLocaleTimeString([], fmt)
 }
 
 function eventSearchText(ev: CalEvent): string {
@@ -492,426 +357,6 @@ function viewTitle(view: CalendarView, cursor: Date, weekStart: WeekStart): stri
   return `${cursor.toLocaleDateString([], { month: "short", day: "numeric" })} - ${end.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}`
 }
 
-function EventForm({
-  mode,
-  initial,
-  calendars,
-  pending,
-  error,
-  onCancel,
-  onSubmit,
-}: {
-  mode: "create" | "edit"
-  initial: FormState
-  calendars: CalendarInfo[]
-  pending: boolean
-  error?: string
-  onCancel: () => void
-  onSubmit: (f: FormState) => void | Promise<void>
-}) {
-  const [f, setF] = useState<FormState>(initial)
-  const [uploadingImage, setUploadingImage] = useState(false)
-  const [imageError, setImageError] = useState("")
-  const imageInputRef = useRef<HTMLInputElement>(null)
-  const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setF((p) => ({ ...p, [k]: v }))
-
-  const chooseImage = async (file?: File) => {
-    if (!file) return
-    setImageError("")
-    setUploadingImage(true)
-    try {
-      const url = await uploadCalendarBackgroundImage(file)
-      set("color", `bg:${url}`)
-    } catch (e) {
-      setImageError(e instanceof Error ? e.message : "Couldn't upload image")
-    } finally {
-      setUploadingImage(false)
-      if (imageInputRef.current) imageInputRef.current.value = ""
-    }
-  }
-
-  return (
-    <div className="space-y-3 rounded-lg border bg-card p-3" style={calBgImageStyle(f.color, "68%")}>
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold">{mode === "create" ? "New event" : "Edit event"}</span>
-        <button onClick={onCancel} title="Close" className="text-muted-foreground hover:text-foreground">
-          <X className="size-4" />
-        </button>
-      </div>
-      <input value={f.summary} onChange={(e) => set("summary", e.target.value)} placeholder="Title" className={inp} />
-      <label className="flex items-center gap-2 text-sm text-muted-foreground">
-        <input type="checkbox" checked={f.allDay} onChange={(e) => set("allDay", e.target.checked)} className="size-4" />
-        All day
-      </label>
-      <div className="grid gap-2 sm:grid-cols-2">
-        <div>
-          <label className="mb-1 block text-xs text-muted-foreground">Start</label>
-          <input type={f.allDay ? "date" : "datetime-local"} value={f.start} onChange={(e) => set("start", e.target.value)} className={inp} />
-        </div>
-        <div>
-          <label className="mb-1 block text-xs text-muted-foreground">End</label>
-          <input type={f.allDay ? "date" : "datetime-local"} value={f.end} onChange={(e) => set("end", e.target.value)} className={inp} />
-        </div>
-      </div>
-      <input value={f.location} onChange={(e) => set("location", e.target.value)} placeholder="Location (optional)" className={inp} />
-      <textarea
-        value={f.description}
-        onChange={(e) => set("description", e.target.value)}
-        placeholder="Description (optional)"
-        rows={3}
-        className="w-full resize-none rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring"
-      />
-      <div className="grid gap-2 md:grid-cols-3">
-        {mode === "create" && (
-          <div>
-            <label className="mb-1 block text-xs text-muted-foreground">Calendar</label>
-            <select value={f.calendarHref} onChange={(e) => set("calendarHref", e.target.value)} className={inp}>
-              {calendars.map((c) => (
-                <option key={c.href} value={c.href}>{c.name}</option>
-              ))}
-            </select>
-          </div>
-        )}
-        <div>
-          <label className="mb-1 block text-xs text-muted-foreground">Repeat</label>
-          <select value={f.recur} onChange={(e) => set("recur", e.target.value)} className={inp}>
-            {RECUR_OPTIONS.map((o) => <option key={o.value || "none"} value={o.value}>{o.label}</option>)}
-            {f.recur === "custom" && <option value="custom">Custom RRULE</option>}
-          </select>
-        </div>
-        <div>
-          <label className="mb-1 block text-xs text-muted-foreground">Type</label>
-          <select value={f.eventType} onChange={(e) => set("eventType", e.target.value)} className={inp}>
-            <option value="">No type</option>
-            {EVENT_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="mb-1 block text-xs text-muted-foreground">Importance</label>
-          <select value={f.importance} onChange={(e) => set("importance", e.target.value)} className={inp}>
-            {IMPORTANCE_OPTIONS.map((i) => <option key={i.value} value={i.value}>{i.label}</option>)}
-          </select>
-        </div>
-      </div>
-      {f.recur === "custom" && (
-        <input value={f.customRrule} onChange={(e) => set("customRrule", e.target.value)} placeholder="FREQ=WEEKLY;INTERVAL=2" className={inp} />
-      )}
-      <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_9rem_minmax(0,1fr)]">
-        <div>
-          <label className="mb-1 block text-xs text-muted-foreground">Reminder</label>
-          <select value={f.reminder} onChange={(e) => set("reminder", e.target.value)} className={inp}>
-            {REMINDER_OPTIONS.map((r) => <option key={r.value || "none"} value={r.value}>{r.label}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="mb-1 block text-xs text-muted-foreground">Color</label>
-          <div className="flex gap-1.5">
-            <input
-              type="color"
-              value={colorInputValue(f.color)}
-              onChange={(e) => set("color", e.target.value)}
-              aria-label="Event color"
-              title="Event color"
-              className="h-9 min-w-0 flex-1 cursor-pointer rounded-md border bg-background"
-            />
-            <input
-              ref={imageInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => void chooseImage(e.target.files?.[0])}
-            />
-            <button
-              type="button"
-              onClick={() => imageInputRef.current?.click()}
-              disabled={uploadingImage}
-              title="Set event background image"
-              aria-label="Set event background image"
-              className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-md border bg-background text-muted-foreground hover:bg-accent hover:text-foreground", isCalBgImage(f.color) && "border-primary text-primary")}
-            >
-              {uploadingImage ? <RefreshCw className="size-4 animate-spin" /> : <Image className="size-4" />}
-            </button>
-            {isCalBgImage(f.color) && (
-              <button
-                type="button"
-                onClick={() => set("color", "")}
-                title="Remove event background image"
-                aria-label="Remove event background image"
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-md border bg-background text-muted-foreground hover:bg-accent hover:text-foreground"
-              >
-                <X className="size-4" />
-              </button>
-            )}
-          </div>
-        </div>
-        {f.reminder === "custom" && (
-          <div>
-            <label className="mb-1 block text-xs text-muted-foreground">Minutes before</label>
-            <input type="number" min={0} value={f.reminderCustom} onChange={(e) => set("reminderCustom", e.target.value)} className={inp} />
-          </div>
-        )}
-      </div>
-      {(error || imageError) && <p className="text-xs text-destructive">{error || imageError}</p>}
-      <div className="flex justify-end gap-2">
-        <Button variant="ghost" size="sm" onClick={onCancel}>Cancel</Button>
-        <Button size="sm" disabled={pending || uploadingImage} onClick={() => void onSubmit(f)}>
-          {pending ? "Saving..." : mode === "create" ? "Create" : "Save"}
-        </Button>
-      </div>
-    </div>
-  )
-}
-
-function NewCalendar({ pending, onCancel, onSubmit }: { pending: boolean; onCancel: () => void; onSubmit: (name: string, color: string) => void }) {
-  const [name, setName] = useState("")
-  const [color, setColor] = useState("#5b8abf")
-  return (
-    <div className="mb-3 space-y-2 border-b pb-3">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold">New calendar</span>
-        <button onClick={onCancel} title="Close" className="text-muted-foreground hover:text-foreground">
-          <X className="size-4" />
-        </button>
-      </div>
-      <div className="flex gap-2">
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Calendar name" className={inp} />
-        <input type="color" value={color} onChange={(e) => setColor(e.target.value)} title="Color" className="h-9 w-12 shrink-0 cursor-pointer rounded-md border bg-background" />
-      </div>
-      <div className="flex justify-end gap-2">
-        <Button variant="ghost" size="sm" onClick={onCancel}>Cancel</Button>
-        <Button size="sm" disabled={pending || !name.trim()} onClick={() => onSubmit(name.trim(), color)}>
-          {pending ? "Creating..." : "Create"}
-        </Button>
-      </div>
-    </div>
-  )
-}
-
-function CalendarRow({
-  calendar,
-  active,
-  deleteDisabled,
-  pending,
-  onFilter,
-  onSave,
-  onDelete,
-  onExport,
-}: {
-  calendar: CalendarInfo
-  active: boolean
-  deleteDisabled: boolean
-  pending: boolean
-  onFilter: () => void
-  onSave: (name: string, color: string) => void
-  onDelete: () => void
-  onExport: () => void
-}) {
-  const [name, setName] = useState(calendar.name)
-  const [color, setColor] = useState(calendar.color || "#5b8abf")
-  const changed = name.trim() !== calendar.name || color !== (calendar.color || "#5b8abf")
-
-  return (
-    <div className="grid gap-2 rounded-md border bg-background p-2 text-sm md:grid-cols-[1fr_8rem_auto] md:items-center">
-      <div className="flex min-w-0 items-center gap-2">
-        <span className="size-2.5 shrink-0 rounded-full" style={{ background: color }} />
-        <input value={name} onChange={(e) => setName(e.target.value)} aria-label={`${calendar.name} name`} className="h-8 min-w-0 flex-1 rounded-md border bg-card px-2 text-sm outline-none focus-visible:border-ring" />
-      </div>
-      <div className="flex items-center gap-2">
-        <input type="color" value={color} onChange={(e) => setColor(e.target.value)} aria-label={`${calendar.name} color`} className="h-8 w-10 shrink-0 cursor-pointer rounded-md border bg-card" />
-        <span className="truncate text-xs text-muted-foreground">{calendar.source || "local"}</span>
-      </div>
-      <div className="flex justify-end gap-1.5">
-        <Button size="sm" variant={active ? "secondary" : "ghost"} onClick={onFilter}>{active ? "Showing" : "Filter"}</Button>
-        <Button size="sm" variant="ghost" disabled={pending || !changed || !name.trim()} onClick={() => onSave(name.trim(), color)}>Save</Button>
-        <button onClick={onExport} title="Export .ics" className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground">
-          <Download className="size-4" />
-        </button>
-        <button disabled={deleteDisabled || pending} onClick={onDelete} title="Delete calendar" className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-destructive disabled:pointer-events-none disabled:opacity-50">
-          <Trash2 className="size-4" />
-        </button>
-      </div>
-    </div>
-  )
-}
-
-function quickReminderDue(ev: CalEvent, minutes: number): string | null {
-  const start = eventStart(ev)
-  if (!start) return null
-  const due = new Date(start)
-  due.setMinutes(due.getMinutes() - minutes)
-  return due.toISOString()
-}
-
-// Compact ⋮ menu on event tiles for setting a reminder without opening the
-// full editor. Reuses createCalendarReminder with a handful of preset offsets.
-function QuickReminderMenu({
-  ev,
-  align = "right",
-  className,
-  onResult,
-}: {
-  ev: CalEvent
-  align?: "left" | "right"
-  className?: string
-  onResult: (message: string) => void
-}) {
-  const [open, setOpen] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-  const start = eventStart(ev)
-  const title = ev.summary || ev.title || "(untitled)"
-
-  useEffect(() => {
-    if (!open) return
-    const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
-    }
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false) }
-    document.addEventListener("mousedown", onDown)
-    document.addEventListener("keydown", onKey)
-    return () => {
-      document.removeEventListener("mousedown", onDown)
-      document.removeEventListener("keydown", onKey)
-    }
-  }, [open])
-
-  const remind = async (minutes: number, label: string) => {
-    const dueDate = quickReminderDue(ev, minutes)
-    if (!dueDate) { onResult("Can't set a reminder without an event time."); setOpen(false); return }
-    setBusy(true)
-    try {
-      await createCalendarReminder({
-        title: `Reminder: ${title}`,
-        content: ev.location ? `${title} at ${ev.location}` : title,
-        dueDate,
-        eventStart: start ? start.toISOString() : undefined,
-        color: ev.color && !isCalBgImage(ev.color) ? ev.color : undefined,
-      })
-      onResult(`Reminder set ${label.toLowerCase()}.`)
-    } catch (e) {
-      onResult(e instanceof Error ? e.message : "Couldn't create reminder")
-    } finally {
-      setBusy(false)
-      setOpen(false)
-    }
-  }
-
-  return (
-    <div ref={ref} className={cn("relative", className)}>
-      <button
-        type="button"
-        onClick={(e) => { e.stopPropagation(); setOpen((o) => !o) }}
-        title="Set a reminder"
-        aria-label="Set a reminder"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-      >
-        <MoreVertical className="size-4" />
-      </button>
-      {open && (
-        <div
-          role="menu"
-          onClick={(e) => e.stopPropagation()}
-          className={cn(
-            "absolute top-full z-30 mt-1 w-44 overflow-hidden rounded-md border bg-popover py-1 text-sm shadow-md",
-            align === "right" ? "right-0" : "left-0",
-          )}
-        >
-          <div className="flex items-center gap-1.5 px-3 py-1 text-label font-medium uppercase tracking-wider text-muted-foreground">
-            <Bell className="size-3" />Remind me
-          </div>
-          {QUICK_REMINDER_PRESETS.map((p) => (
-            <button
-              key={p.minutes}
-              role="menuitem"
-              type="button"
-              disabled={busy || !start}
-              onClick={() => void remind(p.minutes, p.label)}
-              className="block w-full px-3 py-1.5 text-left hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
-            >
-              {p.label}
-            </button>
-          ))}
-          {!start && <p className="px-3 py-1 text-label text-muted-foreground">No event time</p>}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function CookbookTaskLink({ ev, compact }: { ev: CalEvent; compact?: boolean }) {
-  const navigate = useNavigate()
-  const taskId = cookbookTaskId(ev.description)
-  if (!taskId) return null
-  return (
-    <button
-      type="button"
-      onClick={(e) => { e.stopPropagation(); navigate("/tasks") }}
-      title="Open in Tasks"
-      className={cn(
-        "inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-muted-foreground hover:text-foreground",
-        compact ? "text-label" : "text-xs",
-      )}
-    >
-      <ExternalLink className="size-3" />Open in Tasks
-    </button>
-  )
-}
-
-function EventCard({ ev, compact, onEdit, onDelete, onReminder }: { ev: CalEvent; compact?: boolean; onEdit: () => void; onDelete: () => void; onReminder: (message: string) => void }) {
-  const importance = (ev.importance || "normal").toLowerCase()
-  const isImportant = importance === "high" || importance === "critical"
-  const title = ev.summary || ev.title || "(untitled)"
-  return (
-    <div className={cn("group flex min-w-0 gap-2 rounded-md border bg-card p-2", compact ? "text-xs" : "p-3")} style={calBgImageStyle(ev.color)}>
-      <span className={cn("w-1 shrink-0 rounded-full", compact ? "h-auto" : "h-10")} style={{ background: solidEventColor(ev.color) }} />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5">
-          <span className={cn("truncate font-medium", compact ? "text-xs" : "text-sm")}>{title}</span>
-          {(ev.is_recurrence || ev.rrule) && <RefreshCw className="size-3 shrink-0 text-muted-foreground" />}
-        </div>
-        <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-label text-muted-foreground">
-          <span>{timeLabel(ev)}</span>
-          {ev.event_type && (
-            <span className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5">
-              <Tag className="size-3" />
-              {eventTypeLabel(ev.event_type)}
-            </span>
-          )}
-          {isImportant && (
-            <span className="inline-flex items-center gap-1 rounded bg-destructive/10 px-1.5 py-0.5 text-destructive">
-              <AlertTriangle className="size-3" />
-              {importanceLabel(importance)}
-            </span>
-          )}
-          <CookbookTaskLink ev={ev} compact={compact} />
-        </div>
-        {!compact && ev.location && (
-          <a
-            href={`https://maps.google.com/?q=${encodeURIComponent(ev.location)}`}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-1 block truncate text-xs text-muted-foreground underline-offset-2 hover:underline"
-          >
-            {ev.location}
-          </a>
-        )}
-        {!compact && ev.description && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{ev.description}</p>}
-      </div>
-      <div className="flex shrink-0 items-center gap-1 opacity-100 md:opacity-0 md:transition-opacity md:group-hover:opacity-100">
-        {!compact && <QuickReminderMenu ev={ev} onResult={onReminder} />}
-        <button onClick={onEdit} title="Edit" className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground">
-          <Pencil className="size-4" />
-        </button>
-        <button onClick={onDelete} title="Delete" className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-destructive">
-          <Trash2 className="size-4" />
-        </button>
-      </div>
-    </div>
-  )
-}
-
 export function CalendarRoute() {
   const [view, setView] = useState<CalendarView>("month")
   const [cursor, setCursor] = useState(() => startOfDay(new Date()))
@@ -932,7 +377,7 @@ export function CalendarRoute() {
     return Number.isFinite(saved) && saved > DAY_DETAIL_MIN_HEIGHT ? saved : DAY_DETAIL_DEFAULT_HEIGHT
   })
   const range = useMemo(() => rangeForView(view, cursor, weekStart), [view, cursor, weekStart])
-  const { data: events } = useEvents(range.start.toISOString(), range.end.toISOString())
+  const { data: events, isLoading: eventsLoading } = useEvents(range.start.toISOString(), range.end.toISOString())
   const { data: calendars } = useCalendars()
   const qa = useQuickAddEvent()
   const { create, update, remove } = useEventMutations()
@@ -1531,11 +976,11 @@ export function CalendarRoute() {
           <span className="ml-2 text-sm text-muted-foreground">{viewTitle(view, cursor, weekStart)}</span>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-1.5">
-          <Button size="icon" variant="ghost" onClick={() => moveCursor(-1)} title="Previous">
+          <Button size="icon" variant="ghost" onClick={() => moveCursor(-1)} title="Previous" aria-label="Previous">
             <ChevronLeft className="size-4" />
           </Button>
           <Button size="sm" variant="outline" onClick={goToday}>Today</Button>
-          <Button size="icon" variant="ghost" onClick={() => moveCursor(1)} title="Next">
+          <Button size="icon" variant="ghost" onClick={() => moveCursor(1)} title="Next" aria-label="Next">
             <ChevronRight className="size-4" />
           </Button>
           <div className="mx-1 hidden h-6 w-px bg-border sm:block" />
@@ -1610,7 +1055,7 @@ export function CalendarRoute() {
           <div className="flex flex-wrap items-center gap-2 rounded-md border bg-card px-3 py-2 text-xs text-muted-foreground">
             <span>{undoAction.label}</span>
             <Button size="sm" variant="outline" onClick={() => void runUndo()}>Undo</Button>
-            <button onClick={() => setUndoAction(null)} title="Dismiss undo" className="rounded p-1 hover:bg-accent">
+            <button onClick={() => setUndoAction(null)} title="Dismiss undo" aria-label="Dismiss undo" className="rounded p-1 hover:bg-accent">
               <X className="size-3.5" />
             </button>
           </div>
@@ -2006,7 +1451,8 @@ export function CalendarRoute() {
           </div>
         )}
 
-        {sorted.length === 0 && !showDayDetail && <EmptyState title="No events" description="No events match this view." />}
+        {eventsLoading && sorted.length === 0 && !showDayDetail && <SkeletonCards count={6} className="mt-1" />}
+        {!eventsLoading && sorted.length === 0 && !showDayDetail && <EmptyState title="No events" description="No events match this view." />}
       </div>
     </div>
   )

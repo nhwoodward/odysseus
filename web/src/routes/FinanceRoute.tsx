@@ -1,25 +1,33 @@
-import { useEffect, useMemo, useState } from "react"
-import { Bar, BarChart, CartesianGrid, Pie, PieChart, XAxis } from "recharts"
-import { Landmark, Loader2, Plus, Trash2, TrendingUp, CreditCard, Repeat, PiggyBank, Wallet } from "lucide-react"
+import { useMemo, useState } from "react"
+import { Pie, PieChart } from "recharts"
+import { Landmark, Loader2, Plus, RefreshCw, Trash2, TrendingUp, PiggyBank, Sparkles, MessageCircle, type LucideIcon } from "lucide-react"
 import {
-  useFinanceStatus, useFinanceItems, useFinanceSummary, useFinanceTransactions,
-  useFinanceInvestments, useFinanceMutations, money, type FinanceSummary,
+  useFinanceStatus, useFinanceItems, useFinanceSummary, useFinanceCashflow, useFinanceNetworth,
+  useFinanceTransactions, useFinanceRecurring, useFinanceAccounts, useFinanceInvestments,
+  useFinanceMutations, useFinanceRefresh, money, type FinanceSummary, type FinanceCashflow, type NetWorthHistory, type PlaidItemInfo,
 } from "@/api/finance"
 import { useAuthStatus } from "@/api/auth"
 import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { SkeletonList } from "@/components/ui/skeleton"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Dialog, DialogHeader, DialogBody, DialogFooter } from "@/components/ui/dialog"
+import { useAskAssistant } from "@/lib/composerHandoff"
 import { cn } from "@/lib/utils"
-import { FinanceOnboarding } from "./finance/FinanceOnboarding"
+import { FinanceOnboarding, EnvBadge } from "./finance/FinanceOnboarding"
+import { InstitutionList } from "./finance/InstitutionList"
+import { FinanceDisclaimer } from "./finance/FinanceDisclaimer"
+import { CashFlowCard } from "./finance/CashFlowCard"
+import { NetWorthCard } from "./finance/NetWorthCard"
+import { SpendingBreakdown } from "./finance/SpendingBreakdown"
+import { BillsTab } from "./finance/BillsTab"
+import { AccountsTab } from "./finance/AccountsTab"
+import { TransactionsFeed } from "./finance/TransactionsFeed"
+import { PALETTE, prettyCat, relTime } from "./finance/util"
 
-const PALETTE = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"]
-const prettyCat = (s?: string) => (s || "OTHER").replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())
-
-function Stat({ icon: Icon, label, value, sub }: { icon: typeof Wallet; label: string; value: string; sub?: string }) {
+function Stat({ icon: Icon, label, value, sub }: { icon: LucideIcon; label: string; value: string; sub?: string }) {
   return (
     <Card className="p-4">
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><Icon className="size-3.5" />{label}</div>
@@ -58,92 +66,45 @@ function Legend({ data }: { data: { name: string; value: number }[] }) {
   )
 }
 
-function Overview({ summary }: { summary: FinanceSummary }) {
-  const spend = summary.spending_by_category.map((c) => ({ name: c.category, value: c.amount }))
+function CashflowError() {
+  return <Card className="p-4"><p className="py-8 text-center text-sm text-muted-foreground">Couldn't load this right now — refresh the page to retry.</p></Card>
+}
+
+// Overview: net-worth summary (the trend chart is P1 — needs balance snapshots),
+// then the cash-flow + spending-breakdown pair.
+function Overview({ summary, cashflow, cashflowError, networth, networthError }: { summary: FinanceSummary; cashflow?: FinanceCashflow; cashflowError?: boolean; networth?: NetWorthHistory; networthError?: boolean }) {
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat icon={Wallet} label="Net worth" value={money(summary.net_worth)} sub={`${summary.accounts_count} account${summary.accounts_count === 1 ? "" : "s"}`} />
-        <Stat icon={CreditCard} label="Spent (30d)" value={money(summary.spending_30d_total)} />
-        <Stat icon={Repeat} label="Subscriptions" value={money(summary.subscriptions_monthly)} sub={`${summary.subscriptions_count}/mo recurring`} />
-        <Stat icon={PiggyBank} label="Investments" value={money(summary.investments_value)} />
-      </div>
+      <NetWorthCard summary={summary} history={networth} error={networthError} />
       <div className="grid gap-3 lg:grid-cols-2">
-        <Card className="p-4">
-          <div className="mb-2 text-sm font-medium">Spending by category · last 30 days</div>
-          <div className="grid items-center gap-2 sm:grid-cols-2">
-            <CategoryDonut data={spend} total={summary.spending_30d_total} centerLabel="spent" />
-            <Legend data={spend} />
-          </div>
-        </Card>
-        <Card className="p-4">
-          <div className="mb-2 text-sm font-medium">Assets vs. liabilities</div>
-          <div className="space-y-2 pt-1">
-            <Bar2 label="Assets" value={summary.assets} max={Math.max(summary.assets, summary.liabilities, 1)} tone="bg-emerald-500" />
-            <Bar2 label="Liabilities" value={summary.liabilities} max={Math.max(summary.assets, summary.liabilities, 1)} tone="bg-destructive" />
-            <div className="flex items-center justify-between border-t pt-2 text-sm font-medium">
-              <span>Net worth</span><span className="tabular-nums">{money(summary.net_worth)}</span>
-            </div>
-          </div>
-        </Card>
+        {cashflow ? <CashFlowCard data={cashflow} /> : cashflowError ? <CashflowError /> : <Card className="p-4"><SkeletonList rows={3} /></Card>}
+        {cashflow ? <SpendingBreakdown categories={cashflow.categories} /> : cashflowError ? <CashflowError /> : <Card className="p-4"><SkeletonList rows={3} /></Card>}
       </div>
       {summary.pending && <p className="text-xs text-muted-foreground">Plaid is still preparing some data — refresh in a moment.</p>}
     </div>
   )
 }
 
-function Bar2({ label, value, max, tone }: { label: string; value: number; max: number; tone: string }) {
+function SpendingTab({ cashflow, cashflowError }: { cashflow?: FinanceCashflow; cashflowError?: boolean }) {
+  const { data, isLoading } = useFinanceTransactions(90)
   return (
-    <div>
-      <div className="mb-1 flex items-center justify-between text-sm"><span className="text-muted-foreground">{label}</span><span className="tabular-nums">{money(value)}</span></div>
-      <div className="h-2 overflow-hidden rounded-full bg-muted"><div className={cn("h-full rounded-full", tone)} style={{ width: `${Math.min(100, (value / max) * 100)}%` }} /></div>
+    <div className="space-y-4">
+      {cashflow ? <SpendingBreakdown categories={cashflow.categories} /> : cashflowError ? <CashflowError /> : <Card className="p-4"><SkeletonList rows={4} /></Card>}
+      {isLoading ? <SkeletonList rows={6} /> : <TransactionsFeed transactions={data?.transactions || []} />}
     </div>
   )
 }
 
-function SpendingTab() {
-  const { data, isLoading } = useFinanceTransactions(90)
-  const txns = useMemo(() => data?.transactions || [], [data])
-  const byCat = useMemo(() => {
-    const m: Record<string, number> = {}
-    for (const t of txns) { const a = t.amount || 0; if (a > 0) m[t.category || "OTHER"] = (m[t.category || "OTHER"] || 0) + a }
-    return Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([name, value]) => ({ name: prettyCat(name), value: Math.round(value) }))
-  }, [txns])
-  if (isLoading) return <SkeletonList rows={5} />
-  return (
-    <div className="space-y-4">
-      <Card className="p-4">
-        <div className="mb-2 text-sm font-medium">Top categories · last 90 days</div>
-        {byCat.length ? (
-          <ChartContainer config={{}} className="h-[240px] w-full">
-            <BarChart data={byCat} margin={{ left: 4, right: 4 }}>
-              <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border" />
-              <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} fontSize={11} interval={0} angle={-20} textAnchor="end" height={50} />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              <Bar dataKey="value" radius={[4, 4, 0, 0]} fill="var(--chart-1)" />
-            </BarChart>
-          </ChartContainer>
-        ) : <p className="py-8 text-center text-sm text-muted-foreground">No spending in this window.</p>}
-      </Card>
-      <Card className="p-0">
-        <div className="border-b p-3 text-sm font-medium">Recent transactions</div>
-        <Table>
-          <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Merchant</TableHead><TableHead>Category</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
-          <TableBody>
-            {txns.slice(0, 40).map((t, i) => (
-              <TableRow key={i}>
-                <TableCell className="text-muted-foreground tabular-nums">{t.date}</TableCell>
-                <TableCell className="max-w-[220px] truncate">{t.name || "—"}</TableCell>
-                <TableCell><Badge variant="secondary">{prettyCat(t.category)}</Badge></TableCell>
-                <TableCell className={cn("text-right tabular-nums", (t.amount || 0) < 0 && "text-emerald-600 dark:text-emerald-400")}>{money(t.amount)}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-        {!txns.length && <p className="p-4 text-center text-sm text-muted-foreground">No transactions.</p>}
-      </Card>
-    </div>
-  )
+function BillsTabWrap() {
+  const { data, isLoading } = useFinanceRecurring()
+  if (isLoading) return <SkeletonList rows={6} />
+  return <BillsTab subscriptions={data?.subscriptions || []} monthlyTotal={data?.monthly_total || 0} />
+}
+
+function AccountsTabWrap() {
+  const { data, isLoading } = useFinanceAccounts()
+  if (isLoading || !data) return <SkeletonList rows={6} />
+  return <AccountsTab balances={data} />
 }
 
 function InvestmentsTab() {
@@ -178,12 +139,27 @@ function InvestmentsTab() {
             ))}
           </TableBody>
         </Table>
+        {data.holdings.length > 40 && (
+          <div className="border-t p-3 text-center text-xs text-muted-foreground">
+            Showing the top 40 of {data.holdings.length} holdings by value
+          </div>
+        )}
       </Card>
     </div>
   )
 }
 
-const TABS = [["overview", "Overview"], ["spending", "Spending"], ["investments", "Investments"]] as const
+const TABS = [["overview", "Overview"], ["spending", "Spending"], ["bills", "Bills"], ["accounts", "Accounts"], ["investments", "Investments"]] as const
+type TabId = (typeof TABS)[number][0]
+
+// Context-relevant starter the inline "Ask about this" hands to the assistant per tab.
+const TAB_QUESTION: Record<TabId, string> = {
+  overview: "Give me a summary of my finances right now.",
+  spending: "Where did I spend the most this month?",
+  bills: "Which subscriptions or recurring bills could I cancel to save money?",
+  accounts: "What's my net worth and how is it split across my accounts?",
+  investments: "How is my investment portfolio allocated?",
+}
 
 export function FinanceRoute() {
   const { data: status, isLoading: statusLoading } = useFinanceStatus()
@@ -191,34 +167,47 @@ export function FinanceRoute() {
   const isAdmin = !!auth?.is_admin
   const connected = (status?.item_count || 0) > 0
   const { data: items } = useFinanceItems(connected)
-  const { data: summary } = useFinanceSummary(connected)
+  const summaryQuery = useFinanceSummary(connected)
+  const summary = summaryQuery.data
+  const { data: cashflow, isError: cashflowError } = useFinanceCashflow(connected)
+  const { data: networth, isError: networthError } = useFinanceNetworth(connected)
   const { connect, removeItem } = useFinanceMutations()
-  const [tab, setTab] = useState<(typeof TABS)[number][0]>("overview")
+  const { refresh, fetching } = useFinanceRefresh()
+  const [tab, setTab] = useState<TabId>("overview")
+  const [toDisconnect, setToDisconnect] = useState<PlaidItemInfo | null>(null)
+  const ask = useAskAssistant()
 
-  // Hold the onboarding "You're connected" beat briefly after a successful
-  // connect, so it's seen before the dashboard swaps in (status refetches fast).
-  // `celebrate` is derived; the effect only schedules the dismissal timer
-  // (async setState) — no synchronous setState in the effect body.
+  // `celebrate` shows the success hub while the last connect succeeded, until the
+  // user clicks "View dashboard" (connect.reset()). The connect mutation
+  // optimistically bumps item_count on success (api/finance.ts), so `connected`
+  // is already true here. Gating on connect.isPending keeps "Add more"/"Connect
+  // another" on the onboarding connecting screen rather than collapsing mid-popup.
   const justConnected = connect.isSuccess && connect.data?.connected === true
-  const [beatDone, setBeatDone] = useState(false)
-  const connectReset = connect.reset
-  useEffect(() => {
-    if (!justConnected) return
-    const t = setTimeout(() => { setBeatDone(true); connectReset() }, 1800)
-    return () => clearTimeout(t)
-  }, [justConnected, connectReset])
-  const celebrate = justConnected && !beatDone
-  const showOnboarding = !connected || celebrate
+  const celebrate = justConnected
+  const showOnboarding = !connected || celebrate || connect.isPending
 
   const header = (
     <header className="flex shrink-0 flex-wrap items-center gap-2 border-b px-4 py-3 lg:px-6">
       <Landmark className="size-5 text-muted-foreground" />
       <h1 className="text-lg font-semibold">Finance</h1>
-      {status?.env && <Badge variant="secondary">{status.env}</Badge>}
+      <EnvBadge env={status?.env} />
       {connected && (
-        <Button size="sm" className="ml-auto" disabled={connect.isPending} onClick={() => connect.mutate()}>
-          {connect.isPending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}Connect another
-        </Button>
+        <div className="ml-auto flex items-center gap-2">
+          {summaryQuery.dataUpdatedAt > 0 && (
+            <span className="hidden text-xs text-muted-foreground sm:inline" aria-live="polite">
+              {fetching ? "Syncing…" : `Updated ${relTime(summaryQuery.dataUpdatedAt)}`}
+            </span>
+          )}
+          <Button variant="ghost" size="iconSm" onClick={refresh} disabled={fetching} title="Refresh data" aria-label="Refresh finance data">
+            <RefreshCw className={cn("size-4", fetching && "animate-spin")} />
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => ask()}>
+            <MessageCircle className="size-4" />Ask your assistant
+          </Button>
+          <Button size="sm" disabled={connect.isPending} onClick={() => connect.mutate()}>
+            {connect.isPending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}Connect another
+          </Button>
+        </div>
       )}
     </header>
   )
@@ -227,11 +216,11 @@ export function FinanceRoute() {
   if (statusLoading) {
     body = <div className="p-4 lg:p-6"><SkeletonList rows={4} /></div>
   } else if (showOnboarding) {
-    body = <FinanceOnboarding isAdmin={isAdmin} status={status} connect={connect} celebrate={celebrate} />
+    body = <FinanceOnboarding isAdmin={isAdmin} status={status} connect={connect} celebrate={celebrate} items={items} pending={summary?.pending} />
   } else {
     body = (
       <div className="min-h-0 flex-1 overflow-y-auto p-4 lg:p-6">
-        <div className="mb-4 flex gap-1.5">
+        <div className="mb-4 flex flex-wrap items-center gap-1.5">
           {TABS.map(([id, label]) => (
             <button key={id} onClick={() => setTab(id)} aria-pressed={tab === id}
               className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors",
@@ -239,33 +228,60 @@ export function FinanceRoute() {
               {label}
             </button>
           ))}
+          <Button variant="ghost" size="sm" className="ml-auto" onClick={() => ask(TAB_QUESTION[tab])}>
+            <Sparkles className="size-4" />Ask about this
+          </Button>
         </div>
-        {tab === "overview" && (summary ? <Overview summary={summary} /> : <SkeletonList rows={4} />)}
-        {tab === "spending" && <SpendingTab />}
+
+        {tab === "overview" && (summary ? <Overview summary={summary} cashflow={cashflow} cashflowError={cashflowError} networth={networth} networthError={networthError} /> : <SkeletonList rows={4} />)}
+        {tab === "spending" && <SpendingTab cashflow={cashflow} cashflowError={cashflowError} />}
+        {tab === "bills" && <BillsTabWrap />}
+        {tab === "accounts" && (
+          <div className="space-y-6">
+            <AccountsTabWrap />
+            {!!items?.length && (
+              <section>
+                <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Connected institutions</h2>
+                <InstitutionList
+                  items={items}
+                  pending={summary?.pending}
+                  renderTrailing={(it) => (
+                    <button onClick={() => setToDisconnect(it)} title="Disconnect" aria-label={`Disconnect ${it.institution_name || "institution"}`}
+                      className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-destructive">
+                      <Trash2 className="size-4" />
+                    </button>
+                  )}
+                />
+              </section>
+            )}
+          </div>
+        )}
         {tab === "investments" && <InvestmentsTab />}
 
-        {!!items?.length && (
-          <section className="mt-6">
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Connected institutions</h2>
-            <div className="grid gap-2 md:grid-cols-2">
-              {items.map((it) => (
-                <div key={it.id} className="flex items-center gap-3 rounded-lg border bg-card p-3">
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"><Landmark className="size-4" /></span>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-medium">{it.institution_name || "Institution"}</div>
-                    <div className="truncate text-xs text-muted-foreground">{(it.accounts?.length || 0)} account{(it.accounts?.length || 0) === 1 ? "" : "s"}{it.error ? ` · ${it.error}` : ""}</div>
-                  </div>
-                  <button onClick={() => { if (confirm("Disconnect this institution?")) removeItem.mutate(it.id) }} title="Disconnect" className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-destructive">
-                    <Trash2 className="size-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
+        <FinanceDisclaimer />
       </div>
     )
   }
 
-  return <div className="flex h-full min-h-0 flex-col">{header}{body}</div>
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      {header}
+      {body}
+      <Dialog open={!!toDisconnect} onClose={() => setToDisconnect(null)} label="Disconnect institution" className="max-w-sm">
+        <DialogHeader title={`Disconnect ${toDisconnect?.institution_name || "institution"}?`} onClose={() => setToDisconnect(null)} />
+        <DialogBody>
+          <p className="text-sm text-muted-foreground">
+            This removes the connection and deletes its stored data from Odysseus. Your bank login and accounts are not affected — you can reconnect any time.
+          </p>
+        </DialogBody>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setToDisconnect(null)}>Cancel</Button>
+          <Button variant="destructive" disabled={removeItem.isPending}
+            onClick={() => { if (toDisconnect) removeItem.mutate(toDisconnect.id, { onSuccess: () => setToDisconnect(null) }) }}>
+            {removeItem.isPending && <Loader2 className="size-4 animate-spin" />}Disconnect
+          </Button>
+        </DialogFooter>
+      </Dialog>
+    </div>
+  )
 }

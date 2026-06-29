@@ -128,6 +128,31 @@ export function useConnectorMutations() {
       },
       onSuccess: inv,
     }),
+    // Retry a failed/stale connection. Hits the same connect endpoint by catalog
+    // id; the backend re-templates the existing row from the catalog (picking up
+    // package/url fixes) while preserving stored secret fields and OAuth tokens.
+    reconnect: useMutation({
+      mutationFn: async (catalogId: string): Promise<ConnectResult> => {
+        const fd = new FormData()
+        fd.append("fields", "{}")
+        const r = await apiFetch(`/api/connectors/${encodeURIComponent(catalogId)}/connect`, { method: "POST", body: fd })
+        if (!r.ok) throw new Error(await errOf(r, "Couldn't reconnect"))
+        return r.json()
+      },
+      onSuccess: inv,
+    }),
+    // OAuth paste-back fallback: when the post-authorization redirect can't reach
+    // Odysseus (remote browser, popup blocked), the user pastes the callback URL
+    // and we complete the handshake via the shared MCP OAuth exchange route.
+    exchange: useMutation({
+      mutationFn: async (v: { serverId: string; callbackUrl: string }) => {
+        const fd = new FormData()
+        fd.append("callback_url", v.callbackUrl)
+        const r = await apiFetch(`/api/mcp/oauth/exchange/${encodeURIComponent(v.serverId)}`, { method: "POST", body: fd })
+        if (!r.ok) throw new Error(await errOf(r, "Couldn't complete authorization"))
+      },
+      onSuccess: inv,
+    }),
     connectCustom: useMutation({
       mutationFn: async (v: { name: string; url: string }): Promise<ConnectResult> => {
         const fd = new FormData()

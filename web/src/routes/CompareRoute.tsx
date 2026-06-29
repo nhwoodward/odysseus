@@ -4,7 +4,6 @@ import {
   Bot,
   Check,
   ChevronDown,
-  Code2,
   Copy,
   Download,
   EyeOff,
@@ -12,13 +11,9 @@ import {
   GitCompareArrows,
   History,
   Loader2,
-  Maximize2,
-  Minimize2,
   MessagesSquare,
-  Play,
   Plus,
   Printer,
-  RefreshCw,
   RotateCcw,
   Search,
   Send,
@@ -28,10 +23,8 @@ import {
   Trash2,
   Trophy,
   X,
-  Zap,
 } from "lucide-react"
 import { useAuthStatus } from "@/api/auth"
-import { useModels } from "@/api/models"
 import { createSession, deleteSession } from "@/api/sessions"
 import {
   listSearchProviders,
@@ -43,24 +36,25 @@ import {
   revealCompare,
   useCompareHistory,
   voteCompare,
-  type CompareHistoryItem,
   type CompareStart,
   type SearchProviderInfo,
   type SearchProviderResponse,
   type SearchResultItem,
 } from "@/api/compare"
 import { streamChat } from "@/lib/sse"
-import { Markdown } from "@/components/chat/Markdown"
 import { safeImageSrc } from "@/lib/safeImage"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { toast } from "@/stores/toast"
 import { cn } from "@/lib/utils"
+import { ModelSelect } from "@/components/compare/ModelSelect"
+import { EvalPromptSelect } from "@/components/compare/EvalPromptSelect"
+import { Scoreboard } from "@/components/compare/Scoreboard"
+import { Pane } from "@/components/compare/Pane"
+import { ProviderSelect } from "@/components/compare/ProviderSelect"
+import { EMPTY_SEL, formatElapsed, shortName, type CompareMode, type EvalPrompt, type GradeStatus, type PaneMetrics, type Sel } from "@/components/compare/util"
 
-interface Sel { model: string; endpointId: string; endpointUrl: string }
-type CompareMode = "chat" | "agent" | "search" | "research"
 type RevealedModels = Record<string, string>
-type GradeStatus = "pass" | "fail"
 type ProbeStatus = { kind: "ok" | "error" | "info"; text: string }
 
 interface ComparePaneState {
@@ -75,13 +69,6 @@ interface ComparePaneState {
   sessionId?: string
 }
 
-interface EvalPrompt {
-  sub: string
-  label: string
-  prompt: string
-  answer?: string
-}
-
 const MODES: Array<{ value: CompareMode; label: string; icon: typeof MessagesSquare }> = [
   { value: "chat", label: "Chat", icon: MessagesSquare },
   { value: "agent", label: "Agent", icon: Bot },
@@ -89,41 +76,9 @@ const MODES: Array<{ value: CompareMode; label: string; icon: typeof MessagesSqu
   { value: "research", label: "Research", icon: Search },
 ]
 
-const EVAL_PROMPTS: Record<CompareMode, EvalPrompt[]> = {
-  chat: [
-    { sub: "Featured", label: "Sum digits 2^100", answer: "115", prompt: "Compute the sum of the decimal digits of 2^100. Do NOT use code execution - work it out by reasoning about the number. Show every step, then end with the final number on its own line." },
-    { sub: "Featured", label: "Three jugs", answer: "2 pours: 7->5, 7->3", prompt: "You have three jugs of capacities 7, 5, and 3 liters. The 7-liter jug starts full; the others empty. Using only pouring (no markings), produce the shortest sequence of pours that leaves exactly 2 liters in the 3-liter jug. Output each step as `pour A -> B` on its own line. Then state the total number of pours on a final line." },
-    { sub: "Visual", label: "Draw SVG", prompt: "Output a complete self-contained HTML file (```html block, no explanation, no other text) that centers a single SVG illustration on a simple background. The SVG must use only inline shapes - no <img>, no external assets, no JavaScript. Make it expressive and detailed. The SVG should depict: a friendly robot" },
-    { sub: "Visual explain", label: "Black hole HTML", prompt: "Output a complete HTML file (```html block, no explanation outside the code) that visually explains how a black hole forms. Use four labeled \"frames\" laid out left-to-right (or stacked on small screens) showing: 1) a glowing massive star, 2) the star going supernova with shockwave rings, 3) collapse into a singularity, 4) the final black hole with a curved accretion disk and bent light around it. Use only vanilla HTML, CSS, and inline SVG - no JavaScript, no images. Each frame should have a one-sentence caption." },
-    { sub: "Visual explain", label: "Butterfly ASCII", prompt: "Explain the butterfly lifecycle using ASCII art. Produce four separate frames in fenced code blocks, in order: egg, caterpillar, chrysalis, adult butterfly. Each frame must be drawn with monospace ASCII characters only and be visually recognizable as the creature/stage. Below each frame add one playful one-line caption (no longer than 15 words) describing what is happening at that stage." },
-  ],
-  agent: [
-    { sub: "Web tasks", label: "Multi-step", prompt: "Search the web for the current population of the 3 largest cities in the world, then calculate what percentage of the world's total population lives in those cities." },
-    { sub: "Web tasks", label: "Fact check", prompt: "Fact-check these claims: 1) The Great Wall of China is visible from space. 2) Humans only use 10% of their brains. 3) Lightning never strikes the same place twice. Cite sources." },
-    { sub: "Web tasks", label: "Compare prices", prompt: "Find and compare the pricing, features, and limitations of the top 3 cloud GPU providers for machine learning training. Create a markdown comparison table." },
-    { sub: "Code tasks", label: "Script + run", prompt: "Write a Python script that generates a bar chart of the 5 most common programming languages in 2025 and save it as chart.png. Then run it." },
-    { sub: "Math", label: "Proof + verify", prompt: "Prove that the square root of 2 is irrational. Then write a Python program that approximates it using Newton's method to 50 decimal places and verify." },
-  ],
-  search: [
-    { sub: "Factual", label: "Current events", prompt: "latest AI regulation news 2026" },
-    { sub: "Technical", label: "Programming", prompt: "Rust vs Go performance benchmarks 2026" },
-    { sub: "Comparison", label: "GPU providers", prompt: "cloud GPU providers pricing comparison 2026" },
-    { sub: "Science", label: "CRISPR therapy", prompt: "CRISPR gene therapy breakthroughs" },
-    { sub: "Market", label: "Laptop deals", prompt: "best lightweight laptops for developers 2026" },
-  ],
-  research: [
-    { sub: "Factual", label: "Current events", prompt: "latest AI regulation news 2025" },
-    { sub: "Technical", label: "Programming", prompt: "Rust vs Go performance benchmarks 2025" },
-    { sub: "Research", label: "Academic", prompt: "transformer architecture improvements since attention is all you need" },
-    { sub: "Comparison", label: "GPU providers", prompt: "cloud GPU providers pricing comparison 2025" },
-    { sub: "Factual", label: "Science", prompt: "CRISPR gene therapy breakthroughs" },
-  ],
-}
-
 const IMAGE_MODEL_PREFIXES = ["dall-e", "gpt-image", "chatgpt-image", "stable-diffusion", "sdxl", "flux", "midjourney"]
 const MIN_COMPARE_PANES = 2
 const MAX_COMPARE_PANES = 8
-const EMPTY_SEL: Sel = { model: "", endpointId: "", endpointUrl: "" }
 
 function isImageModel(model: string) {
   const lower = model.toLowerCase()
@@ -163,84 +118,6 @@ function paneLabel(index: number, parallel: boolean) {
   return `Model ${paneSlot(index, parallel)}`
 }
 
-function ModelSelect({
-  value,
-  onChange,
-  label,
-  allowEmpty = false,
-  emptyLabel = "Select a model...",
-}: {
-  value: Sel
-  onChange: (s: Sel) => void
-  label: string
-  allowEmpty?: boolean
-  emptyLabel?: string
-}) {
-  const { data: models } = useModels()
-  const items = models?.items || []
-  const onPick = (val: string) => {
-    if (val === "::") {
-      onChange({ ...EMPTY_SEL })
-      return
-    }
-    const i = val.indexOf("::"); const epId = val.slice(0, i); const model = val.slice(i + 2)
-    const ep = items.find((e) => e.endpoint_id === epId)
-    onChange({ model, endpointId: epId, endpointUrl: ep?.url || "" })
-  }
-  return (
-    <div className="flex-1">
-      <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</label>
-      <select value={value.endpointId + "::" + value.model} onChange={(e) => onPick(e.target.value)} className="h-9 w-full rounded-md border bg-background px-2 text-sm outline-none focus-visible:border-ring">
-        {(allowEmpty || !value.model) && <option value="::">{emptyLabel}</option>}
-        {items.map((ep) => (
-          <optgroup key={ep.endpoint_id} label={ep.endpoint_name || ep.url}>
-            {[...(ep.models || []), ...(ep.models_extra || [])].map((m) => (
-              <option key={ep.endpoint_id + m} value={ep.endpoint_id + "::" + m}>{m}</option>
-            ))}
-          </optgroup>
-        ))}
-      </select>
-    </div>
-  )
-}
-
-function ProviderSelect({
-  value,
-  onChange,
-  label,
-  providers,
-  loading,
-  disabled,
-}: {
-  value: Sel
-  onChange: (s: Sel) => void
-  label: string
-  providers: SearchProviderInfo[]
-  loading: boolean
-  disabled: boolean
-}) {
-  const onPick = (providerId: string) => {
-    onChange({ model: providerId, endpointId: "", endpointUrl: "" })
-  }
-  return (
-    <div className="flex-1">
-      <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</label>
-      <select
-        value={value.model}
-        onChange={(e) => onPick(e.target.value)}
-        disabled={disabled || loading || providers.length === 0}
-        className="h-9 w-full rounded-md border bg-background px-2 text-sm outline-none focus-visible:border-ring disabled:opacity-50"
-      >
-        {!value.model && <option value="">{loading ? "Loading providers..." : "Select a provider..."}</option>}
-        {providers.map((provider) => (
-          <option key={provider.id} value={provider.id}>{provider.label}</option>
-        ))}
-      </select>
-    </div>
-  )
-}
-
-interface PaneMetrics { tokens_out?: number; tok_per_sec?: number; cost?: number; results?: number; time?: number; context_percent?: number }
 async function streamPane(
   sessionId: string,
   prompt: string,
@@ -314,10 +191,6 @@ async function streamPane(
   }
 }
 
-function shortName(model: string) {
-  return model.split("/").pop() || model
-}
-
 function markdownEscape(text: string) {
   return text.replace(/([\\`*_{}[\]()#+\-.!|>])/g, "\\$1")
 }
@@ -355,21 +228,6 @@ function searchResultsForSynthesis(data: SearchProviderResponse) {
 
 function buildSearchSynthesisPrompt(query: string, data: SearchProviderResponse) {
   return `Analyze these search results for the query "${query}". Summarize the key findings, note any consensus or conflicting information, and provide a brief synthesis.\n\nSearch Results:\n${searchResultsForSynthesis(data)}`
-}
-
-function extractHtmlFromText(text: string): string | null {
-  const fenceRe = /`{3,}(?:html)?\s*\r?\n([\s\S]*?)`{3,}/gi
-  let match: RegExpExecArray | null
-  while ((match = fenceRe.exec(text)) !== null) {
-    const code = match[1].trim()
-    if (/<!doctype\s+html|<html[\s>]/i.test(code)) return code
-  }
-  const bare = text.match(/(<!doctype\s+html[\s\S]*<\/html>)/i) || text.match(/(<html[\s>][\s\S]*<\/html>)/i)
-  return bare ? bare[1].trim() : null
-}
-
-function formatElapsed(ms: number) {
-  return ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(1)}s`
 }
 
 function paneMetricsLine(met: PaneMetrics | null, elapsedMs: number | null) {
@@ -427,248 +285,6 @@ function gradeResponse(response: string, expected: string): GradeStatus | null {
     }
   }
   return pass ? "pass" : "fail"
-}
-
-function groupedEvalPrompts(mode: CompareMode) {
-  const groups: Array<{ sub: string; items: Array<EvalPrompt & { index: number }> }> = []
-  EVAL_PROMPTS[mode].forEach((prompt, index) => {
-    let group = groups.find((item) => item.sub === prompt.sub)
-    if (!group) {
-      group = { sub: prompt.sub, items: [] }
-      groups.push(group)
-    }
-    group.items.push({ ...prompt, index })
-  })
-  return groups
-}
-
-function EvalPromptSelect({ mode, disabled, onPick }: { mode: CompareMode; disabled: boolean; onPick: (prompt: EvalPrompt) => void }) {
-  const groups = useMemo(() => groupedEvalPrompts(mode), [mode])
-  return (
-    <select
-      aria-label="Eval prompts"
-      value=""
-      disabled={disabled}
-      onChange={(e) => {
-        const index = Number(e.target.value)
-        const item = Number.isFinite(index) ? EVAL_PROMPTS[mode][index] : undefined
-        if (item) onPick(item)
-      }}
-      className="h-9 w-full rounded-md border bg-background px-2 text-sm text-muted-foreground outline-none focus-visible:border-ring disabled:opacity-50 md:w-44"
-    >
-      <option value="">Eval prompts</option>
-      {groups.map((group) => (
-        <optgroup key={group.sub} label={group.sub}>
-          {group.items.map((item) => (
-            <option key={`${item.sub}-${item.label}`} value={item.index}>
-              {item.label}{item.answer ? " ✓" : ""}
-            </option>
-          ))}
-        </optgroup>
-      ))}
-    </select>
-  )
-}
-
-function winnerModel(item: CompareHistoryItem) {
-  if (!item.winner) return ""
-  if (item.winner === "tie") return "tie"
-  if (item.winner === "a") return item.model_a
-  if (item.winner === "b") return item.model_b
-  return item.winner
-}
-
-function Scoreboard({ items }: { items: CompareHistoryItem[] }) {
-  const rows = useMemo(() => {
-    const byModel = new Map<string, { model: string; wins: number; losses: number; ties: number; games: number }>()
-    const ensure = (model: string) => {
-      if (!byModel.has(model)) byModel.set(model, { model, wins: 0, losses: 0, ties: 0, games: 0 })
-      return byModel.get(model)!
-    }
-
-    items.filter((item) => item.winner).forEach((item) => {
-      const a = ensure(item.model_a)
-      const b = ensure(item.model_b)
-      a.games += 1
-      b.games += 1
-      const winner = winnerModel(item)
-      if (winner === "tie") {
-        a.ties += 1
-        b.ties += 1
-      } else if (winner === item.model_a) {
-        a.wins += 1
-        b.losses += 1
-      } else if (winner === item.model_b) {
-        b.wins += 1
-        a.losses += 1
-      }
-    })
-
-    return [...byModel.values()].sort((x, y) => (y.wins / Math.max(1, y.games)) - (x.wins / Math.max(1, x.games)) || y.games - x.games).slice(0, 8)
-  }, [items])
-  const recent = items.filter((item) => item.winner).slice(0, 6)
-
-  return (
-    <div className="grid max-h-64 shrink-0 gap-3 overflow-hidden rounded-md border bg-card p-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
-      <section className="min-w-0 overflow-hidden">
-        <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground"><Trophy className="size-3.5" />Scoreboard</div>
-        <div className="overflow-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="text-muted-foreground">
-              <tr><th className="pb-1 font-medium">Model</th><th className="pb-1 font-medium">W</th><th className="pb-1 font-medium">L</th><th className="pb-1 font-medium">T</th><th className="pb-1 font-medium">Win</th></tr>
-            </thead>
-            <tbody>
-              {rows.length === 0 ? (
-                <tr><td className="py-3 text-muted-foreground" colSpan={5}>No votes yet.</td></tr>
-              ) : rows.map((row) => (
-                <tr key={row.model} className="border-t">
-                  <td className="max-w-44 truncate py-1.5 pr-2" title={row.model}>{shortName(row.model)}</td>
-                  <td className="py-1.5">{row.wins}</td>
-                  <td className="py-1.5">{row.losses}</td>
-                  <td className="py-1.5">{row.ties}</td>
-                  <td className="py-1.5">{Math.round((row.wins / Math.max(1, row.games)) * 100)}%</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-      <section className="min-w-0 overflow-hidden">
-        <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground"><History className="size-3.5" />Recent Votes</div>
-        <div className="max-h-48 space-y-1.5 overflow-auto pr-1">
-          {recent.length === 0 ? (
-            <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">No completed comparisons.</div>
-          ) : recent.map((item) => {
-            const winner = winnerModel(item)
-            return (
-              <div key={item.id} className="rounded-md border bg-background px-2.5 py-2 text-xs">
-                <div className="flex min-w-0 items-center gap-2">
-                  <span className="truncate font-medium" title={`${item.model_a} vs ${item.model_b}`}>{shortName(item.model_a)} vs {shortName(item.model_b)}</span>
-                  <span className="ml-auto shrink-0 text-muted-foreground">{winner === "tie" ? "Tie" : shortName(winner)}</span>
-                </div>
-                <div className="mt-1 truncate text-muted-foreground" title={item.prompt}>{item.prompt}</div>
-              </div>
-            )
-          })}
-        </div>
-      </section>
-    </div>
-  )
-}
-
-function Pane({
-  side,
-  model,
-  body,
-  win,
-  met,
-  running,
-  err,
-  onCopy,
-  copied,
-  onExpand,
-  expanded,
-  hidden,
-  fastest,
-  elapsedMs,
-  previewOpen,
-  onTogglePreview,
-  onReroll,
-  canReroll,
-  rerolling,
-  grade,
-  activityLabel = "Generating...",
-  onStop,
-  canStop,
-}: {
-  side: string
-  model: string
-  body: string
-  win: boolean
-  met: PaneMetrics | null
-  running: boolean
-  err?: string
-  onCopy: () => void
-  copied: boolean
-  onExpand: () => void
-  expanded: boolean
-  hidden: boolean
-  fastest: boolean
-  elapsedMs: number | null
-  previewOpen: boolean
-  onTogglePreview: () => void
-  onReroll: () => void
-  canReroll: boolean
-  rerolling: boolean
-  grade: GradeStatus | null
-  activityLabel?: string
-  onStop: () => void
-  canStop: boolean
-}) {
-  const htmlPreview = useMemo(() => extractHtmlFromText(body), [body])
-  const previewActive = previewOpen && !!htmlPreview
-
-  return (
-    <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col rounded-md border bg-card", win && "ring-2 ring-primary", hidden && "hidden")}>
-      <div className="flex items-center justify-between border-b px-3 py-2">
-        <div className="min-w-0">
-          <div className="flex min-w-0 items-center gap-1.5">
-            <span className="truncate text-sm font-medium">{side}</span>
-            {grade && (
-              <span
-                title={grade === "pass" ? "Response contains the expected answer" : "Expected answer not found in response"}
-                className={cn(
-                  "inline-flex size-5 shrink-0 items-center justify-center rounded-full text-micro font-semibold",
-                  grade === "pass" ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-destructive/15 text-destructive",
-                )}
-              >
-                {grade === "pass" ? <Check className="size-3" /> : <X className="size-3" />}
-              </span>
-            )}
-            {fastest && <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-micro font-semibold uppercase tracking-wider text-primary"><Zap className="size-3" />Fastest</span>}
-          </div>
-          <div className="truncate text-xs text-muted-foreground" title={model}>{model}</div>
-        </div>
-        <div className="ml-2 flex shrink-0 flex-wrap items-center justify-end gap-0.5 md:flex-nowrap">
-          {canStop && (
-            <button onClick={onStop} title="Stop this model" className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-destructive">
-              <Square className="size-3.5" />
-            </button>
-          )}
-          {htmlPreview && (
-            <button onClick={onTogglePreview} title={previewActive ? "Show code" : "Run preview"} className={cn("rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground", previewActive && "text-primary")}>
-              {previewActive ? <Code2 className="size-3.5" /> : <Play className="size-3.5" />}
-            </button>
-          )}
-          <button onClick={onReroll} disabled={!canReroll} title="Re-roll response" className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-35">
-            {rerolling ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
-          </button>
-          <button onClick={onCopy} disabled={!body} title="Copy response" className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-35">
-            {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-          </button>
-          <button onClick={onExpand} title={expanded ? "Collapse pane" : "Expand pane"} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground">
-            {expanded ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
-          </button>
-        </div>
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto p-3">
-        {previewActive && htmlPreview ? (
-          <iframe title={`${side} HTML preview`} sandbox="allow-scripts" srcDoc={htmlPreview} className="min-h-[24rem] w-full rounded-md border bg-white" />
-        ) : body ? <Markdown>{body}</Markdown> : err ? <span className="text-sm text-destructive">{err}</span> : running ? <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-3.5 animate-spin" />{activityLabel}</div> : <span className="text-sm text-muted-foreground">No output yet.</span>}
-      </div>
-      {(met || elapsedMs != null) && (
-        <div className="flex flex-wrap gap-3 border-t px-3 py-1.5 text-label text-muted-foreground">
-          {met?.results != null && <span>{met.results} results</span>}
-          {met?.time != null && <span>{Number(met.time).toFixed(2)}s search</span>}
-          {met?.tokens_out != null && <span>{met.tokens_out} tok</span>}
-          {met?.tok_per_sec != null && <span>{Math.round(met.tok_per_sec)} tok/s</span>}
-          {met?.context_percent != null && <span title="Share of the model's context window used by the prompt">{Number(met.context_percent).toFixed(met.context_percent < 10 ? 1 : 0)}% ctx</span>}
-          {met?.cost != null && <span title="Estimated total · equivalent cost for 1,000 responses">${Number(met.cost).toFixed(4)} · ${(Number(met.cost) * 1000).toFixed(2)}/1k</span>}
-          {elapsedMs != null && <span>{formatElapsed(elapsedMs)}</span>}
-        </div>
-      )}
-    </div>
-  )
 }
 
 export function CompareRoute() {
@@ -1384,7 +1000,7 @@ export function CompareRoute() {
           {streamBusy ? (
             <Button variant="outline" size="sm" onClick={stop}><Square className="size-4" />Stop</Button>
           ) : (
-            <Button variant="ghost" size="icon" title="Reset" onClick={reset} disabled={probing}><RotateCcw className="size-4" /></Button>
+            <Button variant="ghost" size="icon" title="Reset" aria-label="Reset" onClick={reset} disabled={probing}><RotateCcw className="size-4" /></Button>
           )}
         </div>
       </header>
@@ -1457,6 +1073,7 @@ export function CompareRoute() {
                 variant="ghost"
                 size="icon"
                 title="Remove pane"
+                aria-label="Remove pane"
                 disabled={anyBusy || panes.length <= MIN_COMPARE_PANES}
                 onClick={() => removePane(pane.id)}
                 className="mb-0 shrink-0 text-muted-foreground hover:text-destructive"
@@ -1482,6 +1099,7 @@ export function CompareRoute() {
             <button
               type="button"
               title="Dismiss expected answer"
+              aria-label="Dismiss expected answer"
               onClick={() => { setExpectedAnswer(""); setPanes((prev) => prev.map((pane) => ({ ...pane, grade: null }))) }}
               className="ml-auto shrink-0 rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
             >

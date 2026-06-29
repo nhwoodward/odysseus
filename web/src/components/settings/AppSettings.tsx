@@ -10,6 +10,7 @@ import { DEFAULT_KEYBINDS } from "@/lib/useHotkeys"
 import { apiFetch } from "@/lib/api"
 import { useBuiltinTools, useSetBuiltinTools } from "@/api/tools"
 import { Button } from "@/components/ui/button"
+import { IconButton } from "@/components/ui/IconButton"
 import { cn } from "@/lib/utils"
 import { SectionCard, Row, FieldRow, SettingSwitch, SettingSelect, SettingText, SettingNumber, SettingTextarea, StringListEditor } from "./fields"
 
@@ -30,12 +31,12 @@ function ModelFallbackEditor({ label, value, choices, onChange }: { label: strin
         {value.map((f, i) => (
           <div key={i} className="flex items-center gap-2">
             <span className="min-w-0 flex-1 truncate rounded-md border bg-background px-3 py-1.5 text-sm">{i + 1}. {f.model}</span>
-            <button onClick={() => onChange(value.filter((_, j) => j !== i))} className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-destructive"><X className="size-4" /></button>
+            <IconButton icon={<X />} label="Remove fallback" onClick={() => onChange(value.filter((_, j) => j !== i))} className="text-muted-foreground transition-colors hover:text-destructive" />
           </div>
         ))}
         <div className="flex gap-2">
           <select value={sel} onChange={(e) => setSel(e.target.value)} className="h-9 flex-1 rounded-md border bg-background px-2 text-sm outline-none focus-visible:border-ring"><option value="">Add fallback…</option>{choices.map((c) => <option key={c.endpoint_id + c.model} value={c.model}>{c.model}</option>)}</select>
-          <button onClick={add} disabled={!sel} className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-40"><Plus className="size-4" /></button>
+          <IconButton icon={<Plus />} label="Add fallback" onClick={add} disabled={!sel} className="text-muted-foreground transition-colors disabled:opacity-40" />
         </div>
       </div>
     </FieldRow>
@@ -342,8 +343,8 @@ export function ApiTokensSection() {
               <div className="truncate text-sm font-medium">{t.name} <span className="font-mono text-xs font-normal text-muted-foreground">{t.token_prefix}…</span></div>
               <div className="truncate text-xs text-muted-foreground">{t.scopes.join(", ") || "default"}{t.last_used_at ? ` · used ${new Date(t.last_used_at).toLocaleDateString()}` : " · never used"}</div>
             </div>
-            <button onClick={() => { const n = prompt("Rename token", t.name); if (n && n.trim()) rename.mutate({ id: t.id, name: n.trim() }) }} className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100" title="Rename"><Pencil className="size-4" /></button>
-            <button onClick={() => { if (confirm(`Revoke token "${t.name}"? Apps using it will stop working.`)) remove.mutate(t.id) }} className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100" title="Revoke"><Trash2 className="size-4" /></button>
+            <IconButton icon={<Pencil />} label="Rename" onClick={() => { const n = prompt("Rename token", t.name); if (n && n.trim()) rename.mutate({ id: t.id, name: n.trim() }) }} className="shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+            <IconButton icon={<Trash2 />} label="Revoke" onClick={() => { if (confirm(`Revoke token "${t.name}"? Apps using it will stop working.`)) remove.mutate(t.id) }} className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100" />
           </div>
         ))}
         {(tokens || []).length === 0 && <p className="py-1 text-sm text-muted-foreground">No API tokens.</p>}
@@ -353,8 +354,8 @@ export function ApiTokensSection() {
           <div className="text-xs font-medium text-muted-foreground">Copy this token now — it won't be shown again.</div>
           <div className="flex items-center gap-2">
             <code className="min-w-0 flex-1 truncate rounded bg-muted px-2 py-1.5 font-mono text-xs">{created}</code>
-            <button onClick={copy} className="shrink-0 rounded-md p-1.5 hover:bg-accent">{copied ? <Check className="size-4" /> : <Copy className="size-4" />}</button>
-            <button onClick={() => setCreated(null)} className="shrink-0 rounded-md p-1.5 hover:bg-accent"><X className="size-4" /></button>
+            <IconButton icon={copied ? <Check /> : <Copy />} label="Copy token" onClick={copy} className="shrink-0" />
+            <IconButton icon={<X />} label="Dismiss" onClick={() => setCreated(null)} className="shrink-0" />
           </div>
         </div>
       )}

@@ -16,12 +16,19 @@ from urllib.parse import urlparse, parse_qs
 logger = logging.getLogger(__name__)
 
 # OAuth redirect URI registered with every authorization server via DCR. Loopback
-# is allowed for native/desktop clients (RFC 8252); remote users finish via the
-# paste-back flow. Deployments not reachable at http://localhost:7000 (custom
-# port, reverse proxy, or public domain) must set OAUTH_REDIRECT_BASE_URL (or
-# APP_PUBLIC_URL) to their externally reachable origin so the redirect lands back
-# on Odysseus. APP_PORT is intentionally not used: it is only the Docker host
-# port-map; the app always listens on 7000 inside the container.
+# (http://localhost) is the RFC 8252 native-app redirect and is the most broadly
+# accepted form across MCP OAuth servers. Crucially, several providers (Canva,
+# notably) restrict redirect URIs to an allowed-host list that admits loopback but
+# REJECTS arbitrary public hosts — a Tailscale/reverse-proxy origin such as
+# https://<host>.ts.net/... fails authorization with "Invalid redirect URI. It must
+# be from an allowed host." So default to loopback. When Odysseus is reached from a
+# different device (Tailscale, LAN, phone) the post-auth redirect can't return to
+# that browser's localhost; the user finishes via the paste-back flow instead —
+# they copy the callback URL from the address bar and submit it to
+# /api/mcp/oauth/exchange, which resolves the pending state directly. Override with
+# OAUTH_REDIRECT_BASE_URL / APP_PUBLIC_URL only when you have a public callback
+# domain the provider actually allows. APP_PORT is intentionally not used: it is
+# only the Docker host port-map; the app always listens on 7000 inside the container.
 _REDIRECT_BASE = (
     os.environ.get("OAUTH_REDIRECT_BASE_URL")
     or os.environ.get("APP_PUBLIC_URL")

@@ -8,6 +8,7 @@ import { useAuthStatus, logout } from "@/api/auth"
 import { usePrefs } from "@/api/prefs"
 import { ALL_NAV, DEFAULT_PINNED } from "./nav"
 import { MoreToolsMenu } from "./MoreToolsMenu"
+import { IconButton } from "@/components/ui/IconButton"
 import type { Session } from "@/types"
 import { removePersistentPersonaSession } from "@/lib/persistentPersona"
 import { useEscapeClose } from "@/lib/useEscapeClose"
@@ -167,7 +168,7 @@ export function Sidebar() {
         onKeyDown={(e) => { if (e.key === "Enter") commitRename(); if (e.key === "Escape") setEditId(null) }}
         onBlur={commitRename}
         className="h-7 flex-1 rounded-md border bg-background px-2 text-sm outline-none focus-visible:border-ring" />
-      <button onClick={commitRename} className="text-muted-foreground hover:text-foreground"><Check className="size-3.5" /></button>
+      <button onClick={commitRename} aria-label="Save name" className="text-muted-foreground hover:text-foreground"><Check className="size-3.5" /></button>
     </div>
   ) : (
     <div key={s.id}
@@ -186,10 +187,10 @@ export function Sidebar() {
       <span className="flex-1 truncate">{s.name || "Untitled"}</span>
       {!selectMode && (
         <span className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-          <button onClick={(e) => { e.stopPropagation(); setImportant.mutate({ id: s.id, important: !s.is_important }) }} title={s.is_important ? "Unpin" : "Pin"} className={cn("hover:text-foreground", s.is_important && "text-foreground")}><Pin className="size-3.5" /></button>
-          <button onClick={(e) => { e.stopPropagation(); setEditId(s.id); setEditName(s.name || "") }} title="Rename" className="hover:text-foreground"><Pencil className="size-3.5" /></button>
-          <button onClick={(e) => { e.stopPropagation(); archive.mutate(s.id); if (s.id === sessionId) navigate("/chat") }} title="Archive" className="hover:text-foreground"><Archive className="size-3.5" /></button>
-          <button onClick={(e) => { e.stopPropagation(); deleteRow(s) }} title="Delete" className="hover:text-destructive"><Trash2 className="size-3.5" /></button>
+          <button onClick={(e) => { e.stopPropagation(); setImportant.mutate({ id: s.id, important: !s.is_important }) }} title={s.is_important ? "Unpin" : "Pin"} aria-label={s.is_important ? "Unpin" : "Pin"} className={cn("hover:text-foreground", s.is_important && "text-foreground")}><Pin className="size-3.5" /></button>
+          <button onClick={(e) => { e.stopPropagation(); setEditId(s.id); setEditName(s.name || "") }} title="Rename" aria-label="Rename" className="hover:text-foreground"><Pencil className="size-3.5" /></button>
+          <button onClick={(e) => { e.stopPropagation(); archive.mutate(s.id); if (s.id === sessionId) navigate("/chat") }} title="Archive" aria-label="Archive" className="hover:text-foreground"><Archive className="size-3.5" /></button>
+          <button onClick={(e) => { e.stopPropagation(); deleteRow(s) }} title="Delete" aria-label="Delete" className="hover:text-destructive"><Trash2 className="size-3.5" /></button>
         </span>
       )}
     </div>
@@ -201,8 +202,8 @@ export function Sidebar() {
       {s.is_important && <Pin className="size-3 shrink-0 fill-current text-muted-foreground" />}
       <span className="flex-1 truncate">{s.name || "Untitled"}</span>
       <span className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-        <button onClick={() => unarchive.mutate(s.id)} title="Restore" className="hover:text-foreground"><ArchiveRestore className="size-3.5" /></button>
-        <button onClick={() => deleteRow(s as Session)} title="Delete" className="hover:text-destructive"><Trash2 className="size-3.5" /></button>
+        <button onClick={() => unarchive.mutate(s.id)} title="Restore" aria-label="Restore" className="hover:text-foreground"><ArchiveRestore className="size-3.5" /></button>
+        <button onClick={() => deleteRow(s as Session)} title="Delete" aria-label="Delete" className="hover:text-destructive"><Trash2 className="size-3.5" /></button>
       </span>
     </div>
   )
@@ -224,15 +225,15 @@ export function Sidebar() {
       {/* Desktop-only collapsed icon strip */}
       {collapsed && (
         <aside className="hidden h-full w-14 shrink-0 flex-col items-center gap-1 border-r bg-sidebar py-3 lg:flex" data-tour="sidebar">
-        <button onClick={toggleSidebar} title="Expand sidebar (⌘B)" className={iconBtn(false)}><PanelLeft className="size-5" /></button>
-        <button data-tour="new-chat" onClick={() => navigate("/chat")} title="New chat (⌘⌥N)" className={iconBtn(false)}><Plus className="size-5" /></button>
-        <button data-tour="search-conversations" onClick={() => window.dispatchEvent(new CustomEvent("odysseus:open-search"))} title="Search conversations (⌘K)" className={iconBtn(false)}><Search className="size-5" /></button>
+        <button onClick={toggleSidebar} title="Expand sidebar (⌘B)" aria-label="Expand sidebar (⌘B)" className={iconBtn(false)}><PanelLeft className="size-5" /></button>
+        <button data-tour="new-chat" onClick={() => navigate("/chat")} title="New chat (⌘⌥N)" aria-label="New chat (⌘⌥N)" className={iconBtn(false)}><Plus className="size-5" /></button>
+        <button data-tour="search-conversations" onClick={() => window.dispatchEvent(new CustomEvent("odysseus:open-search"))} title="Search conversations (⌘K)" aria-label="Search conversations (⌘K)" className={iconBtn(false)}><Search className="size-5" /></button>
         <div className="my-1 h-px w-6 bg-border" />
         <div className="flex flex-col items-center gap-1" data-tour="primary-nav">
           {favorites.map(({ to, icon: Icon, label }) => {
             const showReminderBadge = to === "/notes" && firedNoteReminders > 0
             return (
-              <NavLink key={to} to={to} title={label} data-tour={tourNav(to)} className={({ isActive }) => iconBtn(isActive)}>
+              <NavLink key={to} to={to} title={label} aria-label={label} data-tour={tourNav(to)} className={({ isActive }) => iconBtn(isActive)}>
                 <span className="relative grid place-items-center">
                   <Icon className="size-5" />
                   {showReminderBadge && <span className="notes-nav-reminder-badge notes-nav-reminder-badge-icon" aria-label={`${reminderCountLabel(firedNoteReminders)} reminders`}>{reminderCountLabel(firedNoteReminders)}</span>}
@@ -252,14 +253,14 @@ export function Sidebar() {
       <div className="flex items-center justify-between px-3 pb-1 pt-3">
         <div className="text-sm font-semibold">Odysseus <span className="font-normal text-muted-foreground">/ v2</span></div>
         <div className="flex items-center gap-1">
-          <button onClick={() => setMobileNav(false)} title="Close menu" className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground lg:hidden"><X className="size-4" /></button>
-          <button onClick={toggleSidebar} title="Collapse sidebar (⌘B)" className="hidden rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground lg:block"><PanelLeft className="size-4" /></button>
+          <IconButton icon={<X />} label="Close menu" onClick={() => setMobileNav(false)} className="text-muted-foreground lg:hidden" />
+          <IconButton icon={<PanelLeft />} label="Collapse sidebar (⌘B)" onClick={toggleSidebar} className="hidden text-muted-foreground lg:block" />
         </div>
       </div>
       <div className="space-y-2 px-2 pb-2">
         <button data-tour="new-chat" onClick={() => navigate("/chat")} className="flex w-full items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium hover:bg-accent"><Plus className="size-4" /> New chat</button>
         <div className="flex gap-1.5" data-tour="search-conversations">
-          <button onClick={() => window.dispatchEvent(new CustomEvent("odysseus:open-search"))} title="Search conversations (⌘K)" className="flex size-8 shrink-0 items-center justify-center rounded-md border text-muted-foreground hover:bg-accent hover:text-foreground">
+          <button onClick={() => window.dispatchEvent(new CustomEvent("odysseus:open-search"))} title="Search conversations (⌘K)" aria-label="Search conversations (⌘K)" className="flex size-8 shrink-0 items-center justify-center rounded-md border text-muted-foreground hover:bg-accent hover:text-foreground">
             <Search className="size-3.5" />
           </button>
           <div className="relative min-w-0 flex-1">
@@ -304,9 +305,9 @@ export function Sidebar() {
             className={cn("text-xs font-semibold uppercase tracking-wider", archivedView ? "text-muted-foreground" : "text-muted-foreground/60 hover:text-muted-foreground")}>Archived</button>
         </div>
         {archivedView ? null : selectMode ? (
-          <button onClick={exitSelectMode} title="Cancel selection" className="text-muted-foreground hover:text-foreground"><X className="size-3.5" /></button>
+          <button onClick={exitSelectMode} title="Cancel selection" aria-label="Cancel selection" className="text-muted-foreground hover:text-foreground"><X className="size-3.5" /></button>
         ) : (
-          <button onClick={enterSelectMode} title="Select chats" className="text-muted-foreground hover:text-foreground"><CheckSquare className="size-3.5" /></button>
+          <button onClick={enterSelectMode} title="Select chats" aria-label="Select chats" className="text-muted-foreground hover:text-foreground"><CheckSquare className="size-3.5" /></button>
         )}
       </div>
       {selectMode && !archivedView && (
@@ -317,8 +318,8 @@ export function Sidebar() {
             <span>{allSelected ? "Clear" : "All"}</span>
           </button>
           <span className="flex-1 text-xs text-muted-foreground">{selected.size} selected</span>
-          <button onClick={runBulkArchive} disabled={!selected.size} title="Archive selected" className="text-muted-foreground hover:text-foreground disabled:opacity-40"><Archive className="size-3.5" /></button>
-          <button onClick={runBulkDelete} disabled={!selected.size} title="Delete selected" className="text-muted-foreground hover:text-destructive disabled:opacity-40"><Trash2 className="size-3.5" /></button>
+          <button onClick={runBulkArchive} disabled={!selected.size} title="Archive selected" aria-label="Archive selected" className="text-muted-foreground hover:text-foreground disabled:opacity-40"><Archive className="size-3.5" /></button>
+          <button onClick={runBulkDelete} disabled={!selected.size} title="Delete selected" aria-label="Delete selected" className="text-muted-foreground hover:text-destructive disabled:opacity-40"><Trash2 className="size-3.5" /></button>
         </div>
       )}
       <div className="px-2 pb-2">

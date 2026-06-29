@@ -10,6 +10,7 @@ import {
   type CachedModel, type DiscoveryModel, type Gpu, type HwfitModel, type ServeBackend, type RunningTask,
 } from "@/api/cookbook"
 import { Button } from "@/components/ui/button"
+import { IconButton } from "@/components/ui/IconButton"
 import { cn } from "@/lib/utils"
 
 function gb(mb?: number) { return mb != null ? `${(mb / 1024).toFixed(1)} GB` : "—" }
@@ -303,7 +304,7 @@ function RunningSection() {
                     {t.cmd && <Button variant="ghost" size="sm" disabled={serve.isPending || busy} onClick={() => onRestart(t)}><RotateCcw className="size-4" />Restart</Button>}
                     <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive" disabled={busy} onClick={() => onStop(t)}>{busy ? <Loader2 className="size-4 animate-spin" /> : <Square className="size-4" />}Stop</Button>
                   </div>
-                </div>{expanded === t.session_id && t.output_tail && <div className="relative mt-2 rounded-md bg-muted p-2"><button onClick={() => navigator.clipboard.writeText(t.output_tail || "")} className="absolute right-2 top-2 rounded p-1 text-muted-foreground hover:bg-accent"><Copy className="size-3.5" /></button><pre className="max-h-72 overflow-auto whitespace-pre-wrap pr-7 text-label">{t.output_tail}</pre></div>}</div>
+                </div>{expanded === t.session_id && t.output_tail && <div className="relative mt-2 rounded-md bg-muted p-2"><IconButton onClick={() => navigator.clipboard.writeText(t.output_tail || "")} label="Copy logs" className="absolute right-2 top-2 text-muted-foreground" icon={<Copy />} /><pre className="max-h-72 overflow-auto whitespace-pre-wrap pr-7 text-label">{t.output_tail}</pre></div>}</div>
               )
             })}
           </div>

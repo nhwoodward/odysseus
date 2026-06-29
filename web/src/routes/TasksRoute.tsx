@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { EmptyState } from "@/components/ui/empty-state"
+import { SkeletonList } from "@/components/ui/skeleton"
 import {
   Bell,
   Bot,
@@ -478,7 +479,7 @@ function TaskEditor({ existing, draft, tasks, onClose }: { existing?: Task | nul
           <h2 className="text-base font-semibold">{isEditing ? "Edit Task" : "New Task"}</h2>
           <p className="mt-1 text-xs text-muted-foreground">{isEditing ? "Update this automation's trigger, output, and run behavior." : "Configure a prompt, research job, action, event trigger, or webhook."}</p>
         </div>
-        <button type="button" onClick={onClose} className={iconBtn} title="Close"><X className="size-4" /></button>
+        <button type="button" onClick={onClose} className={iconBtn} title="Close" aria-label="Close"><X className="size-4" /></button>
       </div>
 
       {!isEditing && <AiDraft onDraft={(d) => setForm(initialState(d))} />}
@@ -606,7 +607,7 @@ function TaskEditor({ existing, draft, tasks, onClose }: { existing?: Task | nul
               {webhookUrl ? (
                 <div className="flex gap-2">
                   <input value={webhookUrl} readOnly className={cn(inputClass, "font-mono text-xs")} />
-                  <Button type="button" size="sm" variant="outline" onClick={() => copyText(webhookUrl, "Webhook URL copied")}><Copy className="size-4" /></Button>
+                  <Button type="button" size="sm" variant="outline" onClick={() => copyText(webhookUrl, "Webhook URL copied")} aria-label="Copy webhook URL"><Copy className="size-4" /></Button>
                 </div>
               ) : (
                 <div className="rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">A webhook URL will be generated when this task is saved.</div>
@@ -683,7 +684,7 @@ function OnboardingBanner() {
 }
 
 function RunRows({ runs }: { runs?: TaskRun[] }) {
-  if (!runs) return <p className="py-3 text-xs text-muted-foreground">Loading...</p>
+  if (!runs) return <SkeletonList rows={3} className="py-2" />
   if (runs.length === 0) return <p className="py-3 text-xs text-muted-foreground">No runs yet.</p>
   return (
     <div className="space-y-1.5">
@@ -782,16 +783,16 @@ function TaskCard({
           </div>
         </div>
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-1 sm:flex-nowrap">
-          <button onClick={() => run.mutate(task.id)} title="Run now" className={iconBtn}><RotateCw className="size-4" /></button>
-          {running && <button onClick={() => stop.mutate(task.id)} title="Stop" className={iconBtn}><Square className="size-4" /></button>}
+          <button onClick={() => run.mutate(task.id)} title="Run now" aria-label="Run now" className={iconBtn}><RotateCw className="size-4" /></button>
+          {running && <button onClick={() => stop.mutate(task.id)} title="Stop" aria-label="Stop" className={iconBtn}><Square className="size-4" /></button>}
           {paused
-            ? <button onClick={() => resume.mutate(task.id)} title="Resume" className={iconBtn}><Play className="size-4" /></button>
-            : <button onClick={() => pause.mutate(task.id)} title="Pause" className={iconBtn}><Pause className="size-4" /></button>}
-          <button onClick={onEdit} title="Edit" className={iconBtn}><Edit3 className="size-4" /></button>
-          <button onClick={onHistory} title="Run history" className={cn(iconBtn, historyOpen && "bg-accent text-foreground")}><History className="size-4" /></button>
-          {task.is_builtin && task.is_modified && <button onClick={() => revert.mutate(task.id, { onSuccess: () => toast("Task reverted", "success") })} title="Revert to default" className={iconBtn}><RotateCcw className="size-4" /></button>}
-          {canClear && <button onClick={() => clearCache.mutate(task.id, { onSuccess: () => toast(`Cleared ${CLEAR_LABELS[task.action || ""] || "cache"}`, "success") })} title="Clear cache" className={iconBtn}><Clipboard className="size-4" /></button>}
-          <button onClick={() => { if (confirm("Delete this task and its run history?")) remove.mutate(task.id) }} title="Delete" className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-4" /></button>
+            ? <button onClick={() => resume.mutate(task.id)} title="Resume" aria-label="Resume" className={iconBtn}><Play className="size-4" /></button>
+            : <button onClick={() => pause.mutate(task.id)} title="Pause" aria-label="Pause" className={iconBtn}><Pause className="size-4" /></button>}
+          <button onClick={onEdit} title="Edit" aria-label="Edit" className={iconBtn}><Edit3 className="size-4" /></button>
+          <button onClick={onHistory} title="Run history" aria-label="Run history" className={cn(iconBtn, historyOpen && "bg-accent text-foreground")}><History className="size-4" /></button>
+          {task.is_builtin && task.is_modified && <button onClick={() => revert.mutate(task.id, { onSuccess: () => toast("Task reverted", "success") })} title="Revert to default" aria-label="Revert to default" className={iconBtn}><RotateCcw className="size-4" /></button>}
+          {canClear && <button onClick={() => clearCache.mutate(task.id, { onSuccess: () => toast(`Cleared ${CLEAR_LABELS[task.action || ""] || "cache"}`, "success") })} title="Clear cache" aria-label="Clear cache" className={iconBtn}><Clipboard className="size-4" /></button>}
+          <button onClick={() => { if (confirm("Delete this task and its run history?")) remove.mutate(task.id) }} title="Delete" aria-label="Delete" className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-4" /></button>
         </div>
       </div>
 
@@ -1026,7 +1027,7 @@ function ActivityView({ active }: { active: boolean }) {
         {chips.hasErrors && <button onClick={() => setFilter(filter === "errors" ? "" : "errors")} className={cn(chipBase, filter === "errors" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-accent hover:text-foreground")}>errors</button>}
         {chips.notifications > 0 && <button onClick={() => setFilter(filter === "notifications" ? "" : "notifications")} className={cn(chipBase, filter === "notifications" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-accent hover:text-foreground")}>notifications <span className="opacity-70">{chips.notifications}</span></button>}
       </div>
-      {!runs && <p className="py-8 text-center text-sm text-muted-foreground">Loading activity...</p>}
+      {!runs && <SkeletonList rows={5} className="py-2" />}
       {runs?.length === 0 && <p className="py-8 text-center text-sm text-muted-foreground">No activity yet.</p>}
       {runs && runs.length > 0 && visible.length === 0 && <p className="py-8 text-center text-sm text-muted-foreground">No matching activity.</p>}
       <div className="space-y-2">
@@ -1048,13 +1049,13 @@ function ActivityView({ active }: { active: boolean }) {
                   <p className="mt-0.5 text-xs text-muted-foreground">{fmtShort(r.finished_at || r.started_at)}{r.model ? ` - ${r.model.split("/").pop()}` : ""}</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
-                  {status === "queued" && r.task_id && <button onClick={() => run.mutate({ id: r.task_id!, force: true })} title="Start now" className={iconBtn}><Play className="size-4" /></button>}
-                  {status === "running" && r.task_id && <button onClick={() => stop.mutate(r.task_id!)} title="Stop" className={iconBtn}><Square className="size-4" /></button>}
-                  {hasResult && chatWorthy && <button onClick={() => openRunInChat(r, navigate).catch((e) => toast(e instanceof Error ? e.message : "Open in chat failed"))} title="Open in chat" className={iconBtn}><Bot className="size-4" /></button>}
-                  {hasResult && !chatWorthy && <button onClick={() => actCopy(r)} title="Copy log" className={iconBtn}><Copy className="size-4" /></button>}
-                  {r.research_id && <button onClick={() => window.open(`/api/research/report/${encodeURIComponent(r.research_id!)}`, "_blank")} title="Open research report" className={iconBtn}><FileText className="size-4" /></button>}
-                  {r.task_id && <button onClick={() => run.mutate(r.task_id!)} title="Run again" className={iconBtn}><RotateCw className="size-4" /></button>}
-                  {canClear && r.task_id && <button onClick={() => clearCache.mutate(r.task_id!, { onSuccess: () => toast(`Cleared ${CLEAR_LABELS[r.action || ""] || "cache"}`, "success") })} title="Clear cache" className={iconBtn}><Clipboard className="size-4" /></button>}
+                  {status === "queued" && r.task_id && <button onClick={() => run.mutate({ id: r.task_id!, force: true })} title="Start now" aria-label="Start now" className={iconBtn}><Play className="size-4" /></button>}
+                  {status === "running" && r.task_id && <button onClick={() => stop.mutate(r.task_id!)} title="Stop" aria-label="Stop" className={iconBtn}><Square className="size-4" /></button>}
+                  {hasResult && chatWorthy && <button onClick={() => openRunInChat(r, navigate).catch((e) => toast(e instanceof Error ? e.message : "Open in chat failed"))} title="Open in chat" aria-label="Open in chat" className={iconBtn}><Bot className="size-4" /></button>}
+                  {hasResult && !chatWorthy && <button onClick={() => actCopy(r)} title="Copy log" aria-label="Copy log" className={iconBtn}><Copy className="size-4" /></button>}
+                  {r.research_id && <button onClick={() => window.open(`/api/research/report/${encodeURIComponent(r.research_id!)}`, "_blank")} title="Open research report" aria-label="Open research report" className={iconBtn}><FileText className="size-4" /></button>}
+                  {r.task_id && <button onClick={() => run.mutate(r.task_id!)} title="Run again" aria-label="Run again" className={iconBtn}><RotateCw className="size-4" /></button>}
+                  {canClear && r.task_id && <button onClick={() => clearCache.mutate(r.task_id!, { onSuccess: () => toast(`Cleared ${CLEAR_LABELS[r.action || ""] || "cache"}`, "success") })} title="Clear cache" aria-label="Clear cache" className={iconBtn}><Clipboard className="size-4" /></button>}
                 </div>
               </div>
               {(r.result || r.error || status === "queued" || status === "running") && (

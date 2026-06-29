@@ -4,6 +4,7 @@ import { FolderKanban, Plus, Pencil, Trash2, X, MessageSquare, Check } from "luc
 import { useSessions } from "@/api/sessions"
 import { useProjects, useProjectActions, sessionsInProject } from "@/api/projects"
 import { Button } from "@/components/ui/button"
+import { IconButton } from "@/components/ui/IconButton"
 import { cn } from "@/lib/utils"
 
 export function ProjectsRoute() {
@@ -58,7 +59,7 @@ export function ProjectsRoute() {
       <aside className="flex w-[240px] shrink-0 flex-col border-r">
         <header className="flex h-13 shrink-0 items-center justify-between border-b px-4">
           <span className="text-sm font-semibold">Projects</span>
-          <button onClick={() => setCreating(true)} title="New project" className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"><Plus className="size-4" /></button>
+          <IconButton onClick={() => setCreating(true)} label="New project" className="text-muted-foreground" icon={<Plus />} />
         </header>
         <div className="flex-1 overflow-y-auto p-2">
           {creating && (
@@ -66,7 +67,7 @@ export function ProjectsRoute() {
               <input autoFocus value={newName} onChange={(e) => setNewName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") doCreate(); if (e.key === "Escape") { setCreating(false); setNewName("") } }}
                 placeholder="Project name" className="h-8 flex-1 rounded-md border bg-background px-2 text-sm outline-none focus-visible:border-ring" />
-              <button onClick={doCreate} className="text-muted-foreground hover:text-foreground"><Check className="size-4" /></button>
+              <button onClick={doCreate} aria-label="Create project" className="text-muted-foreground hover:text-foreground"><Check className="size-4" /></button>
             </div>
           )}
           {projects.map((p) => (
@@ -99,8 +100,8 @@ export function ProjectsRoute() {
             <header className="flex h-13 shrink-0 items-center justify-between gap-2 border-b px-4">
               <span className="flex min-w-0 items-center gap-2 text-sm font-semibold"><FolderKanban className="size-4 shrink-0 text-muted-foreground" /><span className="truncate">{current.name}</span></span>
               <div className="flex shrink-0 items-center gap-1">
-                <button onClick={doRename} title="Rename project" className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"><Pencil className="size-4" /></button>
-                <button onClick={doDelete} title="Delete project" className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-destructive"><Trash2 className="size-4" /></button>
+                <IconButton onClick={doRename} label="Rename project" className="text-muted-foreground" icon={<Pencil />} />
+                <IconButton onClick={doDelete} label="Delete project" className="text-muted-foreground hover:text-destructive" icon={<Trash2 />} />
               </div>
             </header>
             <div className="min-h-0 flex-1 overflow-y-auto">
@@ -141,7 +142,7 @@ export function ProjectsRoute() {
                           <MessageSquare className="size-4 shrink-0 text-muted-foreground" />
                           <span className="truncate text-sm">{s.name || "Untitled"}</span>
                         </button>
-                        <button onClick={() => actions.assign(s.id, null)} title="Remove from project" className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"><X className="size-4" /></button>
+                        <button onClick={() => actions.assign(s.id, null)} title="Remove from project" aria-label="Remove from project" className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"><X className="size-4" /></button>
                       </div>
                     ))}
                     {members.length === 0 && !adding && <p className="py-3 text-sm text-muted-foreground">No chats in this project yet. Use “Add chats” to include some.</p>}

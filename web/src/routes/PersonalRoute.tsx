@@ -9,6 +9,7 @@ import {
   type BrowseDir,
 } from "@/api/personal"
 import { Button } from "@/components/ui/button"
+import { IconButton } from "@/components/ui/IconButton"
 import { cn } from "@/lib/utils"
 
 function fmtSize(bytes: number): string {
@@ -83,7 +84,7 @@ function Browser({ onPick }: { onPick: (path: string) => void }) {
         <FolderOpen className="size-3.5 shrink-0" />
         <span className="min-w-0 flex-1 truncate font-mono">{data && data.admin ? data.path : "…"}</span>
         {data && data.admin && data.parent && (
-          <button onClick={() => setPath(data.parent)} title="Up" className="shrink-0 hover:text-foreground"><CornerLeftUp className="size-3.5" /></button>
+          <button onClick={() => setPath(data.parent)} title="Up" aria-label="Up" className="shrink-0 hover:text-foreground"><CornerLeftUp className="size-3.5" /></button>
         )}
       </div>
       <div className="max-h-56 overflow-y-auto p-1">
@@ -179,11 +180,12 @@ export function PersonalRoute() {
                 <div key={d} className="flex items-center gap-3 px-3 py-2.5">
                   <Folder className="size-4 shrink-0 text-muted-foreground" />
                   <span className="min-w-0 flex-1 truncate font-mono text-sm">{d}</span>
-                  <button
+                  <IconButton
                     onClick={() => { if (confirm(`Remove ${d} from the index?`)) removeDirectory.mutate(d) }}
-                    title="Remove directory"
-                    className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:text-destructive"
-                  ><Trash2 className="size-4" /></button>
+                    label="Remove directory"
+                    className="shrink-0 text-muted-foreground hover:text-destructive"
+                    icon={<Trash2 />}
+                  />
                 </div>
               ))}
             </div>
@@ -206,12 +208,13 @@ export function PersonalRoute() {
                       {f.path && <div className="truncate font-mono text-xs text-muted-foreground">{f.path}</div>}
                     </div>
                     <span className="shrink-0 text-xs text-muted-foreground">{fmtSize(f.size)}</span>
-                    <button
+                    <IconButton
                       onClick={() => { if (f.path && confirm(`Remove ${f.name}?`)) removeFile.mutate(f.path) }}
-                      title="Remove file"
+                      label="Remove file"
                       disabled={!f.path}
-                      className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:text-destructive disabled:opacity-40"
-                    ><Trash2 className="size-4" /></button>
+                      className="shrink-0 text-muted-foreground hover:text-destructive disabled:opacity-40"
+                      icon={<Trash2 />}
+                    />
                   </div>
                 ))}
               </div>

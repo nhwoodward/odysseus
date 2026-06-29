@@ -11,6 +11,7 @@ import { DocHistory } from "./DocHistory"
 import { ShareMenu } from "./ShareMenu"
 import { Markdown } from "./Markdown"
 import { Button } from "@/components/ui/button"
+import { IconButton } from "@/components/ui/IconButton"
 import { cn } from "@/lib/utils"
 import type { Source } from "@/types"
 
@@ -100,7 +101,7 @@ export function ContextPanel() {
       <header className="flex h-13 shrink-0 items-center justify-between gap-2 border-b px-4">
         <span className="flex min-w-0 items-center gap-2 text-sm font-semibold">
           {kind === "doc" && hasFileList && (
-            <button onClick={() => backToFiles()} title="Back to files" className="-ml-1 shrink-0 rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"><ArrowLeft className="size-4" /></button>
+            <IconButton icon={<ArrowLeft />} label="Back to files" onClick={() => backToFiles()} className="-ml-1 shrink-0 text-muted-foreground" />
           )}
           {(kind === "doc" || kind === "files") && <FileText className="size-4 shrink-0 text-muted-foreground" />}
           <span className="truncate">{headerTitle}</span>
@@ -121,10 +122,10 @@ export function ContextPanel() {
                   <button onClick={() => setView("code")} className={cn("flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors", view === "code" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}><Code2 className="size-3.5" />Code</button>
                 </div>
               )}
-              {editable && mode === "view" && <button onClick={startEdit} title="Edit" className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"><Pencil className="size-4" /></button>}
-              {editable && <button onClick={() => setMode((m) => (m === "history" ? "view" : "history"))} title="Version history" className={cn("rounded-md p-1.5 transition-colors hover:bg-accent hover:text-foreground", mode === "history" ? "bg-accent text-foreground" : "text-muted-foreground")}><History className="size-4" /></button>}
-              {kind === "doc" && mode === "view" && <button onClick={copy} title="Copy" className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">{copied ? <Check className="size-4" /> : <Copy className="size-4" />}</button>}
-              <button onClick={close} title="Hide panel" className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"><X className="size-4" /></button>
+              {editable && mode === "view" && <IconButton icon={<Pencil />} label="Edit" onClick={startEdit} className="text-muted-foreground" />}
+              {editable && <IconButton icon={<History />} label="Version history" onClick={() => setMode((m) => (m === "history" ? "view" : "history"))} className={mode === "history" ? "bg-accent text-foreground" : "text-muted-foreground"} />}
+              {kind === "doc" && mode === "view" && <IconButton icon={copied ? <Check /> : <Copy />} label="Copy" onClick={copy} className="text-muted-foreground" />}
+              <IconButton icon={<X />} label="Hide panel" onClick={close} className="text-muted-foreground" />
             </>
           )}
         </div>
@@ -168,7 +169,7 @@ export function ContextPanel() {
           onRestored={(content) => { usePanel.getState().setDocContent(content); setMode("view") }} />
       ) : kind === "doc" && editing ? (
         <textarea ref={editorRef} value={draft} onChange={(e) => setDraft(e.target.value)} onSelect={(e) => { const el = e.currentTarget; setPendingSelection(el.selectionEnd > el.selectionStart ? { start: el.selectionStart, end: el.selectionEnd } : null) }} spellCheck={false} autoFocus
-          className="min-h-0 flex-1 resize-none border-0 bg-background p-4 font-mono text-note leading-relaxed text-foreground outline-none" />
+          className="min-h-0 flex-1 resize-none border-0 bg-background p-4 font-mono text-note leading-relaxed text-foreground outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring" />
       ) : kind === "doc" && doc?.error ? (
         <div className="flex min-h-0 flex-1 items-center justify-center p-6 text-center text-sm text-destructive">{doc.error}</div>
       ) : showPreview ? (

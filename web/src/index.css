@@ -112,6 +112,18 @@
   html, body, #root { height: 100%; }
   body { background-color: var(--background); color: var(--foreground); -webkit-font-smoothing: antialiased; }
 
+  /* Keyboard-focus safety net. A themed ring for every interactive element that
+     doesn't style its own focus — including the inputs/textareas/selects that set
+     `outline-none`. Uses box-shadow (survives `outline-none`, unlike `outline`)
+     and :where() (zero specificity) so the Button primitive's own utility-layer
+     `focus-visible:ring` overrides it — no double ring. `[tabindex="-1"]` is
+     excluded so programmatic-focus targets (e.g. onboarding headings) stay clean. */
+  :where(button, [role="button"], a[href], input, textarea, select, summary,
+         [tabindex]:not([tabindex="-1"])):focus-visible {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 45%, transparent);
+    border-radius: var(--radius-sm);
+  }
+
   /* Themed scrollbars. Without `color-scheme` (set on :root/.dark above) the
      browser paints the native LIGHT scrollbar — a white track — even in the
      zinc dark theme. These rules additionally style the overflow scrollbars so

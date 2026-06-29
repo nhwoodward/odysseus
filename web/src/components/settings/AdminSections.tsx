@@ -3,6 +3,7 @@ import { Trash2, Plus, RefreshCw, Send, Server, Webhook as WebhookIcon, Plug, Pe
 import { useMcpServers, useWebhooks, useAdminMutations, useFeatures, useSetFeature } from "@/api/admin"
 import { useIntegrations, useIntegrationPresets, useIntegrationMutations, type Integration } from "@/api/integrations"
 import { Button } from "@/components/ui/button"
+import { IconButton } from "@/components/ui/IconButton"
 import { Markdown } from "@/components/chat/Markdown"
 import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
@@ -71,9 +72,9 @@ function McpSection() {
                 <Switch checked={s.is_enabled !== false} onCheckedChange={(v) => toggleServer.mutate({ id: s.id, is_enabled: v })} />
               </span>
               <div className="flex gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
-                {s.has_oauth && <button onClick={() => { authorize(s.id); setPasteId(s.id); setOauthMsg("") }} title="Authorize (OAuth)" className="text-muted-foreground hover:text-foreground"><KeyRound className="size-4" /></button>}
-                <button onClick={() => reconnectServer.mutate(s.id)} title="Reconnect" className="text-muted-foreground hover:text-foreground"><RefreshCw className="size-4" /></button>
-                <button onClick={() => { if (confirm(`Delete MCP server "${s.name}"?`)) removeServer.mutate(s.id) }} title="Delete" className="text-muted-foreground hover:text-destructive"><Trash2 className="size-4" /></button>
+                {s.has_oauth && <IconButton icon={<KeyRound />} label="Authorize (OAuth)" onClick={() => { authorize(s.id); setPasteId(s.id); setOauthMsg("") }} className="text-muted-foreground" />}
+                <IconButton icon={<RefreshCw />} label="Reconnect" onClick={() => reconnectServer.mutate(s.id)} className="text-muted-foreground" />
+                <IconButton icon={<Trash2 />} label="Delete" onClick={() => { if (confirm(`Delete MCP server "${s.name}"?`)) removeServer.mutate(s.id) }} className="text-muted-foreground hover:text-destructive" />
               </div>
             </div>
           </div>
@@ -142,9 +143,9 @@ function WebhookSection() {
               <div className="truncate text-xs text-muted-foreground">{w.url}{w.events.length ? ` · ${w.events.join(", ")}` : ""}{w.has_secret ? " · signed" : ""}{w.last_status_code ? ` · last ${w.last_status_code}` : ""}</div>
             </div>
             <div className="flex gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
-              <button onClick={() => testWebhook.mutate(w.id)} title="Test" className="text-muted-foreground hover:text-foreground"><Send className="size-4" /></button>
+              <IconButton icon={<Send />} label="Test" onClick={() => testWebhook.mutate(w.id)} className="text-muted-foreground" />
               <button onClick={() => toggleWebhook.mutate({ id: w.id, is_active: !w.is_active })} title={w.is_active ? "Disable" : "Enable"} className="text-xs text-muted-foreground hover:text-foreground">{w.is_active ? "On" : "Off"}</button>
-              <button onClick={() => { if (confirm(`Delete webhook "${w.name}"?`)) removeWebhook.mutate(w.id) }} title="Delete" className="text-muted-foreground hover:text-destructive"><Trash2 className="size-4" /></button>
+              <IconButton icon={<Trash2 />} label="Delete" onClick={() => { if (confirm(`Delete webhook "${w.name}"?`)) removeWebhook.mutate(w.id) }} className="text-muted-foreground hover:text-destructive" />
             </div>
           </div>
         ))}
@@ -204,9 +205,9 @@ function IntegrationRow({ integ }: { integ: Integration }) {
           <div className="truncate text-xs text-muted-foreground">{integ.base_url}{integ.preset ? ` · ${integ.preset}` : ""}{integ.auth_type && integ.auth_type !== "none" ? ` · ${integ.auth_type}` : ""}{integ.api_key ? ` · key ${integ.api_key}` : ""}</div>
         </div>
         <div className="flex gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
-          <button onClick={runTest} title="Test" className="text-muted-foreground hover:text-foreground"><Send className="size-4" /></button>
-          <button onClick={() => setEditing((v) => !v)} title="Edit" className="text-muted-foreground hover:text-foreground"><Pencil className="size-4" /></button>
-          <button onClick={() => { if (confirm(`Delete integration "${integ.name}"?`)) remove.mutate(integ.id) }} title="Delete" className="text-muted-foreground hover:text-destructive"><Trash2 className="size-4" /></button>
+          <IconButton icon={<Send />} label="Test" onClick={runTest} className="text-muted-foreground" />
+          <IconButton icon={<Pencil />} label="Edit" onClick={() => setEditing((v) => !v)} className="text-muted-foreground" />
+          <IconButton icon={<Trash2 />} label="Delete" onClick={() => { if (confirm(`Delete integration "${integ.name}"?`)) remove.mutate(integ.id) }} className="text-muted-foreground hover:text-destructive" />
         </div>
       </div>
       {result && <p className="mt-2 text-xs text-muted-foreground">{result}</p>}

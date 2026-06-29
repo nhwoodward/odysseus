@@ -3,7 +3,7 @@ import logging
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
-from sqlalchemy import event, create_engine, Column, String, Text, Boolean, DateTime, Integer, ForeignKey, JSON, Index, func, text
+from sqlalchemy import event, create_engine, Column, String, Text, Boolean, DateTime, Integer, Float, ForeignKey, JSON, Index, UniqueConstraint, func, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.types import TypeDecorator
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
@@ -450,6 +450,27 @@ class PlaidItem(TimestampMixin, Base):
     accounts = Column(Text, nullable=True)                     # cached account metadata (JSON)
     status = Column(String, nullable=True, default="active")   # active | error
     error = Column(String, nullable=True)
+
+
+class BalanceSnapshot(Base):
+    """Daily owner-scoped net-worth snapshot powering the finance net-worth trend.
+
+    Plaid only ever returns *current* balances, so a historical net-worth line has
+    to be accumulated forward: one row per (owner, day), upserted whenever the
+    dashboard summary is computed (``record_snapshot`` in ``src/finance_service``).
+    Never backfilled — gaps simply mean the app wasn't opened that day.
+    """
+    __tablename__ = "balance_snapshots"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    owner = Column(String, nullable=True, index=True)
+    day = Column(String, nullable=False, index=True)        # local YYYY-MM-DD
+    net_worth = Column(Float, nullable=False, default=0.0)
+    assets = Column(Float, nullable=False, default=0.0)
+    liabilities = Column(Float, nullable=False, default=0.0)
+    captured_at = Column(DateTime, default=utcnow_naive, nullable=False)
+
+    __table_args__ = (UniqueConstraint("owner", "day", name="uq_balance_snapshot_owner_day"),)
 
 
 class McpServer(TimestampMixin, Base):

@@ -26,3 +26,33 @@ export function SkeletonList({ rows = 5, className }: { rows?: number; className
     </div>
   )
 }
+
+// A responsive grid of card placeholders — mirrors the note/event/document card
+// grids (`grid sm:grid-cols-2 xl:grid-cols-3`). Pass `className` to override the
+// grid columns when a surface uses a different layout.
+export function SkeletonCards({ count = 6, className }: { count?: number; className?: string }) {
+  return (
+    <div role="status" aria-busy="true" className={cn("grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3", className)}>
+      <span className="sr-only">Loading…</span>
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} className="space-y-2 rounded-lg border bg-card p-3">
+          <Skeleton className="h-4 w-1/2" />
+          <Skeleton className="h-3 w-full" />
+          <Skeleton className="h-3 w-4/5" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// A grid of square tiles — mirrors the Gallery image grid.
+export function SkeletonGrid({ count = 12, className }: { count?: number; className?: string }) {
+  return (
+    <div role="status" aria-busy="true" className={cn("grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6", className)}>
+      <span className="sr-only">Loading…</span>
+      {Array.from({ length: count }).map((_, i) => (
+        <Skeleton key={i} className="aspect-square w-full rounded-lg" />
+      ))}
+    </div>
+  )
+}

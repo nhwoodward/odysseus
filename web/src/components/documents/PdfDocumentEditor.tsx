@@ -6,6 +6,7 @@ import { prepareSignedReply, useDocMutations, type DocFull } from "@/api/documen
 import { buildEmailDraft } from "@/lib/emailDraft"
 import { parsePdfAnnotations, parsePdfFieldValues, updatePdfFieldValue, writePdfAnnotations, type PdfAnnotation } from "@/lib/pdfDocument"
 import { Button } from "@/components/ui/button"
+import { IconButton } from "@/components/ui/IconButton"
 import { useEscapeClose } from "@/lib/useEscapeClose"
 import { cn } from "@/lib/utils"
 
@@ -321,13 +322,13 @@ export function PdfDocumentEditor({
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
       <header className="flex min-h-13 shrink-0 flex-wrap items-center gap-2 border-b px-3 py-1.5 sm:flex-nowrap sm:py-0">
-        <Button variant="ghost" size="icon" onClick={onBack} title="Back"><ArrowLeft className="size-4" /></Button>
+        <Button variant="ghost" size="icon" onClick={onBack} title="Back" aria-label="Back"><ArrowLeft className="size-4" /></Button>
         <div className="min-w-0 flex-1 truncate text-sm font-semibold">{doc.title || "PDF document"}</div>
         {status && <span className="shrink-0 text-xs text-muted-foreground">{status}</span>}
-        <Button variant="ghost" size="icon" onClick={() => pages.refetch()} title="Refresh PDF"><RefreshCw className="size-4" /></Button>
+        <Button variant="ghost" size="icon" onClick={() => pages.refetch()} title="Refresh PDF" aria-label="Refresh PDF"><RefreshCw className="size-4" /></Button>
         <a href={`/api/document/${doc.id}/export-pdf`} target="_blank" rel="noreferrer" className="hidden h-8 items-center gap-1.5 rounded-md border px-3 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground sm:inline-flex"><Download className="size-4" />Export</a>
         {canSignedReply && <Button variant="outline" size="sm" disabled={signedBusy} onClick={signedReply} className="hidden sm:inline-flex"><Reply className="size-4" />{signedBusy ? "Preparing..." : "Signed reply"}</Button>}
-        <button onClick={del} title="Delete" className="hidden rounded-md p-1.5 text-muted-foreground hover:text-destructive sm:inline-flex"><Trash2 className="size-4" /></button>
+        <button onClick={del} title="Delete" aria-label="Delete" className="hidden rounded-md p-1.5 text-muted-foreground hover:text-destructive sm:inline-flex"><Trash2 className="size-4" /></button>
         <Button size="sm" disabled={!dirty || saving} onClick={() => { void save() }}><Save className="size-4" />{saving ? "Saving..." : dirty ? "Save" : "Saved"}</Button>
       </header>
 
@@ -384,7 +385,7 @@ export function PdfDocumentEditor({
           <div className="w-full max-w-md rounded-lg border bg-popover p-3 shadow-xl" onMouseDown={(e) => e.stopPropagation()}>
             <div className="mb-3 flex items-center gap-2">
               <div className="flex-1 text-sm font-semibold">Choose signature</div>
-              <button onClick={() => setSignatureTarget(null)} title="Close" className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"><X className="size-4" /></button>
+              <IconButton icon={<X />} label="Close" onClick={() => setSignatureTarget(null)} className="text-muted-foreground" />
             </div>
             <div className="space-y-2">
               <Button className="w-full justify-center" onClick={() => setSignatureCaptureOpen(true)}>
@@ -396,7 +397,7 @@ export function PdfDocumentEditor({
                     <img src={sig.data_url} alt="" className="h-10 w-28 rounded border bg-white object-contain" />
                     <span className="min-w-0 flex-1 truncate text-sm">{sig.name || "Signature"}</span>
                   </button>
-                  <button type="button" onClick={() => { void deleteSavedSignature(sig.id) }} title="Delete signature" className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
+                  <button type="button" onClick={() => { void deleteSavedSignature(sig.id) }} title="Delete signature" aria-label="Delete signature" className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
                     <Trash2 className="size-4" />
                   </button>
                 </div>
@@ -574,7 +575,7 @@ function SignatureCaptureModal({
       <div className="w-full max-w-xl rounded-lg border bg-popover p-3 shadow-xl" onMouseDown={(e) => e.stopPropagation()}>
         <div className="mb-3 flex items-center gap-2">
           <div className="flex-1 text-sm font-semibold">Draw your signature</div>
-          <button onClick={onCancel} title="Close" className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"><X className="size-4" /></button>
+          <IconButton icon={<X />} label="Close" onClick={onCancel} className="text-muted-foreground" />
         </div>
         <canvas
           ref={canvasRef}
@@ -698,17 +699,17 @@ function PdfFieldOverlay({
     const sigId = typeof value === "string" && value.startsWith("signature:") ? value.slice("signature:".length) : ""
     const sig = signatureById.get(sigId)
     return (
-      <button type="button" title={field.label || field.name} onClick={onPickSignature} className="absolute flex items-center justify-center overflow-hidden border border-dashed border-primary/70 bg-primary/10 text-micro text-primary" style={style}>
+      <button type="button" title={field.label || field.name} aria-label={field.label || field.name} onClick={onPickSignature} className="absolute flex items-center justify-center overflow-hidden border border-dashed border-primary/70 bg-primary/10 text-micro text-primary" style={style}>
         {sig ? <img src={sig.data_url} alt="" className="h-full w-full object-contain" /> : "Sign here"}
       </button>
     )
   }
   if (field.type === "checkbox") {
-    return <input type="checkbox" checked={!!value} onChange={(e) => onChange(field, e.target.checked)} className="absolute m-0 rounded-sm accent-primary [color-scheme:light]" style={style} title={field.label || field.name} />
+    return <input type="checkbox" checked={!!value} onChange={(e) => onChange(field, e.target.checked)} className="absolute m-0 rounded-sm accent-primary [color-scheme:light]" style={style} title={field.label || field.name} aria-label={field.label || field.name} />
   }
   if (field.type === "choice" && field.options?.length) {
     return (
-      <select value={String(value || "")} onChange={(e) => onChange(field, e.target.value)} className="absolute border border-primary/60 bg-white/90 px-1 text-micro text-black outline-none" style={style} title={field.label || field.name}>
+      <select value={String(value || "")} onChange={(e) => onChange(field, e.target.value)} className="absolute border border-primary/60 bg-white/90 px-1 text-micro text-black outline-none" style={style} title={field.label || field.name} aria-label={field.label || field.name}>
         <option value="">-</option>
         {field.options.map((option) => <option key={option} value={option}>{option}</option>)}
       </select>
@@ -721,6 +722,7 @@ function PdfFieldOverlay({
       className="absolute border border-primary/60 bg-white/90 px-1 text-label text-black outline-none"
       style={style}
       title={field.label || field.name}
+      aria-label={field.label || field.name}
     />
   )
 }
@@ -791,9 +793,9 @@ function PdfAnnotationOverlay({
   }
   const controls = (
     <>
-      <button type="button" title="Drag to move" onPointerDown={startMove} className="absolute -left-5 -top-5 z-10 rounded-sm border bg-white p-0.5 text-black shadow hover:bg-accent"><GripVertical className="size-3" /></button>
-      <button type="button" title="Remove annotation" onClick={() => onDelete(annotation.id)} className="absolute -right-5 -top-5 z-10 rounded-full border bg-white p-0.5 text-black shadow hover:bg-red-50"><X className="size-3" /></button>
-      <button type="button" title="Drag to resize" onPointerDown={startResize} className="absolute -bottom-5 -right-5 z-10 rounded-sm border bg-white p-0.5 text-black shadow hover:bg-accent"><Maximize2 className="size-3" /></button>
+      <button type="button" title="Drag to move" aria-label="Drag to move" onPointerDown={startMove} className="absolute -left-5 -top-5 z-10 rounded-sm border bg-white p-0.5 text-black shadow hover:bg-accent"><GripVertical className="size-3" /></button>
+      <button type="button" title="Remove annotation" aria-label="Remove annotation" onClick={() => onDelete(annotation.id)} className="absolute -right-5 -top-5 z-10 rounded-full border bg-white p-0.5 text-black shadow hover:bg-red-50"><X className="size-3" /></button>
+      <button type="button" title="Drag to resize" aria-label="Drag to resize" onPointerDown={startResize} className="absolute -bottom-5 -right-5 z-10 rounded-sm border bg-white p-0.5 text-black shadow hover:bg-accent"><Maximize2 className="size-3" /></button>
     </>
   )
   if (annotation.kind === "check") {

@@ -5,6 +5,7 @@ import { downloadImage, flattenGallery, useGallery, useGalleryAlbums, useGallery
 import { apiFetch, apiJson } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { inputClass } from "@/components/ui/input"
+import { SkeletonGrid } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { toast } from "@/stores/toast"
 import type { GalleryAlbum, GalleryImage } from "@/types"
@@ -110,11 +111,11 @@ function Lightbox({ img, hasPrev, hasNext, onPrev, onNext, onClose, onEdit, onFi
   return (
     <div className="absolute inset-0 z-20 flex animate-fade-in items-center justify-center bg-black/60 p-4" onClick={onClose}>
       {hasPrev && (
-        <button onClick={(e) => { e.stopPropagation(); onPrev() }} title="Previous (←)"
+        <button onClick={(e) => { e.stopPropagation(); onPrev() }} title="Previous (←)" aria-label="Previous (←)"
           className="absolute left-3 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white hover:bg-black/70 md:left-4"><ChevronLeft className="size-5" /></button>
       )}
       {hasNext && (
-        <button onClick={(e) => { e.stopPropagation(); onNext() }} title="Next (→)"
+        <button onClick={(e) => { e.stopPropagation(); onNext() }} title="Next (→)" aria-label="Next (→)"
           className="absolute right-3 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white hover:bg-black/70 md:right-4"><ChevronRight className="size-5" /></button>
       )}
       <div className="flex max-h-full w-full max-w-4xl flex-col animate-pop-in overflow-hidden rounded-xl border bg-popover shadow-lg md:flex-row" onClick={(e) => e.stopPropagation()}>
@@ -124,7 +125,7 @@ function Lightbox({ img, hasPrev, hasNext, onPrev, onNext, onClose, onEdit, onFi
         <div className="flex max-h-[50vh] w-full shrink-0 flex-col gap-3 overflow-y-auto p-4 md:max-h-none md:w-80">
           <div className="flex items-center justify-between">
             <span className="text-sm font-semibold">Edit image</span>
-            <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="size-4" /></button>
+            <button onClick={onClose} aria-label="Close" className="text-muted-foreground hover:text-foreground"><X className="size-4" /></button>
           </div>
           <div className="space-y-1 text-xs text-muted-foreground">
             {img.model && <p className="truncate">Source: {img.model}</p>}
@@ -134,14 +135,14 @@ function Lightbox({ img, hasPrev, hasNext, onPrev, onNext, onClose, onEdit, onFi
             <label className="mb-1 block text-xs text-muted-foreground">Name</label>
             <div className="flex gap-1.5">
               <input value={name} onChange={(e) => setName(e.target.value)} className={inp} />
-              <Button size="icon" variant="outline" title="Save name" onClick={() => rename.mutate({ id: img.id, name })}><Save className="size-4" /></Button>
+              <Button size="icon" variant="outline" title="Save name" aria-label="Save name" onClick={() => rename.mutate({ id: img.id, name })}><Save className="size-4" /></Button>
             </div>
           </div>
           <div>
             <label className="mb-1 block text-xs text-muted-foreground">Tags</label>
             <div className="flex gap-1.5">
               <input value={tags} onChange={(e) => setTagsLocal(e.target.value)} placeholder="comma-separated" className={inp} />
-              <Button size="icon" variant="outline" title="Save tags" onClick={() => setTags.mutate({ id: img.id, tags })}><Save className="size-4" /></Button>
+              <Button size="icon" variant="outline" title="Save tags" aria-label="Save tags" onClick={() => setTags.mutate({ id: img.id, tags })}><Save className="size-4" /></Button>
             </div>
           </div>
           <div>
@@ -154,7 +155,7 @@ function Lightbox({ img, hasPrev, hasNext, onPrev, onNext, onClose, onEdit, onFi
                   {aiTag.isPending ? <Loader2 className="size-3 animate-spin" /> : <Sparkles className="size-3" />}AI tag
                 </button>
                 {aiTags.length > 0 && (
-                  <button onClick={() => clearAiTags.mutate(img.id)} title="Clear AI tags"
+                  <button onClick={() => clearAiTags.mutate(img.id)} title="Clear AI tags" aria-label="Clear AI tags"
                     className="inline-flex items-center rounded-md border px-1.5 py-0.5 text-label text-muted-foreground hover:text-foreground"><X className="size-3" /></button>
                 )}
               </div>
@@ -181,9 +182,9 @@ function Lightbox({ img, hasPrev, hasNext, onPrev, onNext, onClose, onEdit, onFi
           )}
           <div className="mt-auto flex gap-2">
             <Button size="sm" variant="outline" className="flex-1" onClick={() => favorite.mutate(img.id)}><Star className={cn("size-4", img.favorite && "fill-current")} />{img.favorite ? "Favorited" : "Favorite"}</Button>
-            {!isVideo(img) && <Button size="sm" variant="outline" title="Edit" onClick={() => onEdit(img)}><Pencil className="size-4" /></Button>}
-            <Button size="sm" variant="outline" title="Download" onClick={download}><Download className="size-4" /></Button>
-            <Button size="sm" variant="outline" onClick={() => { if (confirm("Delete this image?")) { remove.mutate(img.id); onClose() } }}><Trash2 className="size-4" /></Button>
+            {!isVideo(img) && <Button size="sm" variant="outline" title="Edit" aria-label="Edit" onClick={() => onEdit(img)}><Pencil className="size-4" /></Button>}
+            <Button size="sm" variant="outline" title="Download" aria-label="Download" onClick={download}><Download className="size-4" /></Button>
+            <Button size="sm" variant="outline" aria-label="Delete" onClick={() => { if (confirm("Delete this image?")) { remove.mutate(img.id); onClose() } }}><Trash2 className="size-4" /></Button>
           </div>
         </div>
       </div>
@@ -361,13 +362,13 @@ export function GalleryRoute() {
               {activeAlbum && (
                 <span className="inline-flex items-center gap-1 rounded-full border bg-accent px-2.5 py-1 text-xs">
                   <FolderOpen className="size-3" />{activeAlbum.name}
-                  <button onClick={() => setAlbumId(null)} title="Clear album"><X className="size-3" /></button>
+                  <button onClick={() => setAlbumId(null)} title="Clear album" aria-label="Clear album"><X className="size-3" /></button>
                 </span>
               )}
               {tagFilter && (
                 <span className="inline-flex items-center gap-1 rounded-full border bg-accent px-2.5 py-1 text-xs">
                   <Tags className="size-3" />{tagFilter}
-                  <button onClick={() => setTagFilter("")} title="Clear tag filter"><X className="size-3" /></button>
+                  <button onClick={() => setTagFilter("")} title="Clear tag filter" aria-label="Clear tag filter"><X className="size-3" /></button>
                 </span>
               )}
               <select value={model} onChange={(e) => setModel(e.target.value)} className="hidden h-7 rounded-md border bg-background px-2 text-xs outline-none md:inline-flex">
@@ -424,10 +425,10 @@ export function GalleryRoute() {
                     <div className="text-xs text-muted-foreground">{formatCount(album.count)}</div>
                   </div>
                   <div className="absolute right-1.5 top-1.5 flex gap-1 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
-                    <button onClick={(e) => { e.stopPropagation(); chooseUpload(album.id) }} title="Upload here" className="rounded-md bg-black/50 p-1.5 text-white hover:bg-black/70"><Upload className="size-3.5" /></button>
-                    <button onClick={(e) => { e.stopPropagation(); setCoverFor(album) }} title="Set cover" className="rounded-md bg-black/50 p-1.5 text-white hover:bg-black/70"><ImageIcon className="size-3.5" /></button>
-                    <button onClick={(e) => { e.stopPropagation(); renameOneAlbum(album) }} title="Rename album" className="rounded-md bg-black/50 p-1.5 text-white hover:bg-black/70"><Pencil className="size-3.5" /></button>
-                    <button onClick={(e) => { e.stopPropagation(); deleteOneAlbum(album) }} title="Delete album" className="rounded-md bg-black/50 p-1.5 text-white hover:bg-black/70"><Trash2 className="size-3.5" /></button>
+                    <button onClick={(e) => { e.stopPropagation(); chooseUpload(album.id) }} title="Upload here" aria-label="Upload here" className="rounded-md bg-black/50 p-1.5 text-white hover:bg-black/70"><Upload className="size-3.5" /></button>
+                    <button onClick={(e) => { e.stopPropagation(); setCoverFor(album) }} title="Set cover" aria-label="Set cover" className="rounded-md bg-black/50 p-1.5 text-white hover:bg-black/70"><ImageIcon className="size-3.5" /></button>
+                    <button onClick={(e) => { e.stopPropagation(); renameOneAlbum(album) }} title="Rename album" aria-label="Rename album" className="rounded-md bg-black/50 p-1.5 text-white hover:bg-black/70"><Pencil className="size-3.5" /></button>
+                    <button onClick={(e) => { e.stopPropagation(); deleteOneAlbum(album) }} title="Delete album" aria-label="Delete album" className="rounded-md bg-black/50 p-1.5 text-white hover:bg-black/70"><Trash2 className="size-3.5" /></button>
                   </div>
                 </div>
               ))}
@@ -453,6 +454,7 @@ export function GalleryRoute() {
             </div>
             <div ref={sentinelRef} className="h-px" />
             {isFetchingNextPage && <div className="flex justify-center py-4 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /></div>}
+            {images.length === 0 && isFetching && <SkeletonGrid count={12} className="mt-1" />}
             {images.length === 0 && !isFetching && <p className="py-8 text-center text-sm text-muted-foreground">{q || albumId || favorites || model || tagFilter ? "No matches." : "No photos yet."}</p>}
           </>
         )}
@@ -475,10 +477,10 @@ function GridImage({ img, onOpen, onFavorite, onDelete, onTag }: {
       <Media img={img} className="aspect-square w-full object-cover" />
       {isVideo(img) && <span className="absolute left-1.5 top-1.5 rounded-md bg-black/50 p-1 text-white"><Film className="size-3.5" /></span>}
       <div className="absolute right-1.5 top-1.5 flex gap-1 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
-        <button onClick={(e) => { e.stopPropagation(); onFavorite() }} title="Favorite" className="rounded-md bg-black/50 p-1.5 text-white hover:bg-black/70">
+        <button onClick={(e) => { e.stopPropagation(); onFavorite() }} title="Favorite" aria-label="Favorite" className="rounded-md bg-black/50 p-1.5 text-white hover:bg-black/70">
           <Star className={cn("size-3.5", img.favorite && "fill-current")} />
         </button>
-        <button onClick={(e) => { e.stopPropagation(); onDelete() }} title="Delete" className="rounded-md bg-black/50 p-1.5 text-white hover:bg-black/70">
+        <button onClick={(e) => { e.stopPropagation(); onDelete() }} title="Delete" aria-label="Delete" className="rounded-md bg-black/50 p-1.5 text-white hover:bg-black/70">
           <Trash2 className="size-3.5" />
         </button>
       </div>
@@ -508,7 +510,7 @@ function CoverPicker({ album, onClose, onPick }: { album: GalleryAlbum; onClose:
       <div className="flex max-h-[80vh] w-full max-w-2xl flex-col animate-pop-in overflow-hidden rounded-xl border bg-popover shadow-lg" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b px-4 py-3">
           <span className="text-sm font-semibold">Set cover for "{album.name}"</span>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="size-4" /></button>
+          <button onClick={onClose} aria-label="Close" className="text-muted-foreground hover:text-foreground"><X className="size-4" /></button>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto p-4">
           {images.length === 0 ? (
