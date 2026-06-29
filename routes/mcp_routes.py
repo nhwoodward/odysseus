@@ -205,7 +205,8 @@ def setup_mcp_routes(mcp_manager: McpManager):
         _apply_mcp_oauth_env(parsed_env, parsed_oauth_config)
 
         # Write OAuth credentials file if provided (for Google MCP servers)
-        logger.info(f"MCP add_server: oauth_file={oauth_file!r}")
+        # NB: never log oauth_file itself — it carries client_secret in cleartext.
+        logger.info(f"MCP add_server: oauth_file provided={bool(oauth_file)}")
         if oauth_file:
             try:
                 oauth_data = json.loads(oauth_file)

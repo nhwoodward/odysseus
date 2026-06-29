@@ -726,11 +726,32 @@ class UploadHandler:
         # can size itself to the right aspect ratio before the bytes arrive.
         if content_type.startswith("image/"):
             try:
+                import warnings as _warnings
                 from PIL import Image, ImageOps
-                with Image.open(file_path) as _im:
-                    _im = ImageOps.exif_transpose(_im)
-                    file_metadata["width"] = _im.width
-                    file_metadata["height"] = _im.height
+                # Defuse decompression bombs: a tiny upload can declare enormous
+                # pixel dimensions that blow up memory when decoded. Cap PIL's
+                # pixel budget and treat both the hard error AND the near-bomb
+                # warning as a hard rejection (M11).
+                Image.MAX_IMAGE_PIXELS = 100_000_000  # ~100 megapixels
+                try:
+                    with _warnings.catch_warnings():
+                        _warnings.simplefilter("error", Image.DecompressionBombWarning)
+                        with Image.open(file_path) as _im:
+                            _im = ImageOps.exif_transpose(_im)
+                            file_metadata["width"] = _im.width
+                            file_metadata["height"] = _im.height
+                except (Image.DecompressionBombError, Image.DecompressionBombWarning):
+                    # Drop the oversized file and reject the upload outright.
+                    try:
+                        os.remove(file_path)
+                    except OSError:
+                        pass
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Image rejected: it exceeds the maximum allowed pixel dimensions.",
+                    )
+            except HTTPException:
+                raise
             except Exception as e:
                 logger.warning(f"Failed to read image dimensions for {file_id}: {e}")
         

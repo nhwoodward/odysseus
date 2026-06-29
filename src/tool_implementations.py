@@ -2383,6 +2383,39 @@ _APP_API_BLOCKLIST_METHOD_PATH = (
 )
 
 
+def _normalize_app_api_path(path: str) -> str:
+    """Collapse '.', '..' and duplicate slashes in an app_api path so the
+    blocklist sees the SAME path httpx will actually send.
+
+    Without this, a traversal like '/api/cookbook/../admin/x' slips past the
+    prefix blocklist (it doesn't start with a blocked prefix) but httpx
+    normalizes it to '/api/admin/x' at send time — reaching a blocked
+    endpoint. Normalizing up front closes that gap. Any embedded query
+    string or fragment is preserved verbatim (only the path component is
+    collapsed), and a legitimate trailing slash is kept intact.
+    """
+    import posixpath
+    if not path:
+        return path
+    # Split off the first query/fragment marker so normpath only touches the
+    # path component (it would otherwise mangle '?'/'#' segments).
+    cut = len(path)
+    for sep in ("?", "#"):
+        i = path.find(sep)
+        if i != -1 and i < cut:
+            cut = i
+    pure, suffix = path[:cut], path[cut:]
+    # Ensure an absolute path so normpath can't escape above root.
+    if not pure.startswith("/"):
+        pure = "/" + pure
+    norm = posixpath.normpath(pure)
+    # normpath drops a trailing slash; restore it for non-root paths so we
+    # don't alter routing semantics for legitimate inputs.
+    if pure != "/" and pure.endswith("/") and not norm.endswith("/"):
+        norm += "/"
+    return norm + suffix
+
+
 async def do_app_api(content: str, owner: Optional[str] = None) -> Dict:
     """Generic loopback to allowed internal Odysseus API endpoints. Lets the
     agent reach the full UI-button surface (cookbook, email, notes,
@@ -2458,6 +2491,10 @@ async def do_app_api(content: str, owner: Optional[str] = None) -> Dict:
         return {"error": "path is required (e.g. '/api/cookbook/gpus')", "exit_code": 1}
     if not path.startswith("/"):
         path = "/" + path
+    # Collapse '.', '..' and '//' BEFORE the blocklist checks (and the send
+    # below) so a traversal that httpx would normalize into a blocked
+    # endpoint can't slip past the prefix/method-path blocklists.
+    path = _normalize_app_api_path(path)
     if any(path.startswith(p) for p in _APP_API_BLOCKLIST_PREFIXES):
         return {"error": f"Path blocked for safety: {path}. Sensitive endpoints are off-limits via app_api.", "exit_code": 1}
 

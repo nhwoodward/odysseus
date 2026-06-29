@@ -9,8 +9,8 @@ import re
 import logging
 import socket
 from datetime import datetime, timedelta
-from typing import List
-from urllib.parse import urljoin, urlparse
+from typing import List, Optional
+from urllib.parse import urljoin, urlparse, urlunparse
 
 import httpx
 from bs4 import BeautifulSoup
@@ -66,41 +66,118 @@ def _resolve_hostname_ips(hostname: str) -> list[ipaddress._BaseAddress]:
     return out
 
 
-def _public_http_url(url: str) -> bool:
+def _validated_pinned_ip(url: str) -> Optional[str]:
+    """Validate that *url* targets a public host and return the literal IP the
+    connection must be pinned to (or ``None`` if the URL is private/internal or
+    unsupported).
+
+    The host is resolved exactly once here. Callers pin the actual TCP
+    connection to the returned IP so a hostname that is public at validation
+    time cannot be re-resolved to a private address at connect time
+    (DNS-rebinding / TOCTOU SSRF).
+    """
     try:
         parsed = urlparse(url)
         if parsed.scheme not in ("http", "https"):
-            return False
+            return None
         host = (parsed.hostname or "").strip()
         if not host:
-            return False
+            return None
         lower = host.lower()
         if lower in ("localhost", "metadata", "metadata.google.internal"):
-            return False
+            return None
         if lower.endswith((".local", ".localhost", ".internal", ".lan", ".intranet")):
-            return False
+            return None
+        # Literal IP host: no DNS lookup happens, so there is no rebinding window.
         try:
-            return not _is_private_address(ipaddress.ip_address(host))
+            ip = ipaddress.ip_address(host)
         except ValueError:
-            pass
+            ip = None
+        if ip is not None:
+            return None if _is_private_address(ip) else str(ip)
+        # Hostname: resolve ONCE, require every resolved address to be public,
+        # then pin to the first resolved address.
         addrs = _resolve_hostname_ips(host)
-        return bool(addrs) and not any(_is_private_address(a) for a in addrs)
+        if not addrs or any(_is_private_address(a) for a in addrs):
+            return None
+        return str(addrs[0])
     except Exception:
-        return False
+        return None
+
+
+def _public_http_url(url: str) -> bool:
+    """Return True if *url* is a fetchable public http(s) URL (SSRF guard)."""
+    return _validated_pinned_ip(url) is not None
+
+
+def _format_authority(ip: str, port) -> str:
+    """Build a URL authority for a literal *ip* (bracketing IPv6) and optional port."""
+    host_part = f"[{ip}]" if ":" in ip else ip
+    return f"{host_part}:{port}" if port is not None else host_part
+
+
+_pinned_transport_cls = None
+
+
+def _get_pinned_transport_cls():
+    """Lazily build an httpx transport that connects to a pre-validated IP while
+    keeping the original hostname for the Host header, TLS SNI and certificate
+    verification.
+
+    Defined lazily (and cached) so importing this module never depends on httpx
+    being importable, and so we only subclass the real transport at fetch time.
+    """
+    global _pinned_transport_cls
+    if _pinned_transport_cls is None:
+        class _PinnedIPTransport(httpx.HTTPTransport):
+            def __init__(self, pinned_ip: str, **kwargs):
+                super().__init__(**kwargs)
+                self._pinned_ip = pinned_ip
+
+            def handle_request(self, request: "httpx.Request") -> "httpx.Response":
+                # Force the TCP connection to the pre-validated IP, but verify the
+                # certificate and send SNI/Host for the ORIGINAL hostname so TLS
+                # stays correct. This closes the DNS-rebinding (TOCTOU) window.
+                request.extensions = dict(request.extensions or {})
+                request.extensions.setdefault("sni_hostname", request.url.host)
+                request.url = request.url.copy_with(host=self._pinned_ip)
+                return super().handle_request(request)
+
+        _pinned_transport_cls = _PinnedIPTransport
+    return _pinned_transport_cls
 
 
 def _get_public_url(url: str, headers: dict, timeout: int, max_redirects: int = 5) -> httpx.Response:
     current = url
     for _ in range(max_redirects + 1):
-        if not _public_http_url(current):
+        # Resolve + validate the host exactly once, then pin the connection to
+        # that validated IP so the request cannot be re-resolved to a private
+        # address between validation and connect (DNS rebinding / TOCTOU SSRF).
+        pinned_ip = _validated_pinned_ip(current)
+        if pinned_ip is None:
             raise httpx.RequestError("Blocked private/internal URL", request=httpx.Request("GET", current))
-        response = httpx.get(current, headers=headers, timeout=timeout, follow_redirects=False)
+        parsed = urlparse(current)
+        if parsed.scheme == "https":
+            # HTTPS: pin via a custom transport so TLS SNI + certificate
+            # verification still use the original hostname (rewriting the URL
+            # host to the IP would break cert validation).
+            transport = _get_pinned_transport_cls()(pinned_ip)
+            with httpx.Client(transport=transport, timeout=timeout, follow_redirects=False) as client:
+                response = client.get(current, headers=headers)
+        else:
+            # Plain HTTP (no TLS): connect straight to the pinned IP and keep the
+            # real Host header so virtual-host routing still works.
+            pinned_url = urlunparse(parsed._replace(netloc=_format_authority(pinned_ip, parsed.port)))
+            req_headers = dict(headers)
+            req_headers.setdefault("Host", parsed.netloc.rsplit("@", 1)[-1])
+            response = httpx.get(pinned_url, headers=req_headers, timeout=timeout, follow_redirects=False)
         if response.status_code not in (301, 302, 303, 307, 308):
             return response
         location = response.headers.get("location")
         if not location:
             return response
-        current = urljoin(str(response.url), location)
+        # Re-validate every redirect hop against the ORIGINAL hostname URL.
+        current = urljoin(current, location)
     raise httpx.RequestError("Too many redirects", request=httpx.Request("GET", current))
 
 # PDF extraction (optional dependency)

@@ -60,6 +60,35 @@ def _owner_for_email_account(account_id: str | None) -> str:
         return ""
 
 
+# Destructive calendar actions that an UNTRUSTED inbound email must never be
+# able to drive via prompt-injection. Both the extractor's vocabulary
+# ("cancel"/"update") and the underlying tool actions ("delete_event"/
+# "update_event") are listed so the guardrail holds regardless of which name
+# the LLM emits.
+_DESTRUCTIVE_CAL_ACTIONS = {"cancel", "update", "delete", "delete_event", "update_event"}
+
+
+def _filter_email_calendar_ops(ops, *, trusted: bool):
+    """M3 prompt-injection guardrail.
+
+    The email body is UNTRUSTED input to the calendar extractor. A malicious or
+    compromised inbound message can coax the model into emitting destructive
+    operations (cancel/update) that target the user's EXISTING events. Unless
+    the message is trusted (composed by the user / sent from the account's own
+    address), drop every destructive op and keep only create/noop.
+
+    Returns ``(kept_ops, dropped_ops)``.
+    """
+    kept, dropped = [], []
+    for op in ops or []:
+        action = (op.get("action") or "").lower() if isinstance(op, dict) else ""
+        if (not trusted) and action in _DESTRUCTIVE_CAL_ACTIONS:
+            dropped.append(op)
+        else:
+            kept.append(op)
+    return kept, dropped
+
+
 # ── Routes ──
 
 async def _emit_progress(progress_cb, message: str):
@@ -567,6 +596,22 @@ async def _auto_summarize_pass_single(days_back: int = 1, account_id: str | None
                             try:
                                 ops = json.loads(jm.group())
                                 logger.info(f"[cal-extract] parsed {len(ops)} op(s)")
+                                # ── M3 guardrail ──────────────────────────────
+                                # The email body is UNTRUSTED. Only honour
+                                # destructive ops (cancel/update of existing
+                                # events) when the message is trusted: composed
+                                # by the user (Sent folder) or sent from the
+                                # account's own address. Untrusted inbound mail
+                                # may only CREATE new events.
+                                if isinstance(ops, list) and ops:
+                                    _cal_trusted = bool(is_sent or _is_self_mail)
+                                    ops, _dropped_ops = _filter_email_calendar_ops(ops, trusted=_cal_trusted)
+                                    if _dropped_ops:
+                                        logger.warning(
+                                            f"[cal-extract] Dropped {len(_dropped_ops)} destructive "
+                                            f"calendar op(s) from untrusted email "
+                                            f"sender={sender!r} folder={_folder}"
+                                        )
                                 if isinstance(ops, list) and ops:
                                     from src.tool_implementations import do_manage_calendar
                                     for op in ops[:3]:
@@ -1034,11 +1079,18 @@ def _scheduled_poll_once() -> dict:
                 if has_atts:
                     outer.attach(body_container)
                     _attach_compose_uploads(outer, attachments)
-                recipients = [a.strip() for a in (r[1] or "").split(",") if a.strip()]
-                if r[2]:
-                    recipients.extend([a.strip() for a in r[2].split(",") if a.strip()])
-                if r[3]:
-                    recipients.extend([a.strip() for a in r[3].split(",") if a.strip()])
+                # M10: build envelope recipients with email.utils.getaddresses
+                # rather than a naive str.split(',') — splitting on commas
+                # corrupts RFC-5322 addresses whose quoted display name contains
+                # a comma (e.g. '"Smith, John" <j@x.com>'), which could split the
+                # SMTP envelope or drop/duplicate recipients.
+                recipients = [
+                    addr
+                    for _name, addr in email.utils.getaddresses(
+                        [r[1] or "", r[2] or "", r[3] or ""]
+                    )
+                    if addr
+                ]
 
                 _send_smtp_message(cfg, cfg["from_address"], recipients, outer.as_string())
 

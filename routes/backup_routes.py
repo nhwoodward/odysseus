@@ -2,6 +2,7 @@
 
 import json
 import logging
+import re
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Request, Response
@@ -22,6 +23,85 @@ _IMPORT_BLOCKED_SETTING_KEYS = frozenset({
     "active_endpoint",
 })
 
+# Settings (and nested email-account / OAuth fields) whose values are plaintext
+# secrets. They are masked before an export leaves the box so a backup file
+# never carries API keys, IMAP/SMTP passwords, or OAuth client-secrets/tokens
+# off the machine. Import is intentionally unaffected.
+_EXPORT_REDACTION_PLACEHOLDER = "***REDACTED***"
+
+# Secret keys whose names don't match the regex below (e.g. google_pse_key has
+# no "api_key"/"secret"/"token" substring).
+_EXPORT_REDACTED_SETTING_KEYS = frozenset({
+    "google_pse_key",
+})
+
+# Key-name shapes that hold credentials, matched case-insensitively against
+# every dict key in the export (including nested structures).
+_EXPORT_SECRET_KEY_RE = re.compile(
+    r"(secret|token|password|passwd|api_key|client_secret|credential)",
+    re.IGNORECASE,
+)
+
+
+def _is_secret_key(key) -> bool:
+    """True when *key* names a credential-bearing setting."""
+    return isinstance(key, str) and (
+        key in _EXPORT_REDACTED_SETTING_KEYS
+        or bool(_EXPORT_SECRET_KEY_RE.search(key))
+    )
+
+
+def _redact_secrets(obj):
+    """Return a copy of *obj* with plaintext secret values masked.
+
+    Recurses through dicts/lists. A value is replaced with the redaction
+    placeholder only when its key looks like a credential AND the value is a
+    non-empty string — so numeric budgets (max_tokens, ...) and boolean
+    has_password-style flags stay intact, while actual API keys, passwords,
+    client secrets and OAuth tokens are masked. The input is not mutated.
+    """
+    if isinstance(obj, dict):
+        out = {}
+        for k, v in obj.items():
+            if _is_secret_key(k) and isinstance(v, str) and v != "":
+                out[k] = _EXPORT_REDACTION_PLACEHOLDER
+            else:
+                out[k] = _redact_secrets(v)
+        return out
+    if isinstance(obj, list):
+        return [_redact_secrets(item) for item in obj]
+    return obj
+
+
+def _contains_placeholder(v) -> bool:
+    """True if `v` is, or anywhere contains, the export redaction placeholder."""
+    if v == _EXPORT_REDACTION_PLACEHOLDER:
+        return True
+    if isinstance(v, dict):
+        return any(_contains_placeholder(x) for x in v.values())
+    if isinstance(v, list):
+        return any(_contains_placeholder(x) for x in v)
+    return False
+
+
+def _merge_preserving_secrets(current: dict, incoming: dict) -> dict:
+    """Deep-merge `incoming` into `current` WITHOUT overwriting a live value with
+    a redaction placeholder. Exports mask secrets (`_redact_secrets`), so a
+    re-imported backup carries "***REDACTED***" where real keys/passwords/tokens
+    used to be; a naive ``current.update(incoming)`` would clobber the live
+    secrets with that placeholder. Here: a value that is/contains the placeholder
+    is recursed into when both sides are dicts (so non-secret subfields still
+    restore) and otherwise skipped (the live secret is kept); clean values apply
+    normally."""
+    for k, v in incoming.items():
+        if _contains_placeholder(v):
+            if isinstance(v, dict) and isinstance(current.get(k), dict):
+                _merge_preserving_secrets(current[k], v)
+            # else: scalar/list holding a redacted secret — keep current's value
+            continue
+        current[k] = v
+    return current
+
 
 def setup_backup_routes(memory_manager, preset_manager, skills_manager) -> APIRouter:
     router = APIRouter(tags=["backup"])
@@ -41,8 +121,8 @@ def setup_backup_routes(memory_manager, preset_manager, skills_manager) -> APIRo
         # Skills (filtered by owner when auth is enabled)
         skills = skills_manager.load(owner=user)
 
-        # Settings
-        settings = load_settings()
+        # Settings (secret-bearing values masked before the export leaves the box)
+        settings = _redact_secrets(load_settings())
 
         # Feature flags
         features = load_features()
@@ -206,7 +286,9 @@ def setup_backup_routes(memory_manager, preset_manager, skills_manager) -> APIRo
             dropped = sorted(set(body["settings"]) - set(incoming))
             if dropped:
                 logger.warning("import_data: ignored security-sensitive setting keys: %s", dropped)
-            current.update(incoming)
+            # Merge without letting redacted-export placeholders overwrite the
+            # live secrets they stand in for (M4 round-trip safety).
+            _merge_preserving_secrets(current, incoming)
             save_settings(current)
             imported.append("settings")
 

@@ -11,7 +11,7 @@ from core.session_manager import SessionManager
 from core.models import ChatMessage
 from src.request_models import SessionResponse
 from core.database import Session as DbSession, SessionLocal, Document, GalleryImage, utcnow_naive
-from src.auth_helpers import get_current_user, effective_user, _auth_disabled, owner_filter
+from src.auth_helpers import get_current_user, effective_user, _auth_disabled, owner_filter, require_user
 from src.session_actions import is_session_recently_active
 
 
@@ -549,6 +549,10 @@ def setup_session_routes(session_manager: SessionManager, config: dict, webhook_
     @router.post("/sessions/bulk-delete")
     async def bulk_delete_sessions(request: Request):
         """Delete multiple sessions (for compare cleanup via sendBeacon)."""
+        # Destructive: reject narrow-scoped (non-interactive) API tokens up
+        # front so the 403 isn't swallowed by the per-id except-pass loop
+        # below. Owner-scoping is still re-checked per session.
+        require_user(request)
         from core.database import ChatMessage as _CM
         try:
             body = await request.json()
@@ -578,6 +582,11 @@ def setup_session_routes(session_manager: SessionManager, config: dict, webhook_
     @router.delete("/session/{sid}")
     def delete_session(request: Request, sid: str):
         """Permanently delete a session and all its messages."""
+        # Destructive op: require a real interactive user. require_user rejects
+        # narrow-scoped bearer API tokens (403) even though the token's owner
+        # would otherwise pass the ownership check below. The sendBeacon POST
+        # wrapper (delete_session_beacon) delegates here, so it inherits this.
+        require_user(request)
         _verify_session_owner(request, sid, session_manager)
         try:
             # Block deletion of starred/favorited sessions

@@ -40,9 +40,20 @@ def _b(value) -> bytes:
     return str(value).encode()
 
 
+def _imap_safe(value) -> str:
+    """Strip characters that could break out of an IMAP command line.
+
+    CR/LF in a user-controlled folder/query/header value would let a caller
+    smuggle additional IMAP commands onto the wire (command injection). Other
+    C0 control chars (and DEL) are not valid inside an IMAP astring/quoted
+    string either, so we drop the whole control range rather than just CR/LF."""
+    s = "" if value is None else str(value)
+    return "".join(ch for ch in s if ord(ch) >= 0x20 and ch != "\x7f")
+
+
 def _q(name: str) -> str:
     """Quote an IMAP mailbox name for commands that take mailbox args."""
-    return '"' + (name or "").replace("\\", "\\\\").replace('"', '\\"') + '"'
+    return '"' + _imap_safe(name).replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
 def _uid_fetch_rows(data) -> list:
@@ -609,7 +620,7 @@ def _search_emails(query, folders=None, max_results=20, account=None):
     _list_emails plus an `_folder` tag."""
     if not query or not str(query).strip():
         return []
-    q = str(query).replace("\\", "\\\\").replace('"', '\\"')
+    q = _imap_safe(query).replace("\\", "\\\\").replace('"', '\\"')
     # Mail clients commonly use OR FROM/SUBJECT/TEXT to match either field.
     # IMAP SEARCH OR is binary, so we nest it.
     search_cmd = f'(OR OR FROM "{q}" SUBJECT "{q}" TEXT "{q}")'
@@ -738,7 +749,8 @@ def _read_email(uid=None, message_id=None, folder="INBOX", account=None):
         conn.select(_q(folder), readonly=True)
 
         if message_id and not uid:
-            status, data = conn.uid("SEARCH", None, f'(HEADER Message-ID "{message_id}")')
+            mid = _imap_safe(message_id).replace("\\", "\\\\").replace('"', '\\"')
+            status, data = conn.uid("SEARCH", None, f'(HEADER Message-ID "{mid}")')
             if status != "OK" or not data[0]:
                 return {"error": f"Email not found with Message-ID: {message_id}"}
             uid = data[0].split()[-1]

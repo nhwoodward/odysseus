@@ -13,9 +13,21 @@ into place. On POSIX `os.replace` is atomic on the same filesystem.
 
 from __future__ import annotations
 
+import itertools
 import json
 import os
+import threading
 from typing import Any, Optional
+
+# Per-call unique suffix for temp files. A bare ``{path}.tmp.{pid}`` collides
+# when two threads of the SAME process write the same target concurrently —
+# they share the temp name and can corrupt each other / raise on os.replace.
+# pid + thread id + a monotonic counter makes every in-flight temp distinct.
+_tmp_seq = itertools.count()
+
+
+def _tmp_name(path: str) -> str:
+    return f"{path}.tmp.{os.getpid()}.{threading.get_ident()}.{next(_tmp_seq)}"
 
 
 def _open_private(tmp: str):
@@ -43,7 +55,7 @@ def atomic_write_json(path: str, data: Any, *, indent: Optional[int] = None, ens
     still round-trips identically via ``json.load``.
     """
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    tmp = f"{path}.tmp.{os.getpid()}"
+    tmp = _tmp_name(path)
     with _open_private(tmp) as f:
         json.dump(data, f, indent=indent, ensure_ascii=ensure_ascii)
         f.flush()
@@ -53,7 +65,7 @@ def atomic_write_json(path: str, data: Any, *, indent: Optional[int] = None, ens
 
 def atomic_write_text(path: str, text: str) -> None:
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    tmp = f"{path}.tmp.{os.getpid()}"
+    tmp = _tmp_name(path)
     with _open_private(tmp) as f:
         f.write(text)
         f.flush()
@@ -72,7 +84,7 @@ def atomic_write_bytes(path: str, data: bytes) -> None:
     0600 up front and ``os.replace``-ing closes both.
     """
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    tmp = f"{path}.tmp.{os.getpid()}"
+    tmp = _tmp_name(path)
     fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(fd, "wb") as f:
         f.write(data)

@@ -5,10 +5,74 @@ import os
 import time
 import uuid
 import re
+from contextlib import contextmanager
 from typing import List, Dict, Tuple
 from datetime import datetime
 
+import threading
+
+try:  # POSIX advisory file locking; absent on non-POSIX (e.g. Windows).
+    import fcntl
+except ImportError:  # pragma: no cover - non-POSIX platform
+    fcntl = None
+
 logger = logging.getLogger(__name__)
+
+# Per-thread re-entrancy depth for _file_lock, keyed by lock path. flock locks
+# are per open-file-description, so a second flock on a new fd from the SAME
+# thread/process would block on itself; the depth counter lets the outermost
+# acquirer hold the real lock while nested acquisitions (e.g. save() called
+# inside a transaction()) are no-ops.
+_lock_depth = threading.local()
+
+
+@contextmanager
+def _file_lock(lock_path: str):
+    """Serialize a read-modify-write across processes AND threads (re-entrant).
+
+    ``save()`` (load_all -> mutate -> save) had no locking, so concurrent
+    web/agent/MCP writers could each load the same snapshot and clobber one
+    another's update (lost-update race). This takes an exclusive advisory lock
+    (``fcntl.flock``) on a sidecar ``<file>.lock`` so those critical sections
+    serialize.
+
+    A sidecar lock file is used rather than the data file itself because the
+    atomic writer replaces ``memory.json``'s inode via ``os.replace``; a lock
+    held on the original fd would not protect the new file. On platforms
+    without ``fcntl`` this degrades to a no-op (single-writer paths are
+    unaffected).
+
+    Re-entrant within a thread: nesting (a caller holds the lock via
+    ``transaction()`` and the ``save()`` it calls re-acquires) is safe — only
+    the outermost acquisition flocks; inner ones just bump a depth counter.
+    Cross-thread/process acquirers still block on the real flock.
+    """
+    if fcntl is None:
+        yield
+        return
+    depths = getattr(_lock_depth, "by_path", None)
+    if depths is None:
+        depths = {}
+        _lock_depth.by_path = depths
+    if depths.get(lock_path, 0) > 0:
+        depths[lock_path] += 1
+        try:
+            yield
+        finally:
+            depths[lock_path] -= 1
+        return
+    # 'a+' creates the file if absent without truncating an existing one.
+    lock_file = open(lock_path, "a+")
+    try:
+        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        depths[lock_path] = 1
+        yield
+    finally:
+        depths[lock_path] = 0
+        try:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+        finally:
+            lock_file.close()
 
 def tokenize(text: str) -> List[str]:
     """Simple tokenizer that splits on whitespace and removes punctuation."""
@@ -35,8 +99,22 @@ def get_text_similarity(text1: str, text2: str) -> float:
 class MemoryManager:
     def __init__(self, data_dir: str):
         self.memory_file = os.path.join(data_dir, "memory.json")
+        # Sidecar lock guarding the read-modify-write critical sections below.
+        self._lock_path = self.memory_file + ".lock"
         self.ensure_file_exists()
-        
+
+    def _locked(self):
+        """Context manager serializing read-modify-write on memory.json."""
+        return _file_lock(self._lock_path)
+
+    def transaction(self):
+        """Public re-entrant lock for external callers that run their own
+        load_all -> mutate -> save against memory.json, so the read and the write
+        form one atomic critical section. Without this, concurrent add/edit/delete
+        from web + agent + MCP each load the same snapshot and clobber one
+        another's update (lost-update race)."""
+        return _file_lock(self._lock_path)
+
     def extract_memory_from_chat(self, chat_history: List[Dict], session_id: str = None) -> List[Dict]:
         """
         Extract memory entries from chat history as a fallback when LLM fails.
@@ -135,17 +213,19 @@ class MemoryManager:
 
     def claim_ownerless(self, owner: str):
         """Assign all ownerless memory entries to the given owner."""
-        entries = self.load_all()
-        changed = False
-        claimed = 0
-        for entry in entries:
-            if not entry.get("owner"):
-                entry["owner"] = owner
-                changed = True
-                claimed += 1
-        if changed:
-            self.save(entries)
-            logger.info("Claimed %d ownerless memories for %s", claimed, owner)
+        # Lock the load->mutate->save so a concurrent writer can't clobber the claim.
+        with self._locked():
+            entries = self.load_all()
+            changed = False
+            claimed = 0
+            for entry in entries:
+                if not entry.get("owner"):
+                    entry["owner"] = owner
+                    changed = True
+                    claimed += 1
+            if changed:
+                self.save(entries)
+                logger.info("Claimed %d ownerless memories for %s", claimed, owner)
     
     def _validate_entries(self, entries: List[Dict]) -> List[Dict]:
         """Ensure all entries have required fields."""
@@ -211,7 +291,11 @@ class MemoryManager:
         # — and memory entries can hold sensitive user text. ensure_ascii=False
         # keeps non-ASCII readable on disk (round-trips identically on load).
         from core.atomic_io import atomic_write_json
-        atomic_write_json(self.memory_file, entries, indent=2, ensure_ascii=False)
+        # Lock the write too (re-entrant): a standalone save() serializes against
+        # other writers and prevents temp-file collisions; when called inside a
+        # transaction() the re-entrant lock is a cheap no-op.
+        with self._locked():
+            atomic_write_json(self.memory_file, entries, indent=2, ensure_ascii=False)
     
     def add_entry(self, text: str, source: str = "user", category: str = "fact", owner: str = None) -> Dict:
         """Add a new memory entry."""
@@ -236,14 +320,16 @@ class MemoryManager:
         if not ids:
             return
         id_set = set(ids)
-        entries = self.load_all()
-        changed = False
-        for e in entries:
-            if e.get("id") in id_set:
-                e["uses"] = int(e.get("uses", 0) or 0) + 1
-                changed = True
-        if changed:
-            self.save(entries)
+        # Lock the load->increment->save so concurrent injectors don't lose bumps.
+        with self._locked():
+            entries = self.load_all()
+            changed = False
+            for e in entries:
+                if e.get("id") in id_set:
+                    e["uses"] = int(e.get("uses", 0) or 0) + 1
+                    changed = True
+            if changed:
+                self.save(entries)
     
     def find_duplicates(self, text: str, entries: List[Dict] = None) -> List[Dict]:
         """Find duplicate memory entries based on text content."""

@@ -665,10 +665,16 @@ def setup_cookbook_routes() -> APIRouter:
             runner_lines.append(f"rm -f {remote_runner}")
             runner_lines.append('exec "${SHELL:-/bin/bash}"')
             runner_path = TMUX_LOG_DIR / f"{session_id}_run.sh"
-            runner_path.write_text("\n".join(runner_lines) + "\n", encoding="utf-8")
+            # This runner can embed secrets (export HF_TOKEN=...). A plain
+            # write_text honours the umask (commonly → world-readable 0644),
+            # so on a multi-user host any local user could read the token.
+            # atomic_write_text creates the file owner-only (0600) up front.
+            from core.atomic_io import atomic_write_text
+            atomic_write_text(str(runner_path), "\n".join(runner_lines) + "\n")
             # Local temp file is scp'd then chmod'd on the remote; the local bit
-            # is irrelevant (no-op on Windows).
-            safe_chmod(runner_path, 0o755)
+            # is irrelevant (no-op on Windows). Owner-only execute (0700, not
+            # 0o755) — the local copy holds the HF token in plaintext.
+            safe_chmod(runner_path, 0o700)
 
             # scp the runner script, then create tmux session on the remote
             _port = req.ssh_port
@@ -706,8 +712,14 @@ def setup_cookbook_routes() -> APIRouter:
             if not IS_WINDOWS:
                 lines.append(f"rm -f '{wrapper_script}'")
                 lines.append('exec "${SHELL:-/bin/bash}"')
-                wrapper_script.write_text("\n".join(lines) + "\n", encoding="utf-8")
-                wrapper_script.chmod(0o755)
+                # This wrapper can embed secrets (export HF_TOKEN=...). A plain
+                # write_text honours the umask (commonly → world-readable 0644),
+                # so on a multi-user host any local user could read the token.
+                # atomic_write_text creates the file owner-only (0600) up front;
+                # 0o700 (not 0o755) keeps execute owner-only too.
+                from core.atomic_io import atomic_write_text
+                atomic_write_text(str(wrapper_script), "\n".join(lines) + "\n")
+                wrapper_script.chmod(0o700)
             setup_cmd = None if IS_WINDOWS else f"tmux set-option -g history-limit 100000 2>/dev/null; tmux new-session -d -s {session_id} {shlex.quote(str(wrapper_script))}"
 
         logger.info(f"Model download: {req.repo_id} (backend={'ollama' if is_ollama_download else 'hf'}, include={req.include}, session={session_id}, remote={remote})")
@@ -1548,10 +1560,16 @@ def setup_cookbook_routes() -> APIRouter:
                     )
 
             runner_path = TMUX_LOG_DIR / f"{session_id}_run.sh"
-            runner_path.write_text("\n".join(runner_lines) + "\n", encoding="utf-8")
+            # This runner embeds secrets (export HF_TOKEN=...). A plain
+            # write_text honours the umask (commonly → world-readable 0644),
+            # so on a multi-user host any local user could read the token.
+            # atomic_write_text creates the file owner-only (0600) up front.
+            from core.atomic_io import atomic_write_text
+            atomic_write_text(str(runner_path), "\n".join(runner_lines) + "\n")
             # chmod is a no-op on Windows; bash on Windows runs the script
-            # regardless of the executable bit.
-            safe_chmod(runner_path, 0o755)
+            # regardless of the executable bit. Owner-only execute (0700, not
+            # 0o755) — the script holds the HF token in plaintext.
+            safe_chmod(runner_path, 0o700)
 
             if local_windows:
                 # LOCAL Windows: launch the bash runner detached (tmux replacement).
