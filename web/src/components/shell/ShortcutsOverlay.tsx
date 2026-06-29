@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 const GROUPS: { title: string; rows: [string, string][] }[] = [
-  { title: "General", rows: [["⌘/Ctrl K", "Search conversations"], ["⌘/Ctrl Alt N", "New chat"], ["⌘/Ctrl B", "Toggle sidebar"], ["⌘/Ctrl J", "Toggle theme"], ["?", "Show this help"], ["Esc", "Close"]] },
+  { title: "General", rows: [["⌘/Ctrl K", "Command palette"], ["⌘/Ctrl Alt N", "New chat"], ["⌘/Ctrl B", "Toggle sidebar"], ["⌘/Ctrl J", "Toggle theme"], ["?", "Show this help"], ["Esc", "Close"]] },
   { title: "Go to (press g, then…)", rows: [["g c", "Chat"], ["g k", "Compare"], ["g r", "Research"], ["g i", "Gallery"], ["g m", "Memory"], ["g a", "Calendar"], ["g e", "Email"], ["g n", "Notes"], ["g t", "Tasks"], ["g l", "Library"], ["g p", "Personal files"], ["g d", "Knowledge"], ["g b", "Cookbook"], ["g s", "Skills"], ["g ,", "Settings"]] },
 ]
 

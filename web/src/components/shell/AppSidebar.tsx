@@ -170,7 +170,7 @@ export function AppSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton data-tour="search-conversations" tooltip="Search conversations (⌘K)" onClick={() => window.dispatchEvent(new CustomEvent("odysseus:open-search"))}>
+            <SidebarMenuButton data-tour="search-conversations" tooltip="Search & commands (⌘K)" onClick={() => window.dispatchEvent(new CustomEvent("odysseus:open-command"))}>
               <Search /><span>Search</span>
             </SidebarMenuButton>
           </SidebarMenuItem>

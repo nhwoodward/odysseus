@@ -2,6 +2,7 @@ import { type ReactNode } from "react"
 import { AppSidebar } from "./AppSidebar"
 import { ShortcutsOverlay } from "./ShortcutsOverlay"
 import { ConversationSearch } from "./ConversationSearch"
+import { CommandPalette } from "./CommandPalette"
 import { GuidedTourOverlay } from "./GuidedTourOverlay"
 import { TaskNotificationPoller } from "./TaskNotificationPoller"
 import { NoteReminderPoller } from "./NoteReminderPoller"
@@ -30,6 +31,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{children}</div>
       </SidebarInset>
       <ConversationSearch />
+      <CommandPalette />
       <GuidedTourOverlay />
       <TaskNotificationPoller />
       <NoteReminderPoller />

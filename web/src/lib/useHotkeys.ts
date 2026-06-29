@@ -81,7 +81,7 @@ export function useHotkeys(): [boolean, (v: boolean) => void] {
 
   useEffect(() => {
     const focusComposer = () => setTimeout(() => window.dispatchEvent(new CustomEvent("odysseus:focus-composer")), 50)
-    const openSearch = () => setTimeout(() => window.dispatchEvent(new CustomEvent("odysseus:open-search")), 0)
+    const openCommand = () => setTimeout(() => window.dispatchEvent(new CustomEvent("odysseus:open-command")), 0)
     const routeFor: Record<string, string> = {
       open_calendar: "/calendar",
       open_compare: "/compare",
@@ -122,7 +122,7 @@ export function useHotkeys(): [boolean, (v: boolean) => void] {
       const kb = kbRef.current
       const mod = e.metaKey || e.ctrlKey
       // Configurable actions with v2 equivalents.
-      if (matchCombo(e, kb.search)) { e.preventDefault(); openSearch(); return }
+      if (matchCombo(e, kb.search)) { e.preventDefault(); openCommand(); return }
       if (matchCombo(e, kb.new_session)) { e.preventDefault(); navigate("/chat"); focusComposer(); return }
       if (matchCombo(e, kb.toggle_sidebar)) { e.preventDefault(); toggleSidebar(); return }
       if (matchCombo(e, kb.fav_session) || matchCombo(e, kb.star_session)) { e.preventDefault(); toggleCurrentFavorite(); return }
