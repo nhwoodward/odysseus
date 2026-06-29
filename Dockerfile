@@ -102,5 +102,13 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 
 EXPOSE 7000
 
+# Anti-recurrence guard: a healthy container MUST actually serve the v2 SPA.
+# /v2 is a useless signal (it 302s to /login even when the frontend is missing),
+# so probe a real static asset. An image accidentally built from a branch
+# lacking the /static-v2 mount or the web-build stage will report `unhealthy`
+# instead of silently 404ing every asset — the exact outage this repo just hit.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=45s --retries=3 \
+  CMD curl -fsS http://localhost:7000/static-v2/index.html >/dev/null || exit 1
+
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7000"]
