@@ -222,20 +222,17 @@ export function useRunningMutations() {
   return {
     registerServeTask,
     // Stop a serve task. Serve tasks are tmux sessions (no PID in the status
-    // payload), so the real stop is `tmux kill-session` via /api/shell/exec —
-    // exactly what the legacy UI does. session_id is backend-validated as
-    // `serve-<hex>` so it is safe to interpolate.
+    // payload). The stop (tmux send-keys C-c + kill-session, optionally over
+    // SSH) is done by the typed backend route POST /api/cookbook/stop-serve,
+    // which validates session_id/remote/ssh_port and runs tmux server-side.
+    // (Previously the browser built the shell string and POSTed it to
+    // /api/shell/exec — a command-injection vector; the backend now owns it.)
     stop: useMutation({
       mutationFn: async (t: { session_id: string; remote?: string; ssh_port?: string }) => {
-        const sid = t.session_id
-        const isRemote = !!t.remote && t.remote !== "local"
-        const tmux = `tmux send-keys -t ${sid} C-c 2>/dev/null; sleep 2; tmux kill-session -t ${sid} 2>/dev/null`
-        const pf = t.ssh_port && t.ssh_port !== "22" ? `-p ${t.ssh_port} ` : ""
-        const command = isRemote
-          ? `ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no ${pf}${t.remote} '${tmux}'`
-          : tmux
-        const r = await apiFetch("/api/shell/exec", {
-          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ command }),
+        const r = await apiFetch("/api/cookbook/stop-serve", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ session_id: t.session_id, remote: t.remote, ssh_port: t.ssh_port }),
         })
         if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || "Stop failed") }
         return r.json()

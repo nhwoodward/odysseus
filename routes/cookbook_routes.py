@@ -62,6 +62,13 @@ _HF_TOKEN_STATUS_SNIPPET = (
     'fi'
 )
 
+# Serve/cookbook tmux session ids are minted as `serve-<hex>` / `cookbook-<hex>`
+# (see ~`f"serve-{uuid4().hex[:8]}"`). The stop-serve route validates against
+# this before any tmux/ssh action so an attacker-shaped id can't carry shell
+# metacharacters into the remote command. Module-level so it's unit-testable.
+_SERVE_SESSION_RE = re.compile(r"^(?:serve|cookbook)-[A-Za-z0-9]{4,64}$")
+
+
 def setup_cookbook_routes() -> APIRouter:
     router = APIRouter(tags=["cookbook"])
     _cookbook_state_path = Path(COOKBOOK_STATE_FILE)
@@ -2115,6 +2122,64 @@ def setup_cookbook_routes() -> APIRouter:
             return {"ok": True, "pid": req.pid, "signal": sig}
         except asyncio.TimeoutError:
             return {"ok": False, "error": "kill command timed out"}
+        except Exception as e:
+            return {"ok": False, "error": str(e)[:200]}
+
+    class StopServeRequest(BaseModel):
+        session_id: str
+        remote: str | None = None   # "local" or a host
+        ssh_port: str | None = None
+
+    # Serve tasks run in a tmux session (no PID), so stopping one is
+    # `tmux send-keys C-c` + `tmux kill-session`. This USED to be built as a
+    # shell string in the FRONTEND and POSTed to /api/shell/exec — a command
+    # injection vector (session_id/remote/ssh_port interpolated into a shell the
+    # client controls). This typed route does it server-side with every field
+    # validated: session_id must match the minted `serve-/cookbook-<hex>` shape,
+    # the local path runs tmux via argv (no shell at all), and the remote path
+    # reuses the same validated-host/port SSH pattern as kill-pid above.
+    @router.post("/api/cookbook/stop-serve")
+    async def stop_serve(request: Request, req: StopServeRequest):
+        """Stop a serve tmux session by id. Admin-gated; replaces the old
+        client-built `tmux ... | /api/shell/exec` path (command-injection fix)."""
+        require_admin(request)
+        sid = (req.session_id or "").strip()
+        if not _SERVE_SESSION_RE.match(sid):
+            raise HTTPException(400, "Invalid session_id")
+        is_remote = bool(req.remote) and req.remote != "local"
+        host = validate_remote_host(req.remote) if is_remote else None
+        port = validate_ssh_port(req.ssh_port) if is_remote else None
+        try:
+            if host:
+                # sid is strictly [A-Za-z0-9] after the prefix and host/port are
+                # validated, so this interpolation is injection-safe (same
+                # contract as kill-pid).
+                tmux_cmd = (
+                    f"tmux send-keys -t {sid} C-c 2>/dev/null; sleep 2; "
+                    f"tmux kill-session -t {sid} 2>/dev/null"
+                )
+                pf = f"-p {port} " if port and port != "22" else ""
+                cmd = f"ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no {pf}{host} '{tmux_cmd}'"
+                proc = await asyncio.create_subprocess_shell(
+                    cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+                )
+                await asyncio.wait_for(proc.communicate(), timeout=10)
+            else:
+                # Local: no shell — run each tmux call as an argv vector, so even
+                # a (validation-bypassing) sid can never be interpreted by a shell.
+                for i, argv in enumerate((
+                    ["tmux", "send-keys", "-t", sid, "C-c"],
+                    ["tmux", "kill-session", "-t", sid],
+                )):
+                    proc = await asyncio.create_subprocess_exec(
+                        *argv, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+                    )
+                    await asyncio.wait_for(proc.communicate(), timeout=10)
+                    if i == 0:
+                        await asyncio.sleep(2)
+            return {"ok": True, "session_id": sid}
+        except asyncio.TimeoutError:
+            return {"ok": False, "error": "stop command timed out"}
         except Exception as e:
             return {"ok": False, "error": str(e)[:200]}
 
