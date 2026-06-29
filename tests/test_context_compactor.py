@@ -231,3 +231,180 @@ class TestResearchPrimerPreserved:
         trimmed = trim_for_context(msgs, context_length=1024, reserve_tokens=256)
         joined = "\n".join(str(m.get("content", "")) for m in trimmed)
         assert "You are Odysseus." in joined
+
+
+# ---------------------------------------------------------------------------
+# Regression: auto-compaction must not silently delete persisted turns.
+# The bug computed the persisted split offset from the INFLATED prompt array
+# (ephemeral system + memory/RAG/datetime user messages absent from
+# session.history), then applied it positionally to session.history — turns
+# between "summarized" and "kept" fell into a gap and were permanently deleted.
+# The fix partitions session.history directly (one cut), so it is gapless.
+# ---------------------------------------------------------------------------
+class _Msg:
+    """Lightweight stand-in for the (test-mocked) ChatMessage so the summary
+    message that _update_session_history builds is inspectable."""
+    def __init__(self, role, content, metadata=None):
+        self.role = role
+        self.content = content
+        self.metadata = metadata
+
+
+def _turns(n):
+    """n user/assistant exchanges => 2n persisted messages."""
+    out = []
+    for i in range(n):
+        out.append({"role": "user", "content": f"U{i}"})
+        out.append({"role": "assistant", "content": f"A{i}"})
+    return out
+
+
+def _drive(history, inflated_messages, *, summary="SUMMARY-OUT", fail=False):
+    """Force compaction with a real session.history; capture the persisted
+    new_history and the text actually sent to the summary model."""
+    captured = {}
+
+    async def _fake_summary(url, model, summary_messages, **k):
+        captured["summary_src"] = summary_messages[1]["content"]
+        if fail:
+            raise RuntimeError("summary model down")
+        return summary
+
+    class _FakeMgr:
+        def replace_messages(self, sid, new_history):
+            captured["new_history"] = list(new_history)
+            return True
+
+    sess = type("S", (), {})()
+    sess.history = list(history)
+    sess.id = "sess-1"
+
+    import core.models as _cm  # the MagicMock module
+    saved = (cc.get_context_length, cc.estimate_tokens, cc.llm_call_async,
+             cc.resolve_endpoint, cc.ChatMessage, _cm.get_session_manager_instance)
+    cc.get_context_length = lambda u, m: 100
+    cc.estimate_tokens = lambda msgs: 10000  # force pct >> 85%
+    cc.llm_call_async = _fake_summary
+    cc.resolve_endpoint = lambda *a, **k: (None, None, None)
+    cc.ChatMessage = _Msg
+    _cm.get_session_manager_instance = lambda: _FakeMgr()
+    try:
+        result = asyncio.run(maybe_compact(
+            session=sess, endpoint_url="http://x", model="m",
+            messages=list(inflated_messages), headers={},
+        ))
+    finally:
+        (cc.get_context_length, cc.estimate_tokens, cc.llm_call_async,
+         cc.resolve_endpoint, cc.ChatMessage,
+         _cm.get_session_manager_instance) = saved
+    return result, captured.get("new_history"), captured.get("summary_src", "")
+
+
+def _assert_no_loss(history, new_history, summary_src):
+    """Every persisted user/assistant turn survives verbatim OR is represented
+    in the summary input."""
+    assert new_history is not None, "history was never persisted"
+    for m in history:
+        if m.get("role") not in ("user", "assistant"):
+            continue
+        flat = cc._content_as_text(m.get("content"))
+        if not flat:
+            continue  # content=None tool-call turn — nothing to lose
+        survived = any(cc._content_as_text(cc._msg_content(x)) == flat for x in new_history)
+        represented = flat[:2000] in summary_src
+        assert survived or represented, f"LOST persisted turn: {flat!r}"
+
+
+class TestCompactionNoLoss:
+    def test_plan_tiles_body_gaplessly(self):
+        # Pure planner: summarize + keep must tile the conversational body
+        # exactly (contiguous, non-overlapping) for every length.
+        for n in range(1, 21):
+            H = _turns(n)  # 2n messages
+            plan = cc._plan_history_compaction(H)
+            if plan is None:
+                assert len(H) < 4
+                continue
+            prefix, priors, summarize, keep = plan
+            assert prefix == [] and priors == []
+            assert summarize + keep == H            # gapless, ordered, no overlap
+            assert len(keep) >= 2 and len(summarize) >= 1
+
+    def test_no_loss_across_prefaces(self):
+        base = _turns(6)  # 12 real turns
+        policy = {"role": "system", "content": "POLICY"}
+        preset = {"role": "system", "content": "PRESET"}
+        mem = [{"role": "user", "content": "MEMORY-EPHEMERAL-1"},
+               {"role": "user", "content": "MEMORY-EPHEMERAL-2"}]
+        fixtures = {
+            "no_preface": (base, list(base)),
+            "with_memory": (base, [policy] + mem + base),    # the exact loss case
+            "with_preset": (base, [preset, policy] + base),
+        }
+        for name, (history, inflated) in fixtures.items():
+            (out, _ctx, was), new_history, src = _drive(history, inflated)
+            assert was is True, name
+            _assert_no_loss(history, new_history, src)
+
+    def test_with_memory_keeps_latest_exchange_verbatim(self):
+        # The reported 1-3 turn loss: ephemeral user rows in the prompt shifted
+        # the offset forward, deleting the most recent real turns.
+        history = _turns(5)  # U0..U4 / A0..A4
+        inflated = [{"role": "system", "content": "POLICY"},
+                    {"role": "user", "content": "MEM"},
+                    {"role": "user", "content": "RAG"}] + history
+        (_out, _c, was), new_history, _src = _drive(history, inflated)
+        assert was is True
+        flats = [cc._content_as_text(cc._msg_content(x)) for x in new_history]
+        assert "U4" in flats and "A4" in flats   # latest exchange survives verbatim
+
+    def test_prior_summary_folded_not_chained(self):
+        prior = {"role": "system",
+                 "content": "[Conversation summary]\nOLD-SUMMARY-BODY",
+                 "metadata": {"compacted": True, "compaction_index": 1}}
+        history = [prior] + _turns(6)
+        (_out, _c, was), new_history, src = _drive(history, list(history))
+        assert was is True
+        summaries = [x for x in new_history
+                     if cc._is_prior_summary(x)]
+        assert len(summaries) == 1                       # folded, not chained
+        assert summaries[0].metadata["compaction_index"] == 2
+        assert "OLD-SUMMARY-BODY" in src                 # prior summary was folded in
+
+    def test_summary_excludes_ephemeral_and_slash(self):
+        slash = {"role": "user", "content": "SLASH-CMD", "metadata": {"source": "slash"}}
+        history = [{"role": "user", "content": "REAL-OLD-TURN"},
+                   slash,
+                   {"role": "assistant", "content": "REAL-OLD-REPLY"}] + _turns(4)
+        inflated = [{"role": "user", "content": "MEMORY-EPHEMERAL"}] + history
+        (_o, _c, _w), _new, src = _drive(history, inflated)
+        assert "MEMORY-EPHEMERAL" not in src    # ephemeral never reaches the summary
+        assert "SLASH-CMD" not in src           # slash UI rows excluded
+        assert "REAL-OLD-TURN" in src           # real older turns included
+
+    def test_too_few_real_turns_no_mutation(self):
+        history = _turns(1)  # only 2 real messages
+        inflated = [{"role": "system", "content": "POLICY"},
+                    {"role": "user", "content": "MEM"}] + history
+        (_out, _c, was), new_history, _src = _drive(history, inflated)
+        assert was is False                  # ephemeral bloat, not real conversation
+        assert new_history is None           # replace_messages never called
+
+    def test_failure_leaves_history_unmutated(self):
+        history = _turns(6)
+        (out, _ctx, was), new_history, _src = _drive(history, list(history), fail=True)
+        assert was is False
+        assert new_history is None           # history NOT rewritten on summary failure
+
+    def test_content_none_turn_in_summarized_range(self):
+        # An assistant tool-call turn (content=None) among the older turns must
+        # not crash compaction and must not be miscounted as a lost turn.
+        history = [{"role": "user", "content": "U0"},
+                   {"role": "assistant", "content": None,
+                    "tool_calls": [{"id": "c1", "type": "function",
+                                    "function": {"name": "x", "arguments": "{}"}}]},
+                   {"role": "user", "content": "U1"},
+                   {"role": "assistant", "content": "A1"}] + _turns(3)
+        (_o, _c, was), new_history, src = _drive(history, list(history))
+        assert was is True
+        _assert_no_loss(history, new_history, src)
