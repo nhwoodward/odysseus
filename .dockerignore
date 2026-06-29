@@ -32,6 +32,7 @@ docs/
 *.sqlite3
 /reports/
 /research_data/
+/qa/
 tasks/
 _scratch/
 compound.config.json
