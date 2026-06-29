@@ -13,7 +13,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { SkeletonList } from "@/components/ui/skeleton"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Dialog, DialogHeader, DialogBody, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { useAskAssistant } from "@/lib/composerHandoff"
 import { cn } from "@/lib/utils"
 import { FinanceOnboarding, EnvBadge } from "./finance/FinanceOnboarding"
@@ -267,20 +267,22 @@ export function FinanceRoute() {
     <div className="flex h-full min-h-0 flex-col">
       {header}
       {body}
-      <Dialog open={!!toDisconnect} onClose={() => setToDisconnect(null)} label="Disconnect institution" className="max-w-sm">
-        <DialogHeader title={`Disconnect ${toDisconnect?.institution_name || "institution"}?`} onClose={() => setToDisconnect(null)} />
-        <DialogBody>
-          <p className="text-sm text-muted-foreground">
-            This removes the connection and deletes its stored data from Odysseus. Your bank login and accounts are not affected — you can reconnect any time.
-          </p>
-        </DialogBody>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setToDisconnect(null)}>Cancel</Button>
-          <Button variant="destructive" disabled={removeItem.isPending}
-            onClick={() => { if (toDisconnect) removeItem.mutate(toDisconnect.id, { onSuccess: () => setToDisconnect(null) }) }}>
-            {removeItem.isPending && <Loader2 className="size-4 animate-spin" />}Disconnect
-          </Button>
-        </DialogFooter>
+      <Dialog open={!!toDisconnect} onOpenChange={(o) => { if (!o) setToDisconnect(null) }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Disconnect {toDisconnect?.institution_name || "institution"}?</DialogTitle>
+            <DialogDescription>
+              This removes the connection and deletes its stored data from Odysseus. Your bank login and accounts are not affected — you can reconnect any time.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setToDisconnect(null)}>Cancel</Button>
+            <Button variant="destructive" disabled={removeItem.isPending}
+              onClick={() => { if (toDisconnect) removeItem.mutate(toDisconnect.id, { onSuccess: () => setToDisconnect(null) }) }}>
+              {removeItem.isPending && <Loader2 className="size-4 animate-spin" />}Disconnect
+            </Button>
+          </DialogFooter>
+        </DialogContent>
       </Dialog>
     </div>
   )

@@ -1,16 +1,18 @@
-import type { HTMLAttributes } from "react"
 import { cn } from "@/lib/utils"
 
-// Loading placeholder. Use instead of a bare spinner / blank flash while data
-// loads (e.g. <Skeleton className="h-4 w-2/3" />).
-export function Skeleton({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("animate-pulse rounded-md bg-muted", className)} {...props} />
+function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="skeleton"
+      className={cn("animate-pulse rounded-md bg-accent", className)}
+      {...props}
+    />
+  )
 }
 
 // A list of placeholder rows that mirrors a typical loaded list (icon + two
-// lines of text). Replaces the bare "Loading…" text most data routes flash.
-// `role=status` + the sr-only label announce the loading state to AT.
-export function SkeletonList({ rows = 5, className }: { rows?: number; className?: string }) {
+// lines of text). `role=status` + the sr-only label announce loading to AT.
+function SkeletonList({ rows = 5, className }: { rows?: number; className?: string }) {
   return (
     <div role="status" aria-busy="true" className={cn("space-y-2", className)}>
       <span className="sr-only">Loading…</span>
@@ -27,10 +29,9 @@ export function SkeletonList({ rows = 5, className }: { rows?: number; className
   )
 }
 
-// A responsive grid of card placeholders — mirrors the note/event/document card
-// grids (`grid sm:grid-cols-2 xl:grid-cols-3`). Pass `className` to override the
-// grid columns when a surface uses a different layout.
-export function SkeletonCards({ count = 6, className }: { count?: number; className?: string }) {
+// A responsive grid of card placeholders — mirrors the note/event/document
+// card grids. Pass `className` to override the columns for a different layout.
+function SkeletonCards({ count = 6, className }: { count?: number; className?: string }) {
   return (
     <div role="status" aria-busy="true" className={cn("grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3", className)}>
       <span className="sr-only">Loading…</span>
@@ -46,7 +47,7 @@ export function SkeletonCards({ count = 6, className }: { count?: number; classN
 }
 
 // A grid of square tiles — mirrors the Gallery image grid.
-export function SkeletonGrid({ count = 12, className }: { count?: number; className?: string }) {
+function SkeletonGrid({ count = 12, className }: { count?: number; className?: string }) {
   return (
     <div role="status" aria-busy="true" className={cn("grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6", className)}>
       <span className="sr-only">Loading…</span>
@@ -56,3 +57,5 @@ export function SkeletonGrid({ count = 12, className }: { count?: number; classN
     </div>
   )
 }
+
+export { Skeleton, SkeletonList, SkeletonCards, SkeletonGrid }

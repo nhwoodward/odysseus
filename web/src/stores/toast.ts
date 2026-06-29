@@ -1,22 +1,20 @@
-import { create } from "zustand"
+import { toast as sonnerToast } from "sonner"
 
-export interface Toast { id: number; message: string; kind: "error" | "info" | "success" }
-interface ToastState {
-  toasts: Toast[]
-  push: (message: string, kind?: Toast["kind"], durationMs?: number) => void
-  dismiss: (id: number) => void
+export type ToastKind = "error" | "info" | "success"
+
+// Thin shim over sonner (the shadcn <Toaster/>). Keeps the existing
+// `toast("message", "error")` call-sites across the app working unchanged after
+// migrating off the bespoke Zustand toast store. The old third positional arg
+// (durationMs) maps to sonner's { duration } option.
+export function toast(message: string, kind: ToastKind = "error", durationMs?: number) {
+  const opts = durationMs ? { duration: durationMs } : undefined
+  if (kind === "success") return sonnerToast.success(message, opts)
+  if (kind === "info") return sonnerToast.info(message, opts)
+  return sonnerToast.error(message, opts)
 }
 
-let seq = 0
-export const useToast = create<ToastState>((set) => ({
-  toasts: [],
-  push: (message, kind = "error", durationMs = 5000) => {
-    const id = ++seq
-    set((s) => ({ toasts: [...s.toasts.slice(-3), { id, message, kind }] }))
-    setTimeout(() => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })), durationMs)
-  },
-  dismiss: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
-}))
-
-// Convenience for non-component code (api error surfaces, etc.)
-export const toast = (message: string, kind?: Toast["kind"], durationMs?: number) => useToast.getState().push(message, kind, durationMs)
+// Back-compat for the few call-sites that used the store hook / push API.
+export const push = toast
+export function useToast() {
+  return { push: toast, dismiss: (id?: string | number) => sonnerToast.dismiss(id) }
+}

@@ -1,21 +1,29 @@
 import { cva } from "class-variance-authority"
 
-// In its own module so badge.tsx exports only components (react-refresh).
-// Every variant pairs a tint with readable text — status should never be
-// conveyed by color alone (pass a label/icon as children).
+// Kept in its own module so badge.tsx only exports components (react-refresh).
+// success/warning are project additions on top of the canonical shadcn variants.
 export const badgeVariants = cva(
-  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-label font-medium [&_svg]:size-3 [&_svg]:shrink-0",
+  "inline-flex w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-full border border-transparent px-2 py-0.5 text-xs font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&>svg]:pointer-events-none [&>svg]:size-3",
   {
     variants: {
       variant: {
-        default: "bg-muted text-muted-foreground",
-        secondary: "bg-secondary text-secondary-foreground",
-        success: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
-        warning: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
-        destructive: "bg-destructive/15 text-destructive",
-        outline: "border text-muted-foreground",
+        default: "bg-primary text-primary-foreground [a&]:hover:bg-primary/90",
+        secondary:
+          "bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/90",
+        destructive:
+          "bg-destructive text-white focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40 [a&]:hover:bg-destructive/90",
+        outline:
+          "border-border text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
+        ghost: "[a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
+        link: "text-primary underline-offset-4 [a&]:hover:underline",
+        success:
+          "border-transparent bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
+        warning:
+          "border-transparent bg-amber-500/15 text-amber-700 dark:text-amber-400",
       },
     },
-    defaultVariants: { variant: "default" },
-  },
+    defaultVariants: {
+      variant: "default",
+    },
+  }
 )

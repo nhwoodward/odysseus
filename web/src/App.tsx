@@ -5,7 +5,7 @@ import { QueryClientProvider } from "@tanstack/react-query"
 import { queryClient } from "@/lib/queryClient"
 import { AppShell } from "@/components/shell/AppShell"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
-import { Toaster } from "@/components/ui/Toaster"
+import { Toaster } from "@/components/ui/sonner"
 import { OnboardingDialog } from "@/components/onboarding/OnboardingDialog"
 import { ChatConsole } from "@/routes/ChatConsole" // eager — the default landing route
 import { useUi } from "@/stores/ui"

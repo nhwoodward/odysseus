@@ -1,94 +1,156 @@
-import { useEffect, useRef, type HTMLAttributes, type ReactNode } from "react"
-import { X } from "lucide-react"
+import * as React from "react"
+import { XIcon } from "lucide-react"
+import { Dialog as DialogPrimitive } from "radix-ui"
+
 import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
 
-const FOCUSABLE = 'button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])'
+function Dialog({
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Root>) {
+  return <DialogPrimitive.Root data-slot="dialog" {...props} />
+}
 
-// Accessible modal — replaces the 15+ hand-rolled overlays. Gives focus-trap,
-// Escape-to-close, focus-return on close, body scroll-lock, backdrop click, and
-// `role="dialog" aria-modal`. Compose with DialogHeader/DialogBody/DialogFooter.
-export function Dialog({ open, onClose, children, className, label, contained = false }: {
-  open: boolean
-  onClose: () => void
-  children: ReactNode
-  className?: string
-  label?: string // accessible name (aria-label)
-  // Scope the overlay to the nearest positioned ancestor (absolute) instead of
-  // the viewport (fixed) — for content-column modals that intentionally leave
-  // the sidebar visible/interactive. The parent must be `relative`.
-  contained?: boolean
-}) {
-  const ref = useRef<HTMLDivElement>(null)
-  const restoreFocus = useRef<HTMLElement | null>(null)
+function DialogTrigger({
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Trigger>) {
+  return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />
+}
 
-  useEffect(() => {
-    if (!open) return
-    restoreFocus.current = document.activeElement as HTMLElement | null
-    const focusables = () => {
-      const el = ref.current
-      if (!el) return [] as HTMLElement[]
-      return [...el.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((f) => !f.hasAttribute("disabled"))
-    }
-    focusables()[0]?.focus()
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { e.preventDefault(); onClose(); return }
-      if (e.key !== "Tab") return
-      const f = focusables()
-      if (!f.length) return
-      const first = f[0]
-      const last = f[f.length - 1]
-      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus() }
-      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
-    }
-    document.addEventListener("keydown", onKey)
-    // A contained (content-scoped) modal leaves the sidebar interactive, so
-    // locking the whole-page scroll would be wrong; only viewport modals do it.
-    const prevOverflow = document.body.style.overflow
-    if (!contained) document.body.style.overflow = "hidden"
-    return () => {
-      document.removeEventListener("keydown", onKey)
-      if (!contained) document.body.style.overflow = prevOverflow
-      restoreFocus.current?.focus?.()
-    }
-  }, [open, onClose, contained])
+function DialogPortal({
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Portal>) {
+  return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />
+}
 
-  if (!open) return null
+function DialogClose({
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Close>) {
+  return <DialogPrimitive.Close data-slot="dialog-close" {...props} />
+}
+
+function DialogOverlay({
+  className,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
   return (
-    <div
+    <DialogPrimitive.Overlay
+      data-slot="dialog-overlay"
       className={cn(
-        "flex animate-fade-in items-center justify-center bg-black/40 p-4",
-        contained ? "absolute inset-0 z-10" : "fixed inset-0 z-50",
+        "fixed inset-0 z-50 bg-black/50 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0",
+        className
       )}
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
-    >
-      <div
-        ref={ref}
-        role="dialog"
-        aria-modal="true"
-        aria-label={label}
-        className={cn("flex max-h-[85vh] w-full max-w-lg flex-col animate-pop-in rounded-xl border bg-popover shadow-lg", className)}
+      {...props}
+    />
+  )
+}
+
+function DialogContent({
+  className,
+  children,
+  showCloseButton = true,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Content> & {
+  showCloseButton?: boolean
+}) {
+  return (
+    <DialogPortal data-slot="dialog-portal">
+      <DialogOverlay />
+      <DialogPrimitive.Content
+        data-slot="dialog-content"
+        className={cn(
+          "fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border bg-background p-6 shadow-lg duration-200 outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 sm:max-w-lg",
+          className
+        )}
+        {...props}
       >
         {children}
-      </div>
-    </div>
+        {showCloseButton && (
+          <DialogPrimitive.Close
+            data-slot="dialog-close"
+            className="absolute top-4 right-4 rounded-xs opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
+          >
+            <XIcon />
+            <span className="sr-only">Close</span>
+          </DialogPrimitive.Close>
+        )}
+      </DialogPrimitive.Content>
+    </DialogPortal>
   )
 }
 
-export function DialogHeader({ title, onClose, className }: { title: ReactNode; onClose?: () => void; className?: string }) {
+function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
-    <div className={cn("flex shrink-0 items-center justify-between gap-2 border-b px-4 py-3", className)}>
-      <h2 className="text-sm font-semibold">{title}</h2>
-      {onClose && (
-        <button onClick={onClose} aria-label="Close dialog" className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
-          <X className="size-4" />
-        </button>
+    <div
+      data-slot="dialog-header"
+      className={cn("flex flex-col gap-2 text-center sm:text-left", className)}
+      {...props}
+    />
+  )
+}
+
+function DialogFooter({
+  className,
+  showCloseButton = false,
+  children,
+  ...props
+}: React.ComponentProps<"div"> & {
+  showCloseButton?: boolean
+}) {
+  return (
+    <div
+      data-slot="dialog-footer"
+      className={cn(
+        "flex flex-col-reverse gap-2 sm:flex-row sm:justify-end",
+        className
+      )}
+      {...props}
+    >
+      {children}
+      {showCloseButton && (
+        <DialogPrimitive.Close asChild>
+          <Button variant="outline">Close</Button>
+        </DialogPrimitive.Close>
       )}
     </div>
   )
 }
-export function DialogBody({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("min-h-0 flex-1 overflow-y-auto p-4", className)} {...props} />
+
+function DialogTitle({
+  className,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Title>) {
+  return (
+    <DialogPrimitive.Title
+      data-slot="dialog-title"
+      className={cn("text-lg leading-none font-semibold", className)}
+      {...props}
+    />
+  )
 }
-export function DialogFooter({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("flex shrink-0 items-center justify-end gap-2 border-t px-4 py-3", className)} {...props} />
+
+function DialogDescription({
+  className,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Description>) {
+  return (
+    <DialogPrimitive.Description
+      data-slot="dialog-description"
+      className={cn("text-sm text-muted-foreground", className)}
+      {...props}
+    />
+  )
+}
+
+export {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogOverlay,
+  DialogPortal,
+  DialogTitle,
+  DialogTrigger,
 }

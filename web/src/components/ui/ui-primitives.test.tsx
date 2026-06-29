@@ -6,7 +6,7 @@ import { Input } from "./input"
 import { Badge } from "./badge"
 import { Skeleton, SkeletonList } from "./skeleton"
 import { EmptyState } from "./empty-state"
-import { Dialog, DialogHeader, DialogBody } from "./dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./dialog"
 
 afterEach(cleanup)
 
@@ -51,32 +51,28 @@ describe("ui primitives", () => {
     expect(onClick).toHaveBeenCalled()
   })
 
-  it("Dialog is a labelled modal that closes on Escape and backdrop", () => {
-    const onClose = vi.fn()
+  it("Dialog is a labelled modal that closes on Escape", () => {
+    const onOpenChange = vi.fn()
     render(
-      <Dialog open onClose={onClose} label="Test dialog">
-        <DialogHeader title="Title" onClose={onClose} />
-        <DialogBody>content</DialogBody>
+      <Dialog open onOpenChange={onOpenChange}>
+        <DialogContent aria-describedby={undefined}>
+          <DialogHeader><DialogTitle>Test dialog</DialogTitle></DialogHeader>
+          <p>content</p>
+        </DialogContent>
       </Dialog>,
     )
-    const dlg = screen.getByRole("dialog", { name: "Test dialog" })
-    expect(dlg).toHaveAttribute("aria-modal", "true")
+    expect(screen.getByRole("dialog", { name: "Test dialog" })).toBeInTheDocument()
     expect(screen.getByText("content")).toBeInTheDocument()
     fireEvent.keyDown(document, { key: "Escape" })
-    expect(onClose).toHaveBeenCalled()
+    expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 
   it("Dialog renders nothing when closed", () => {
-    render(<Dialog open={false} onClose={() => {}}><div>hidden</div></Dialog>)
+    render(
+      <Dialog open={false} onOpenChange={() => {}}>
+        <DialogContent aria-describedby={undefined}><DialogTitle>hidden</DialogTitle></DialogContent>
+      </Dialog>,
+    )
     expect(screen.queryByText("hidden")).not.toBeInTheDocument()
-  })
-
-  it("Dialog contained mode scopes to the parent (absolute, no body scroll-lock)", () => {
-    render(<Dialog open contained onClose={() => {}} label="Scoped"><div>scoped</div></Dialog>)
-    const overlay = screen.getByRole("dialog", { name: "Scoped" }).parentElement
-    expect(overlay?.className).toMatch(/absolute/)
-    expect(overlay?.className).not.toMatch(/fixed/)
-    // contained must NOT lock the page scroll (sidebar stays usable)
-    expect(document.body.style.overflow).not.toBe("hidden")
   })
 })
