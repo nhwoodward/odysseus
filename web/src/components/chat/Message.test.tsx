@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
+import { userEvent } from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Message } from './Message'
 
@@ -26,14 +27,17 @@ describe('Message parity states', () => {
     expect(onRespond).toHaveBeenCalledWith('Fast')
   })
 
-  it('exposes assistant edit, rewrite, fork, and delete actions', () => {
+  it('exposes assistant edit, rewrite, fork, and delete actions', async () => {
+    const user = userEvent.setup()
     const edit = vi.fn(), rewrite = vi.fn(), fork = vi.fn(), remove = vi.fn()
     render(<Message m={{ role: 'assistant', content: 'A long answer' }} onEdit={edit} onRewrite={rewrite} onFork={fork} onDelete={remove} />)
-    fireEvent.click(screen.getByTitle('More message actions'))
-    fireEvent.click(screen.getByRole('button', { name: /make shorter/i }))
+    // Radix DropdownMenu opens on pointerdown (not click), so drive it with
+    // user-event which dispatches the full pointer sequence the menu needs.
+    await user.click(screen.getByTitle('More message actions'))
+    await user.click(screen.getByRole('menuitem', { name: /make shorter/i }))
     expect(rewrite).toHaveBeenCalledWith(expect.stringContaining('shorter'))
-    fireEvent.click(screen.getByTitle('More message actions'))
-    fireEvent.click(screen.getByRole('button', { name: /edit response/i }))
+    await user.click(screen.getByTitle('More message actions'))
+    await user.click(screen.getByRole('menuitem', { name: /edit response/i }))
     expect(edit).toHaveBeenCalled()
   })
 

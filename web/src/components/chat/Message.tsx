@@ -1,10 +1,13 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react"
+import { lazy, Suspense, useEffect, useRef, useState, type ReactElement } from "react"
 import { ChevronRight, Brain, Telescope, Loader2, Volume2, Square, BookOpen, Copy, Check, RotateCcw, Pencil, ArrowRight, FileCode2, File, AlertTriangle, CircleAlert, Play, MoreHorizontal, Trash2, GitFork, Scissors, Sparkles, ScanText, ListChecks } from "lucide-react"
 import { usePanel } from "@/stores/panel"
 import { Mascot } from "@/components/ui/Mascot"
 import { Bubble, BubbleContent } from "@/components/ui/bubble"
 import { Marker, MarkerContent } from "@/components/ui/marker"
 import { Textarea } from "@/components/ui/textarea"
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
+import { IconButton } from "@/components/ui/IconButton"
 import { StreamingMarkdown, Markdown } from "./Markdown"
 import { ToolThread } from "./ToolThread"
 import { BrowserSiteCard } from "./BrowserPreview"
@@ -13,7 +16,6 @@ import { collectDeliverables } from "@/lib/agentRun"
 import { safeHref } from "@/lib/safeImage"
 import { useNow, formatElapsed } from "@/lib/useNow"
 import { useVoiceCaps, speak } from "@/api/voice"
-import { useEscapeClose } from "@/lib/useEscapeClose"
 import { cn } from "@/lib/utils"
 import type { AskUserPrompt, ChatAttachment, ChatMessage, Artifact } from "@/types"
 
@@ -99,12 +101,25 @@ function ArtifactCard({ artifact }: { artifact: Artifact }) {
   )
 }
 
-const actionBtn = "inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+// Hover tooltip for an icon-only thread action. The native `title` on the
+// IconButton is suppressed (title="") so only the styled Radix tooltip shows.
+function Tip({ label, side = "top", children }: { label: string; side?: "top" | "bottom"; children: ReactElement }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent side={side}>{label}</TooltipContent>
+    </Tooltip>
+  )
+}
 
 function CopyButton({ text }: { text: string }) {
   const [done, setDone] = useState(false)
   const copy = async () => { try { await navigator.clipboard.writeText(text); setDone(true); setTimeout(() => setDone(false), 1500) } catch { /* ignore */ } }
-  return <button onClick={copy} title="Copy" className={actionBtn}>{done ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}</button>
+  return (
+    <Tip label={done ? "Copied" : "Copy"}>
+      <IconButton label="Copy" title="" onClick={copy} icon={done ? <Check className="size-3.5" /> : <Copy className="size-3.5" />} />
+    </Tip>
+  )
 }
 
 function SpeakButton({ text }: { text: string }) {
@@ -125,10 +140,11 @@ function SpeakButton({ text }: { text: string }) {
       a.addEventListener("ended", () => setPlaying(false), { once: true })
     } catch { /* unavailable */ } finally { setBusy(false) }
   }
+  const label = playing ? "Stop" : "Read aloud"
   return (
-    <button onClick={toggle} title={playing ? "Stop" : "Read aloud"} className="inline-flex items-center gap-1 hover:text-foreground">
-      {busy ? <Loader2 className="size-3.5 animate-spin" /> : playing ? <Square className="size-3.5" /> : <Volume2 className="size-3.5" />}
-    </button>
+    <Tip label={label}>
+      <IconButton label={label} title="" onClick={toggle} icon={busy ? <Loader2 className="size-3.5 animate-spin" /> : playing ? <Square className="size-3.5" /> : <Volume2 className="size-3.5" />} />
+    </Tip>
   )
 }
 
@@ -245,26 +261,24 @@ function MessageActions({ assistant, onEdit, onDelete, onFork, onRewrite }: {
   assistant: boolean; onEdit?: () => void; onDelete?: () => void; onFork?: () => void;
   onRewrite?: (instruction: string) => void;
 }) {
-  const [open, setOpen] = useState(false)
-  useEscapeClose(open, () => setOpen(false))
   if (!onEdit && !onDelete && !onFork && !onRewrite) return null
-  const act = (fn?: () => void) => { setOpen(false); fn?.() }
-  const item = "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
-  return <div className="relative">
-    <button onClick={() => setOpen((v) => !v)} title="More message actions" aria-haspopup="menu" aria-expanded={open} className={actionBtn}><MoreHorizontal className="size-3.5" /></button>
-    {open && <>
-      <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
-      <div className="absolute bottom-full right-0 z-30 mb-1 w-44 rounded-xl border bg-popover p-1 shadow-lg">
-        {onEdit && <button onClick={() => act(onEdit)} className={item}><Pencil className="size-3.5" />{assistant ? "Edit response" : "Edit & resend"}</button>}
+  const itemCls = "text-xs text-muted-foreground"
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <IconButton label="More message actions" icon={<MoreHorizontal className="size-3.5" />} className="text-muted-foreground" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent side="top" align="end" className="w-44 rounded-xl">
+        {onEdit && <DropdownMenuItem className={itemCls} onClick={onEdit}><Pencil className="size-3.5" />{assistant ? "Edit response" : "Edit & resend"}</DropdownMenuItem>}
         {assistant && onRewrite && <>
-          <button onClick={() => act(() => onRewrite("Rewrite this response to be shorter and more concise. Keep the key information but cut the fluff."))} className={item}><Scissors className="size-3.5" />Make shorter</button>
-          <button onClick={() => act(() => onRewrite("Explain this response in simpler terms. Use plain language and short sentences."))} className={item}><Sparkles className="size-3.5" />Explain simpler</button>
+          <DropdownMenuItem className={itemCls} onClick={() => onRewrite("Rewrite this response to be shorter and more concise. Keep the key information but cut the fluff.")}><Scissors className="size-3.5" />Make shorter</DropdownMenuItem>
+          <DropdownMenuItem className={itemCls} onClick={() => onRewrite("Explain this response in simpler terms. Use plain language and short sentences.")}><Sparkles className="size-3.5" />Explain simpler</DropdownMenuItem>
         </>}
-        {onFork && <button onClick={() => act(onFork)} className={item}><GitFork className="size-3.5" />Fork from here</button>}
-        {onDelete && <button onClick={() => act(onDelete)} className={cn(item, "text-destructive hover:text-destructive")}><Trash2 className="size-3.5" />Delete message</button>}
-      </div>
-    </>}
-  </div>
+        {onFork && <DropdownMenuItem className={itemCls} onClick={onFork}><GitFork className="size-3.5" />Fork from here</DropdownMenuItem>}
+        {onDelete && <DropdownMenuItem variant="destructive" className="text-xs" onClick={onDelete}><Trash2 className="size-3.5" />Delete message</DropdownMenuItem>}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
 }
 
 export function Message({ m, onRegenerate, onEdit, onDelete, onFork, onRewrite, editing, onEditSubmit, onEditCancel, onRespond }: {
@@ -283,11 +297,13 @@ export function Message({ m, onRegenerate, onEdit, onDelete, onFork, onRewrite, 
             <BubbleContent className="whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-subhead leading-normal">{m.content}</BubbleContent>
           </Bubble>
         )}
+        <TooltipProvider delayDuration={0}>
         <div className="mt-0.5 flex items-center gap-0.5 text-label opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100">
           <CopyButton text={m.content} />
-          {onEdit && <button onClick={onEdit} title="Edit & resend" className={actionBtn}><Pencil className="size-3.5" /></button>}
+          {onEdit && <Tip label="Edit & resend"><IconButton label="Edit & resend" title="" onClick={onEdit} icon={<Pencil className="size-3.5" />} /></Tip>}
           <MessageActions assistant={false} onDelete={onDelete} onFork={onFork} />
         </div>
+        </TooltipProvider>
       </div>
     )
   }
@@ -381,9 +397,10 @@ export function Message({ m, onRegenerate, onEdit, onDelete, onFork, onRewrite, 
         <ThinkingBar m={m} hasBody={hasBody} doc={!!doc} hasReasoning={!!m.reasoning} hasResearch={!!m.research} hasTools={!!m.tools?.length} />
       )}
       {!m.streaming && (m.model || mt || m.content) && (
+        <TooltipProvider delayDuration={0}>
         <div className="flex flex-wrap items-center gap-2 pt-0.5 text-label text-muted-foreground">
           {bodyText && <CopyButton text={bodyText} />}
-          {(bodyText || doc) && onRegenerate && <button onClick={onRegenerate} title="Regenerate" className={actionBtn}><RotateCcw className="size-3.5" /></button>}
+          {(bodyText || doc) && onRegenerate && <Tip label="Regenerate"><IconButton label="Regenerate" title="" onClick={onRegenerate} icon={<RotateCcw className="size-3.5" />} /></Tip>}
           {bodyText && <SpeakButton text={bodyText} />}
           <MessageActions assistant onEdit={onEdit} onDelete={onDelete} onFork={onFork} onRewrite={onRewrite} />
           {m.edited && <span>· edited</span>}
@@ -403,6 +420,7 @@ export function Message({ m, onRegenerate, onEdit, onDelete, onFork, onRewrite, 
           {mt?.model_wait_seconds != null && <span>· wait {Number(mt.model_wait_seconds).toFixed(1)}s</span>}
           {mt?.response_seconds != null && <span>· {Number(mt.response_seconds).toFixed(1)}s</span>}
         </div>
+        </TooltipProvider>
       )}
     </div>
   )

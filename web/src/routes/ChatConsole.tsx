@@ -18,9 +18,9 @@ import { ProjectPicker } from "@/components/chat/ProjectPicker"
 import { RouteHeader } from "@/components/shell/RouteHeader"
 import { Mascot } from "@/components/ui/Mascot"
 import { IconButton } from "@/components/ui/IconButton"
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import { apiJson } from "@/lib/api"
 import { toast } from "@/stores/toast"
-import { useEscapeClose } from "@/lib/useEscapeClose"
 import { cn } from "@/lib/utils"
 import type { ChatMessage } from "@/types"
 
@@ -46,27 +46,21 @@ function notifyChatComplete(title: string | undefined) {
 }
 
 function ExportMenu({ sid, messages }: { sid: string; messages: ChatMessage[] }) {
-  const [open, setOpen] = useState(false)
-  useEscapeClose(open, () => setOpen(false))
-  const item = "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
-  const exp = (fmt: string) => { window.open(`/api/session/${sid}/export?fmt=${fmt}`, "_blank"); setOpen(false) }
-  const copy = async () => { try { await navigator.clipboard.writeText(messages.map((m) => `${m.role === "user" ? "You" : "Assistant"}: ${m.content}`).join("\n\n")) } catch { /* ignore */ } setOpen(false) }
+  const exp = (fmt: string) => { window.open(`/api/session/${sid}/export?fmt=${fmt}`, "_blank") }
+  const copy = async () => { try { await navigator.clipboard.writeText(messages.map((m) => `${m.role === "user" ? "You" : "Assistant"}: ${m.content}`).join("\n\n")) } catch { /* ignore */ } }
   return (
-    <div className="relative">
-      <IconButton icon={<MoreHorizontal />} label="Export / more" onClick={() => setOpen((o) => !o)} aria-haspopup="menu" aria-expanded={open} className="text-muted-foreground" />
-      {open && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 z-20 mt-1 w-52 origin-top-right animate-pop-in rounded-xl border bg-popover p-1 shadow-lg">
-            <button onClick={copy} className={item}><Copy className="size-4" />Copy transcript</button>
-            <button onClick={() => exp("md")} className={item}><Download className="size-4" />Export Markdown</button>
-            <button onClick={() => exp("txt")} className={item}><Download className="size-4" />Export Text</button>
-            <button onClick={() => exp("html")} className={item}><Download className="size-4" />Export HTML</button>
-            <button onClick={() => exp("json")} className={item}><Download className="size-4" />Export JSON</button>
-          </div>
-        </>
-      )}
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <IconButton icon={<MoreHorizontal />} label="Export / more" className="text-muted-foreground" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-52 rounded-xl">
+        <DropdownMenuItem onClick={copy}><Copy className="size-4" />Copy transcript</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => exp("md")}><Download className="size-4" />Export Markdown</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => exp("txt")}><Download className="size-4" />Export Text</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => exp("html")}><Download className="size-4" />Export HTML</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => exp("json")}><Download className="size-4" />Export JSON</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 
