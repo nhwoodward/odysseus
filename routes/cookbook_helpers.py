@@ -673,6 +673,14 @@ def _check_serve_binary(seg: str) -> None:
             f"cmd binary '{base or '(empty)'}' is not allowed. Must start with one of: "
             f"{', '.join(sorted(_SERVE_CMD_ALLOWLIST))}",
         )
+    # python/node interpreters: reject inline-eval forms (-c / -e / - / --command /
+    # --eval), which ARE arbitrary code execution — a leading-binary allowlist is
+    # not a sandbox. `-m <module>` stays allowed (legit serve entrypoints like
+    # `python3 -m llama_cpp.server` / `python -m vllm...`). (audit H1)
+    if base in ("python", "python3", "node"):
+        for t in tokens[tokens.index(first) + 1:]:
+            if t == "-" or re.match(r"^-(c|e)", t) or t.startswith(("--command", "--eval")):
+                raise HTTPException(400, "cmd cannot pass inline code (-c/-e) to an interpreter")
 
 
 def _validate_serve_cmd(v: str | None) -> str | None:
@@ -717,7 +725,8 @@ def _validate_serve_cmd(v: str | None) -> str | None:
             cleaned_v = cleaned_v.replace(match.group(0), "/placeholder/safe/path.gguf")
 
     # (`$(` was the original intent; bare `$` is fine for shell-safe paths.)
-    if any(c in cleaned_v for c in (";", "&&", "||", "$(")):
+    # `|` and `&` subsume `||`/`&&`; also block single-char redirects/background.
+    if any(c in cleaned_v for c in (";", "|", "&", "<", ">", "$(")):
         raise HTTPException(400, "Invalid characters in cmd")
     _check_serve_binary(v)
     return v

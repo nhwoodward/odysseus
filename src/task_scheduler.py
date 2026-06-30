@@ -1015,6 +1015,24 @@ class TaskScheduler:
         if not action_fn:
             return f"Unknown action: {task.action}", False
 
+        # Defense in depth (audit C1): admin-only actions (shell/SSH/serve
+        # subprocesses) must only run for an admin owner — neutralizes any task
+        # created before the create/update API gate blocked non-admins, or moved
+        # via ownership transfer. Mirrors task_routes._is_admin.
+        if task.action in ("run_local", "run_script", "ssh_command", "cookbook_serve"):
+            _owner = task.owner
+            _ok = _owner == "internal-tool"
+            if not _ok and _owner:
+                try:
+                    from core.auth import AuthManager
+                    _auth = AuthManager()
+                    _ok = (not _auth.is_configured) or bool(_auth.is_admin(_owner))
+                except Exception:
+                    _ok = False
+            if not _ok:
+                logger.warning(f"Refusing admin-only action '{task.action}' for non-admin owner {_owner!r}")
+                return f"Action '{task.action}' requires an admin owner", False
+
         from src.builtin_actions import TaskNoop
         try:
             # Pass task prompt as script/command for ssh_command/run_script actions.

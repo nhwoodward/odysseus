@@ -416,10 +416,11 @@ def setup_task_routes(task_scheduler) -> APIRouter:
                 db.close()
         return {"ok": True, "opened": True, "enabled": bool(prefs.get("tasks_enabled")), "resumed": resumed}
 
-    # Actions that execute shell/SSH commands — restricted to admins.
-    # Non-admin users cannot create tasks with these action types via the
-    # API. See review CRIT-C.
-    _ADMIN_ONLY_ACTIONS = {"run_local", "run_script", "ssh_command"}
+    # Actions that execute shell/SSH commands (or spawn serve subprocesses via
+    # the internal admin token) — restricted to admins. Non-admin users cannot
+    # create/update tasks with these action types via the API. See review CRIT-C
+    # and the follow-up audit C1 (cookbook_serve was a non-admin RCE hole).
+    _ADMIN_ONLY_ACTIONS = {"run_local", "run_script", "ssh_command", "cookbook_serve"}
 
     def _is_admin(user: str | None) -> bool:
         if not user:
