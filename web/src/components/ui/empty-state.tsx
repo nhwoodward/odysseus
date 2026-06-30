@@ -1,10 +1,12 @@
 import type { LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "./button"
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "./empty"
 
 // The "no data / get started" pattern (Mobbin gold standard: icon + heading +
-// supporting text + CTA). Replaces the ~50% of routes that render blank. Also
-// covers error/empty-search by varying icon + copy. role="status" for AT.
+// supporting text + CTA). Built on the shadcn Empty primitive; keeps the dashed
+// card surface + role="status" for AT. Also covers error/empty-search by varying
+// icon + copy. The {icon,title,description,action} API is unchanged for callers.
 export function EmptyState({ icon: Icon, title, description, action, className }: {
   icon?: LucideIcon
   title: string
@@ -14,23 +16,20 @@ export function EmptyState({ icon: Icon, title, description, action, className }
 }) {
   const ActionIcon = action?.icon
   return (
-    <div
-      role="status"
-      className={cn("flex flex-col items-center justify-center rounded-lg border border-dashed bg-card/40 px-6 py-12 text-center", className)}
-    >
-      {Icon && (
-        <div className="mb-4 flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
-          <Icon className="size-6" aria-hidden="true" />
-        </div>
-      )}
-      <h3 className="text-base font-semibold text-foreground">{title}</h3>
-      {description && <p className="mt-1 max-w-sm text-sm text-muted-foreground">{description}</p>}
+    <Empty role="status" className={cn("border bg-card/40", className)}>
+      <EmptyHeader>
+        {Icon && <EmptyMedia variant="icon"><Icon aria-hidden="true" /></EmptyMedia>}
+        <EmptyTitle>{title}</EmptyTitle>
+        {description && <EmptyDescription>{description}</EmptyDescription>}
+      </EmptyHeader>
       {action && (
-        <Button onClick={action.onClick} className="mt-4">
-          {ActionIcon && <ActionIcon />}
-          {action.label}
-        </Button>
+        <EmptyContent>
+          <Button onClick={action.onClick}>
+            {ActionIcon && <ActionIcon />}
+            {action.label}
+          </Button>
+        </EmptyContent>
       )}
-    </div>
+    </Empty>
   )
 }
