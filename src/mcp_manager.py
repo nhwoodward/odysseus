@@ -15,6 +15,46 @@ from src.runtime_paths import get_app_root
 
 logger = logging.getLogger(__name__)
 
+
+def _pinned_mcp_http_client_factory(url: str):
+    """Build an MCP `httpx_client_factory` that pins the TCP connection to the
+    public IP the URL resolved to at validation time and refuses redirects —
+    closing the redirect-to-internal and DNS-rebinding (TOCTOU) SSRF window for
+    remote http/SSE MCP connectors (audit M2). Direct private URLs are already
+    blocked at creation (validate_public_http_url); this additionally stops a
+    public hostname being re-resolved to a private address at connect time, or
+    307-redirected to e.g. the cloud metadata endpoint. Returns None if the URL
+    is private/internal/unsupported — the caller must then refuse to connect."""
+    try:
+        import httpx
+        from services.search.content import _validated_pinned_ip
+    except Exception:
+        return None
+    pinned_ip = _validated_pinned_ip(url)
+    if pinned_ip is None:
+        return None
+
+    class _AsyncPinnedTransport(httpx.AsyncHTTPTransport):
+        async def handle_async_request(self, request):
+            # Connect to the pre-validated IP, but keep the original hostname for
+            # the Host header / TLS SNI / certificate verification.
+            request.extensions = dict(request.extensions or {})
+            request.extensions.setdefault("sni_hostname", request.url.host)
+            request.url = request.url.copy_with(host=pinned_ip)
+            return await super().handle_async_request(request)
+
+    def factory(headers=None, timeout=None, auth=None):
+        kwargs: Dict[str, Any] = {"follow_redirects": False, "transport": _AsyncPinnedTransport()}
+        kwargs["timeout"] = timeout if timeout is not None else httpx.Timeout(30.0, read=300.0)
+        if headers is not None:
+            kwargs["headers"] = headers
+        if auth is not None:
+            kwargs["auth"] = auth
+        return httpx.AsyncClient(**kwargs)
+
+    return factory
+
+
 def _format_mcp_connection_error(name: str, command: str = "", args: Optional[List[str]] = None, error: Exception = None) -> str:
     """Return a user-actionable MCP connection error message."""
     args = args or []
@@ -272,9 +312,13 @@ class McpManager:
             from mcp.client.sse import sse_client
             from contextlib import AsyncExitStack
 
+            factory = _pinned_mcp_http_client_factory(url)
+            if factory is None:
+                logger.warning(f"[mcp] refusing SSE connect to non-public/blocked URL for server {server_id}")
+                return False
             stack = AsyncExitStack()
             try:
-                transport = await stack.enter_async_context(sse_client(url))
+                transport = await stack.enter_async_context(sse_client(url, httpx_client_factory=factory))
                 read_stream, write_stream = transport
                 session = await stack.enter_async_context(ClientSession(read_stream, write_stream))
 
@@ -358,9 +402,14 @@ class McpManager:
                     "auth_url": auth_url,
                 }
 
+            factory = _pinned_mcp_http_client_factory(url)
+            if factory is None:
+                logger.warning(f"[mcp] refusing HTTP connect to non-public/blocked URL for server {server_id}")
+                self._connections[server_id] = {"status": "error", "name": name, "transport": "http", "error": "URL is not a public address"}
+                return False
             provider = build_provider(server_id, url, on_redirect=_on_redirect)
             stack = AsyncExitStack()
-            transport = await stack.enter_async_context(streamablehttp_client(url, auth=provider))
+            transport = await stack.enter_async_context(streamablehttp_client(url, auth=provider, httpx_client_factory=factory))
             read_stream, write_stream, _get_session_id = transport
             session = await stack.enter_async_context(ClientSession(read_stream, write_stream))
             await session.initialize()
