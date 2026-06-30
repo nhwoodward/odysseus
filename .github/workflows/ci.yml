@@ -46,6 +46,27 @@ jobs:
             node --check "$f"
           done
 
+  no-native-select:
+    name: No native <select> in web/src (use shadcn Select)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        with:
+          persist-credentials: false
+      # Lowercase <select is case-sensitive, so shadcn's capital <Select> never matches.
+      # PdfDocumentEditor's PDF-canvas field overlay is intentionally native — excluded.
+      - name: Fail on native <select> in web/src
+        run: |
+          set -e
+          hits=$(grep -rnE '<select[[:space:>=]' web/src/routes web/src/components \
+            --include='*.tsx' \
+            | grep -v 'components/documents/PdfDocumentEditor.tsx' || true)
+          if [ -n "$hits" ]; then
+            echo "::error::Native <select> found — migrate to shadcn <Select> (web/src/components/ui/select):"
+            echo "$hits"
+            exit 1
+          fi
+
   python-tests:
     name: Python tests (pytest)
     runs-on: ubuntu-latest
