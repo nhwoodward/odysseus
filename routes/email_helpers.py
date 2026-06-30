@@ -322,6 +322,21 @@ def require_user(request: Request) -> str:
     return _require_auth(request)
 
 
+def _account_accessible(row, owner: str) -> bool:
+    """Whether `owner` may use this email account row. Owned rows: strict
+    equality. Unowned legacy rows (owner NULL/'') are shared ONLY when the
+    mailbox identity matches the caller (imap_user/from_address == owner) —
+    the same policy as `_owner_or_matching_legacy_account`, so a known legacy
+    `account_id` can't be operated against cross-tenant via the explicit-id
+    path (previously any unowned row passed the truthiness guard for any user)."""
+    if not owner:
+        return True
+    ro = getattr(row, "owner", None)
+    if ro:
+        return ro == owner
+    return getattr(row, "imap_user", None) == owner or getattr(row, "from_address", None) == owner
+
+
 def _assert_owns_account(account_id: str, owner: str) -> None:
     """Reject requests that name an `account_id` belonging to another user.
     Previously the account lookup in `_get_email_config` filtered only on
@@ -338,7 +353,7 @@ def _assert_owns_account(account_id: str, owner: str) -> None:
             row = db.query(_EA).filter(_EA.id == account_id).first()
             if row is None:
                 raise HTTPException(404, "Account not found")
-            if row.owner and row.owner != owner:
+            if not _account_accessible(row, owner):
                 # Treat as 404 (not 403) so we don't leak existence.
                 raise HTTPException(404, "Account not found")
         finally:
@@ -810,7 +825,7 @@ def _get_email_config(account_id: str | None = None, owner: str = "") -> dict:
                 # in depth — `require_owner` already calls `_assert_owns_account`
                 # for query-param account_ids, but other callers (cookbook
                 # rules, scheduled poller) may not.
-                if row is not None and owner and row.owner and row.owner != owner:
+                if row is not None and owner and not _account_accessible(row, owner):
                     row = None
             # Fallback path — restrict to this owner's accounts so we don't
             # leak another user's default mailbox to an unconfigured user.

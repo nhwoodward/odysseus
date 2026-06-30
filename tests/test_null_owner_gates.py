@@ -340,3 +340,52 @@ def test_sync_chat_fallback_null_owner_returns_none_with_no_shared():
     # No shared rows → fail closed rather than returning another user's endpoint.
     rows = [_ep("bob-private", "bob"), _ep("alice-private", "alice")]
     assert _select(rows, None) is None
+
+
+# ---------------------------------------------------------------------------
+# email_helpers._account_accessible  (M1 — explicit-account_id IDOR)
+# ---------------------------------------------------------------------------
+# The SAME null-owner-bypass class in a FIFTH spot: _assert_owns_account /
+# _get_email_config gated explicit account_id lookups with the weak
+# `row.owner and row.owner != owner` truthiness guard, so a legacy NULL/''-owner
+# EmailAccount was operable by ANY authenticated user who knew its id (read/
+# send/delete through another mailbox using its decrypted IMAP/SMTP creds). The
+# gate must mirror _owner_or_matching_legacy_account: unowned rows are shared
+# ONLY when the mailbox identity (imap_user/from_address) matches the caller.
+
+def _acct(owner=None, imap_user=None, from_address=None):
+    return SimpleNamespace(owner=owner, imap_user=imap_user, from_address=from_address)
+
+
+def test_email_account_rejects_null_owner_foreign_mailbox():
+    from routes.email_helpers import _account_accessible
+    # legacy NULL-owner account whose mailbox is bob's — alice must NOT reach it
+    assert _account_accessible(_acct(owner=None, imap_user="bob@x", from_address="bob@x"), "alice@x") is False
+
+
+def test_email_account_rejects_empty_owner_foreign_mailbox():
+    from routes.email_helpers import _account_accessible
+    assert _account_accessible(_acct(owner="", imap_user="bob@x", from_address="bob@x"), "alice@x") is False
+
+
+def test_email_account_rejects_cross_owner():
+    from routes.email_helpers import _account_accessible
+    assert _account_accessible(_acct(owner="bob@x", imap_user="bob@x"), "alice@x") is False
+
+
+def test_email_account_accepts_matching_owner():
+    from routes.email_helpers import _account_accessible
+    assert _account_accessible(_acct(owner="alice@x", imap_user="alice@x"), "alice@x") is True
+
+
+def test_email_account_accepts_legacy_null_owner_same_mailbox():
+    # single-user upgrade: alice's own legacy account (no owner yet) stays usable
+    from routes.email_helpers import _account_accessible
+    assert _account_accessible(_acct(owner=None, imap_user="alice@x"), "alice@x") is True
+    assert _account_accessible(_acct(owner=None, from_address="alice@x"), "alice@x") is True
+
+
+def test_email_account_single_user_mode_accepts_any():
+    # owner == "" (unconfigured / single-user) — accept any account
+    from routes.email_helpers import _account_accessible
+    assert _account_accessible(_acct(owner="bob@x"), "") is True
