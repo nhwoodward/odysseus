@@ -16,6 +16,10 @@ import { toast } from "@/stores/toast"
 import { Switch } from "@/components/ui/switch"
 import { IconButton } from "@/components/ui/IconButton"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
+import { Textarea } from "@/components/ui/textarea"
+import { Input } from "@/components/ui/input"
+import { Slider } from "@/components/ui/slider"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { useConfirm } from "@/components/ui/confirm"
 import { BUILTIN_PERSONAS } from "@/lib/personas"
 import { getPersistentPersonaName, setPersistentPersonaSession } from "@/lib/persistentPersona"
@@ -83,11 +87,11 @@ export function SourcesMenu() {
 export function ModePicker() {
   const c = useComposer()
   return (
-    <div className="flex rounded-lg bg-muted p-0.5" data-tour="mode-picker">
+    <ToggleGroup type="single" value={c.mode} onValueChange={(v) => { if (v) c.setMode(v as "chat" | "agent") }} className="rounded-lg bg-muted p-0.5" data-tour="mode-picker">
       {(["chat", "agent"] as const).map((mode) => (
-        <button key={mode} onClick={() => c.setMode(mode)} className={cn("rounded-md px-2.5 py-1 text-xs font-medium capitalize transition-colors", c.mode === mode ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>{mode}</button>
+        <ToggleGroupItem key={mode} value={mode} className="rounded-md px-2.5 py-1 text-xs font-medium capitalize text-muted-foreground shadow-none hover:bg-transparent hover:text-foreground data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm">{mode}</ToggleGroupItem>
       ))}
-    </div>
+    </ToggleGroup>
   )
 }
 
@@ -157,7 +161,7 @@ export function ModelPicker() {
       <PopoverContent side="top" align="end" sideOffset={4} className="flex max-h-96 w-[min(92vw,18rem)] flex-col rounded-xl p-1">
         <label className="m-1 flex items-center gap-2 rounded-md border bg-background px-2">
           <Search className="size-3.5 text-muted-foreground" />
-          <input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search models" className="h-8 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground" />
+          <Input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search models" className="h-8 min-w-0 flex-1 rounded-none border-0 bg-transparent px-0 text-sm shadow-none outline-none focus-visible:border-0 focus-visible:ring-0 placeholder:text-muted-foreground" />
           {query && <button onClick={() => setQuery("")} aria-label="Clear search"><X className="size-3.5 text-muted-foreground" /></button>}
         </label>
         <div className="min-h-0 overflow-y-auto">
@@ -214,7 +218,7 @@ export function ToolsMenu() {
   const groupActive = c.groupActive && c.groupParticipants.length >= 2
   const activeCount = [c.useWeb, c.useResearch, c.incognito, promptActive, groupActive, !c.useRag, !c.allowBash].filter(Boolean).length
   const selectCls = "h-9 w-full rounded-md border bg-background px-2 text-sm outline-none focus-visible:border-ring"
-  const textCls = "min-h-[58px] w-full resize-none rounded-md border bg-background px-2 py-1.5 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring"
+  const textCls = "!field-sizing-fixed min-h-[58px] w-full resize-none rounded-md border bg-background px-2 py-1.5 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring"
   const modelOptions = (models?.items || []).flatMap((ep) =>
     [...(ep.models || []), ...(ep.models_extra || [])].map((model) => ({
       key: `${ep.endpoint_id || ep.url}:${model}`,
@@ -532,7 +536,7 @@ export function ToolsMenu() {
               </label>
               <label className="block text-xs font-medium text-muted-foreground">
                 Prefix
-                <textarea
+                <Textarea
                   value={c.promptPrefix}
                   onChange={(e) => c.setPromptInject(e.target.value, c.promptSuffix)}
                   rows={2}
@@ -543,7 +547,7 @@ export function ToolsMenu() {
               </label>
               <label className="block text-xs font-medium text-muted-foreground">
                 Suffix
-                <textarea
+                <Textarea
                   value={c.promptSuffix}
                   onChange={(e) => c.setPromptInject(c.promptPrefix, e.target.value)}
                   rows={2}
@@ -554,29 +558,29 @@ export function ToolsMenu() {
               </label>
               <label className="block text-xs font-medium text-muted-foreground">
                 Temperature <span className="float-right tabular-nums">{temperature.toFixed(1)}</span>
-                <input
-                  type="range"
+                <Slider
+                  aria-label="Temperature"
+                  value={[temperature]}
                   min={0}
                   max={2}
                   step={0.1}
-                  value={temperature}
-                  onChange={(e) => setTemperature(Number(e.target.value))}
-                  className="mt-1 w-full accent-primary"
+                  onValueChange={(v) => setTemperature(v[0])}
+                  className="mt-1"
                 />
               </label>
               <label className="block text-xs font-medium text-muted-foreground">
                 Max tokens <span className="float-right tabular-nums">{maxTokenLabel}</span>
-                <input
-                  type="range"
+                <Slider
+                  aria-label="Max tokens"
+                  value={[maxTokenValue]}
                   min={256}
                   max={8448}
                   step={256}
-                  value={maxTokenValue}
-                  onChange={(e) => {
-                    const next = Number(e.target.value)
+                  onValueChange={(v) => {
+                    const next = v[0]
                     setMaxTokens(next > 8192 ? 0 : next)
                   }}
-                  className="mt-1 w-full accent-primary"
+                  className="mt-1"
                 />
               </label>
               <button
@@ -630,7 +634,7 @@ export function ToolsMenu() {
               </div>
               <label className="block text-xs font-medium text-muted-foreground">
                 Name
-                <input
+                <Input
                   value={personaName}
                   onChange={(e) => setPersonaName(e.target.value)}
                   readOnly={!!lockedPersonaName}
@@ -641,7 +645,7 @@ export function ToolsMenu() {
               </label>
               <label className="block text-xs font-medium text-muted-foreground">
                 System prompt
-                <textarea
+                <Textarea
                   value={personaPrompt}
                   onChange={(e) => setPersonaPrompt(e.target.value)}
                   rows={3}
@@ -724,17 +728,17 @@ export function ToolsMenu() {
                       </button>
                     </div>
                   )}
-                  <div className="grid grid-cols-2 rounded-lg bg-muted p-0.5">
+                  <ToggleGroup type="single" value={c.groupMode} onValueChange={(v) => { if (v) c.setGroupMode(v as GroupMode) }} className="grid grid-cols-2 rounded-lg bg-muted p-0.5">
                     {(["round-robin", "parallel"] as const).map((mode) => (
-                      <button
+                      <ToggleGroupItem
                         key={mode}
-                        onClick={() => c.setGroupMode(mode)}
-                        className={cn("rounded-md px-2 py-1 text-xs font-medium transition-colors", c.groupMode === mode ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
+                        value={mode}
+                        className="rounded-md px-2 py-1 text-xs font-medium text-muted-foreground shadow-none hover:bg-transparent hover:text-foreground data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm"
                       >
                         {mode === "round-robin" ? "Sequential" : "Parallel"}
-                      </button>
+                      </ToggleGroupItem>
                     ))}
-                  </div>
+                  </ToggleGroup>
                   <div className="space-y-1">
                     {c.groupParticipants.map((p) => (
                       <div key={p.id} className="space-y-1 rounded-md border bg-background px-2 py-1.5 text-sm">

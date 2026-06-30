@@ -4,6 +4,7 @@ import { usePanel } from "@/stores/panel"
 import { Mascot } from "@/components/ui/Mascot"
 import { Bubble, BubbleContent } from "@/components/ui/bubble"
 import { Marker, MarkerContent } from "@/components/ui/marker"
+import { Textarea } from "@/components/ui/textarea"
 import { StreamingMarkdown, Markdown } from "./Markdown"
 import { ToolThread } from "./ToolThread"
 import { BrowserSiteCard } from "./BrowserPreview"
@@ -223,14 +224,14 @@ function MessageEditor({ initial, assistant = false, onSubmit, onCancel }: { ini
   const save = () => { if (val.trim()) onSubmit?.(val) }
   return (
     <div className={cn("flex animate-fade-in flex-col gap-2", assistant ? "items-stretch" : "items-end")}>
-      <textarea
+      <Textarea
         ref={ref} value={val} rows={1}
         onChange={(e) => { setVal(e.target.value); grow(e.target) }}
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); save() }
           if (e.key === "Escape") { e.preventDefault(); onCancel?.() }
         }}
-        className={cn("max-h-[300px] w-full resize-none rounded-2xl border px-4 py-2.5 text-subhead outline-none focus:border-ring focus:ring-[3px] focus:ring-ring/35", assistant ? "bg-background" : "max-w-[600px] bg-secondary")}
+        className={cn("!field-sizing-fixed min-h-0 max-h-[300px] w-full resize-none rounded-2xl border px-4 py-2.5 text-subhead outline-none focus:border-ring focus:ring-[3px] focus:ring-ring/35", assistant ? "bg-background" : "max-w-[600px] bg-secondary")}
       />
       <div className={cn("flex items-center gap-2 text-xs", assistant ? "justify-end" : "")}>
         <button onClick={onCancel} className="rounded-md px-2.5 py-1 text-muted-foreground hover:bg-accent hover:text-foreground">Cancel</button>

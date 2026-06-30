@@ -1,9 +1,10 @@
 import type { ComposerController } from "./useComposerController"
+import { Textarea } from "@/components/ui/textarea"
 
 export function ComposerInput({ ctl }: { ctl: ComposerController }) {
   const { ref, text, uploading, setText, setSlashSel, setSlashDismissed, grow, onPaste, slashOpen, slashMatches, pickSlash, sel, lastSentRef, submit } = ctl
   return (
-    <textarea
+    <Textarea
       data-tour="composer-input"
       ref={ref} value={text} rows={1} placeholder={uploading ? "Uploading…" : "Message Odysseus…  (/ for skills)"}
       onChange={(e) => { setText(e.target.value); setSlashSel(0); setSlashDismissed(false); grow() }}
@@ -20,7 +21,7 @@ export function ComposerInput({ ctl }: { ctl: ComposerController }) {
         if (e.key === "ArrowUp" && !text && !e.shiftKey && !e.metaKey && lastSentRef.current) { e.preventDefault(); setText(lastSentRef.current); requestAnimationFrame(grow); return }
         if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit() }
       }}
-      className="max-h-[200px] w-full resize-none bg-transparent px-1 py-1.5 text-subhead outline-none placeholder:text-muted-foreground"
+      className="!field-sizing-fixed max-h-[200px] min-h-0 w-full resize-none border-0 bg-transparent px-1 py-1.5 text-subhead shadow-none outline-none placeholder:text-muted-foreground"
     />
   )
 }
