@@ -174,7 +174,10 @@ _TIMEOUT_EXEMPT_PREFIXES = (
 class _RequestTimeoutMiddleware(_BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         path = request.url.path or ""
-        if any(path.startswith(p) for p in _TIMEOUT_EXEMPT_PREFIXES):
+        # Exact path or a sub-path under the prefix — NOT a bare startswith,
+        # which would also exempt e.g. /api/chatgpt-subscription under
+        # "/api/chat". (audit)
+        if any(path == p or path.startswith(p + "/") for p in _TIMEOUT_EXEMPT_PREFIXES):
             return await call_next(request)
         try:
             return await _asyncio.wait_for(call_next(request), timeout=REQUEST_HARD_TIMEOUT)
@@ -186,6 +189,34 @@ class _RequestTimeoutMiddleware(_BaseHTTPMiddleware):
 
 
 app.add_middleware(_RequestTimeoutMiddleware)
+
+
+# Reject oversized request bodies early (413) so a single authenticated user
+# can't persist arbitrarily large JSON into the shared store → RAM/disk
+# exhaustion for every tenant (audit M4). Binary-upload paths carry large
+# content legitimately and enforce their own byte-caps (src/upload_limits.py),
+# so they're exempt here.
+MAX_REQUEST_BODY = int(os.getenv("MAX_REQUEST_BODY_BYTES", str(25 * 1024 * 1024)))  # 25 MB
+_BODY_LIMIT_EXEMPT_PREFIXES = ("/api/upload", "/api/gallery", "/api/image", "/api/voice")
+
+
+class _BodySizeLimitMiddleware(_BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        if request.method in ("POST", "PUT", "PATCH"):
+            path = request.url.path or ""
+            if not any(path == p or path.startswith(p + "/") for p in _BODY_LIMIT_EXEMPT_PREFIXES):
+                cl = request.headers.get("content-length")
+                if cl:
+                    try:
+                        too_big = int(cl) > MAX_REQUEST_BODY
+                    except ValueError:
+                        return _JSONResponse({"detail": "Invalid Content-Length"}, status_code=400)
+                    if too_big:
+                        return _JSONResponse({"detail": "Request body too large"}, status_code=413)
+        return await call_next(request)
+
+
+app.add_middleware(_BodySizeLimitMiddleware)
 
 # ========= AUTH =========
 from routes.auth_routes import setup_auth_routes, SESSION_COOKIE
