@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react"
 import { useParams, useSearchParams } from "react-router-dom"
-import { MoreHorizontal, Download, Copy, EyeOff, FileText, Users, ArrowDown } from "lucide-react"
+import { MoreHorizontal, Download, Copy, EyeOff, FileText, Users } from "lucide-react"
 import { useChat } from "@/lib/useChat"
 import { useComposer } from "@/stores/composer"
 import { useSessions } from "@/api/sessions"
@@ -19,6 +19,7 @@ import { RouteHeader } from "@/components/shell/RouteHeader"
 import { Mascot } from "@/components/ui/Mascot"
 import { IconButton } from "@/components/ui/IconButton"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
+import { MessageScrollerProvider, MessageScroller, MessageScrollerViewport, MessageScrollerContent, MessageScrollerItem, MessageScrollerButton } from "@/components/ui/message-scroller"
 import { apiJson } from "@/lib/api"
 import { toast } from "@/stores/toast"
 import { cn } from "@/lib/utils"
@@ -95,19 +96,27 @@ const MessageRow = memo(function MessageRow({ m, index, streaming, incognito, ed
   m: ChatMessage; index: number; streaming: boolean; incognito: boolean; editing: boolean; actions: RowActions
 }) {
   const assistant = m.role === "assistant"
+  // The scroller item wraps the row INSIDE the memo (never in the .map) so it
+  // skips re-rendering — and re-firing its registerMessage ref callback — for
+  // every row on every streamed token. messageId is String(index) (value-stable,
+  // matches the array-index key; m.messageId is undefined mid-stream and would
+  // re-key on message_saved). scrollAnchor on the user turn settles a new turn
+  // near the top with a peek of prior context (turn-anchoring).
   return (
-    <Message
-      m={m}
-      onRegenerate={assistant && !streaming ? () => actions.regenerate(index) : undefined}
-      onRespond={assistant && !streaming ? actions.respond : undefined}
-      editing={editing}
-      onEdit={!streaming ? () => actions.edit(index) : undefined}
-      onDelete={!streaming ? () => actions.remove(index) : undefined}
-      onFork={!streaming && !incognito ? () => actions.fork(index) : undefined}
-      onRewrite={assistant && !streaming ? (instruction) => actions.rewrite(index, instruction) : undefined}
-      onEditSubmit={(text) => actions.editSubmit(index, m.role, text)}
-      onEditCancel={actions.editCancel}
-    />
+    <MessageScrollerItem messageId={String(index)} scrollAnchor={m.role === "user"}>
+      <Message
+        m={m}
+        onRegenerate={assistant && !streaming ? () => actions.regenerate(index) : undefined}
+        onRespond={assistant && !streaming ? actions.respond : undefined}
+        editing={editing}
+        onEdit={!streaming ? () => actions.edit(index) : undefined}
+        onDelete={!streaming ? () => actions.remove(index) : undefined}
+        onFork={!streaming && !incognito ? () => actions.fork(index) : undefined}
+        onRewrite={assistant && !streaming ? (instruction) => actions.rewrite(index, instruction) : undefined}
+        onEditSubmit={(text) => actions.editSubmit(index, m.role, text)}
+        onEditCancel={actions.editCancel}
+      />
+    </MessageScrollerItem>
   )
 })
 
@@ -127,21 +136,12 @@ export function ChatConsole() {
   const docCount = threadDocs?.length || 0
   const title = sessions?.find((s) => s.id === sessionId)?.name
   const persistentPersonaName = getPersistentPersonaName(sessionId)
-  const scrollRef = useRef<HTMLDivElement>(null)
   const queryDocOpenedRef = useRef<string | null>(null)
-  const [atBottom, setAtBottom] = useState(true)
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
-  // Stick to the bottom as tokens stream in — but ONLY when the user is already
-  // there. If they scrolled up to read, don't yank them back down every token.
-  // Coalesced into a single rAF so a burst of tokens triggers one scroll/reflow
-  // per frame instead of a synchronous scrollHeight read on every token.
-  useEffect(() => {
-    if (!atBottom) return
-    const el = scrollRef.current
-    if (!el) return
-    const id = requestAnimationFrame(() => { el.scrollTo({ top: el.scrollHeight }) })
-    return () => cancelAnimationFrame(id)
-  }, [messages, atBottom])
+  // Stick-to-bottom, scroll-position preservation, turn anchoring, and the
+  // jump-to-latest button are all handled by the MessageScroller primitive
+  // (its own ResizeObserver/MutationObserver), so there's no bespoke scrollRef,
+  // atBottom flag, rAF effect, or onScroll handler here anymore.
 
   // The useChat handlers (regenerate/editResend/editAssistant/deleteMessage/
   // rewriteMessage) close over `messages`, so their identities change on every
@@ -167,10 +167,10 @@ export function ChatConsole() {
     },
     editCancel: () => setEditingIndex(null),
   }), [])
-  const onScroll = () => { const el = scrollRef.current; if (el) setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 160) }
-  // Reset transient view state when switching threads.
+  // Reset transient view state when switching threads. (Scroll position resets
+  // via the MessageScrollerProvider's key={sessionId} remount, below.)
   // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional reset on thread change
-  useEffect(() => { setEditingIndex(null); setAtBottom(true) }, [sessionId])
+  useEffect(() => { setEditingIndex(null) }, [sessionId])
 
   // Fire a background-completion notification when a stream finishes while the
   // tab was hidden. `hiddenDuring` accumulates across the stream (set either at
@@ -284,39 +284,42 @@ export function ChatConsole() {
             </>
           )}
         />
-        <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto">
-          {messages.length === 0 ? (
-            <div className="flex h-full items-center justify-center p-8">
-              <div className="w-full max-w-[768px] text-center" data-tour="chat-welcome">
-                <Mascot size={20} className="mx-auto mb-6 animate-pop-in" title="Odysseus" />
-                <h1 className="text-2xl font-semibold tracking-tight">
-                  {greeting(personalization.nickname || auth?.username || auth?.user)}
-                </h1>
-                <p className="mt-2 text-sm text-muted-foreground">How can I help?</p>
-                <div className="mt-6 flex flex-wrap justify-center gap-2">
-                  {SUGGESTIONS.map((s) => (
-                    <button key={s} onClick={() => send(s)} disabled={streaming}
-                      className="rounded-full border px-3.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50">
-                      {s}
-                    </button>
-                  ))}
-                </div>
+        {messages.length === 0 ? (
+          <div className="flex flex-1 items-center justify-center p-8">
+            <div className="w-full max-w-[768px] text-center" data-tour="chat-welcome">
+              <Mascot size={20} className="mx-auto mb-6 animate-pop-in" title="Odysseus" />
+              <h1 className="text-2xl font-semibold tracking-tight">
+                {greeting(personalization.nickname || auth?.username || auth?.user)}
+              </h1>
+              <p className="mt-2 text-sm text-muted-foreground">How can I help?</p>
+              <div className="mt-6 flex flex-wrap justify-center gap-2">
+                {SUGGESTIONS.map((s) => (
+                  <button key={s} onClick={() => send(s)} disabled={streaming}
+                    className="rounded-full border px-3.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50">
+                    {s}
+                  </button>
+                ))}
               </div>
             </div>
-          ) : (
-            <div className="mx-auto w-full max-w-[768px] space-y-6 px-4 py-6">{messages.map((m, i) => (
-              <MessageRow key={i} m={m} index={i} streaming={streaming} incognito={incognito}
-                editing={editingIndex === i} actions={actions} />
-            ))}</div>
-          )}
-        </div>
-        {!atBottom && messages.length > 0 && (
-          <button onClick={() => { const el = scrollRef.current; if (el) { el.scrollTo({ top: el.scrollHeight, behavior: "smooth" }); setAtBottom(true) } }}
-            title="Jump to latest"
-            aria-label="Jump to latest"
-            className="absolute bottom-28 left-1/2 z-10 -translate-x-1/2 animate-fade-in rounded-full border bg-popover p-2 text-muted-foreground shadow-md transition-colors hover:text-foreground">
-            <ArrowDown className="size-4" />
-          </button>
+          </div>
+        ) : (
+          // key={sessionId} remounts the scroller per thread for a clean scroll
+          // reset. autoScroll follows the live edge; defaultScrollPosition
+          // "last-anchor" + scrollAnchor on user turns gives the turn-anchored
+          // (ChatGPT/Claude) feel — a new turn settles near the top with a peek.
+          <MessageScrollerProvider key={sessionId} autoScroll defaultScrollPosition="last-anchor" scrollPreviousItemPeek={24}>
+            <MessageScroller className="min-h-0 flex-1">
+              <MessageScrollerViewport>
+                <MessageScrollerContent className="mx-auto w-full max-w-[768px] space-y-6 px-4 py-6">
+                  {messages.map((m, i) => (
+                    <MessageRow key={i} m={m} index={i} streaming={streaming} incognito={incognito}
+                      editing={editingIndex === i} actions={actions} />
+                  ))}
+                </MessageScrollerContent>
+              </MessageScrollerViewport>
+              <MessageScrollerButton direction="end" className="bottom-28 left-1/2 -translate-x-1/2" />
+            </MessageScroller>
+          </MessageScrollerProvider>
         )}
         <Composer onSend={send} onLocalReply={localReply} onClearMessages={clearLocalMessages} onStop={stop} streaming={streaming} sessionId={sessionId} />
       </div>

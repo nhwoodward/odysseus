@@ -53,6 +53,8 @@ Element.prototype.hasPointerCapture = () => false
 Element.prototype.setPointerCapture = () => {}
 Element.prototype.releasePointerCapture = () => {}
 Element.prototype.scrollIntoView = Element.prototype.scrollIntoView ?? (() => {})
+// The MessageScroller calls scrollTo on its viewport; jsdom doesn't implement it.
+Element.prototype.scrollTo = Element.prototype.scrollTo ?? (() => {})
 
 // jsdom has no matchMedia; framer-motion (and reduced-motion checks) probe it.
 if (!globalThis.matchMedia) {
