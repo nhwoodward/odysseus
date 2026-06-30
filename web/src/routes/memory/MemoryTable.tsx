@@ -21,6 +21,8 @@ import { useConfirm } from "@/components/ui/confirm"
 import { useMemoryMutations } from "@/api/memory"
 import type { Memory } from "@/types"
 import { CATS, memoryCategory, memoryTimestamp, memoryUses, relativeTime, sourceLabel, defaultMemoryOrder } from "./util"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
+import { toSelectToken, fromSelectToken } from "@/lib/select"
 import { cn } from "@/lib/utils"
 import { toast } from "@/stores/toast"
 
@@ -297,11 +299,13 @@ export function MemoryTable({ memories, loading, error, onRetry }: { memories: M
               onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) void saveEdit() }} aria-label="Memory text" autoFocus />
             <div className="flex items-center gap-2">
               <Label htmlFor="edit-memory-cat">Category</Label>
-              <select id="edit-memory-cat" value={editCat} onChange={(e) => setEditCat(e.target.value)}
-                className="h-9 rounded-md border bg-background px-2 text-sm capitalize outline-none focus-visible:border-ring">
-                {!CATS.includes(editCat) && <option value={editCat}>{editCat}</option>}
-                {CATS.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
+              <Select value={toSelectToken(editCat)} onValueChange={(v) => setEditCat(fromSelectToken(v))}>
+                <SelectTrigger id="edit-memory-cat" className="h-9 rounded-md border bg-background px-2 text-sm capitalize outline-none focus-visible:border-ring"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {!CATS.includes(editCat) && <SelectItem value={toSelectToken(editCat)}>{editCat}</SelectItem>}
+                  {CATS.map((c) => <SelectItem key={c} value={toSelectToken(c)}>{c}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>

@@ -21,6 +21,8 @@ import { useConfirm } from "@/components/ui/confirm"
 import { inputClass } from "@/components/ui/input"
 import { SkeletonList } from "@/components/ui/skeleton"
 import { LoadError } from "@/components/ui/load-error"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
+import { toSelectToken, fromSelectToken } from "@/lib/select"
 import { cn } from "@/lib/utils"
 
 const inpCls = inputClass
@@ -270,10 +272,13 @@ function AddEndpointForm() {
   return (
     <div className="mt-2 space-y-2 rounded-lg border bg-card p-3">
       {(providers || []).length > 0 && (
-        <select defaultValue="" onChange={(e) => { const p = (providers || []).find((x) => x.provider === e.target.value); if (p) { setName(p.provider); if (p.items?.[0]?.url) setUrl(p.items[0].url) } }} className={inpCls}>
-          <option value="">Provider preset…</option>
-          {(providers || []).map((p) => <option key={p.provider} value={p.provider}>{p.provider}</option>)}
-        </select>
+        <Select defaultValue={toSelectToken("")} onValueChange={(v) => { const pv = fromSelectToken(v); const p = (providers || []).find((x) => x.provider === pv); if (p) { setName(p.provider); if (p.items?.[0]?.url) setUrl(p.items[0].url) } }}>
+          <SelectTrigger className={inpCls}><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value={toSelectToken("")}>Provider preset…</SelectItem>
+            {(providers || []).map((p) => <SelectItem key={p.provider} value={toSelectToken(p.provider)}>{p.provider}</SelectItem>)}
+          </SelectContent>
+        </Select>
       )}
       <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name (optional, e.g. OpenAI)" className={inpCls} />
       <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Base URL — e.g. https://api.openai.com/v1" className={inpCls} />
@@ -421,10 +426,13 @@ export function SettingsRoute() {
       <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">AI defaults</h2>
       <div className="flex flex-col gap-2 rounded-lg border bg-card p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-0">
         <span className="text-sm">Default chat model</span>
-        <select value={def?.model || ""} onChange={(e) => setDefault.mutate(e.target.value)} className="h-9 w-full rounded-md border bg-background px-2 text-sm outline-none focus-visible:border-ring sm:max-w-[60%]">
-          {!def?.model && <option value="">—</option>}
-          {allModels.map((m) => <option key={m} value={m}>{m}</option>)}
-        </select>
+        <Select value={toSelectToken(def?.model || "")} onValueChange={(v) => setDefault.mutate(fromSelectToken(v))}>
+          <SelectTrigger className="h-9 w-full rounded-md border bg-background px-2 text-sm outline-none focus-visible:border-ring sm:max-w-[60%]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {!def?.model && <SelectItem value={toSelectToken("")}>—</SelectItem>}
+            {allModels.map((m) => <SelectItem key={m} value={toSelectToken(m)}>{m}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
     </section>
   )

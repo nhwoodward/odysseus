@@ -14,6 +14,8 @@ import { IconButton } from "@/components/ui/IconButton"
 import { RouteHeader } from "@/components/shell/RouteHeader"
 import { Badge } from "@/components/ui/badge"
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
+import { toSelectToken, fromSelectToken } from "@/lib/select"
 import { cn } from "@/lib/utils"
 
 function gb(mb?: number) { return mb != null ? `${(mb / 1024).toFixed(1)} GB` : "—" }
@@ -44,7 +46,7 @@ function ModelDiscovery() {
     <div className="overflow-hidden rounded-lg border bg-card">
       <div className="flex flex-wrap items-center gap-2 border-b p-3">
         {([['fit', 'Hardware fit'], ['image', 'Image models'], ['hf', 'Hugging Face'], ['ollama', 'Ollama']] as const).map(([value, label]) => <button key={value} onClick={() => setSource(value)} className={cn("rounded-md px-2.5 py-1.5 text-xs font-medium", source === value ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground")}>{label}</button>)}
-        {(source === "fit" || source === "image") && <><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search catalog…" className={cn(inp, "ml-auto min-w-48 flex-1")} />{source === "fit" && <><select value={useCase} onChange={(e) => setUseCase(e.target.value)} className={inp}><option value="">All uses</option><option value="general">General</option><option value="coding">Coding</option><option value="reasoning">Reasoning</option><option value="chat">Chat</option><option value="multimodal">Multimodal</option></select><select value={sort} onChange={(e) => setSort(e.target.value)} className={inp}><option value="score">Best score</option><option value="newest">Newest</option><option value="speed">Speed</option><option value="vram">VRAM</option><option value="params">Parameters</option><option value="context">Context</option></select><label className="inline-flex h-9 items-center gap-1.5 rounded-md border px-2 text-xs"><input type="checkbox" checked={fitOnly} onChange={(e) => setFitOnly(e.target.checked)} />Fits only</label></>}</>}
+        {(source === "fit" || source === "image") && <><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search catalog…" className={cn(inp, "ml-auto min-w-48 flex-1")} />{source === "fit" && <><Select value={toSelectToken(useCase)} onValueChange={(v) => setUseCase(fromSelectToken(v))}><SelectTrigger className={inp}><SelectValue /></SelectTrigger><SelectContent><SelectItem value={toSelectToken("")}>All uses</SelectItem><SelectItem value="general">General</SelectItem><SelectItem value="coding">Coding</SelectItem><SelectItem value="reasoning">Reasoning</SelectItem><SelectItem value="chat">Chat</SelectItem><SelectItem value="multimodal">Multimodal</SelectItem></SelectContent></Select><Select value={sort} onValueChange={(v) => setSort(v)}><SelectTrigger className={inp}><SelectValue /></SelectTrigger><SelectContent><SelectItem value="score">Best score</SelectItem><SelectItem value="newest">Newest</SelectItem><SelectItem value="speed">Speed</SelectItem><SelectItem value="vram">VRAM</SelectItem><SelectItem value="params">Parameters</SelectItem><SelectItem value="context">Context</SelectItem></SelectContent></Select><label className="inline-flex h-9 items-center gap-1.5 rounded-md border px-2 text-xs"><input type="checkbox" checked={fitOnly} onChange={(e) => setFitOnly(e.target.checked)} />Fits only</label></>}</>}
       </div>
       {source === "fit" ? <>
         {system && <div className="flex flex-wrap gap-x-4 gap-y-1 border-b bg-muted/20 px-3 py-2 text-xs text-muted-foreground"><span>{system.hostname || "This host"}</span><span>{system.gpu_name || system.backend || "CPU"}{system.gpu_count ? ` ×${system.gpu_count}` : ""}</span>{system.gpu_vram_gb != null && <span>{system.gpu_vram_gb} GB VRAM</span>}{system.total_ram_gb != null && <span>{system.total_ram_gb} GB RAM</span>}</div>}
@@ -72,7 +74,7 @@ function DownloadForm() {
       <div className="space-y-2 rounded-lg border bg-card p-3">
         <div className="flex gap-2">
           <input value={repo} onChange={(e) => setRepo(e.target.value)} placeholder={backend === "ollama" ? "qwen2.5:0.5b" : "org/model-name (HF repo)"} className={cn(inp, "flex-1")} />
-          <select value={backend} onChange={(e) => setBackend(e.target.value)} className={inp}><option value="hf">HuggingFace</option><option value="ollama">Ollama</option></select>
+          <Select value={backend} onValueChange={(v) => setBackend(v)}><SelectTrigger className={inp}><SelectValue /></SelectTrigger><SelectContent><SelectItem value="hf">HuggingFace</SelectItem><SelectItem value="ollama">Ollama</SelectItem></SelectContent></Select>
           <Button disabled={download.isPending} onClick={go}><Download className="size-4" />{download.isPending ? "Starting…" : "Download"}</Button>
         </div>
         {msg && <p className="text-xs text-muted-foreground">{msg}</p>}
@@ -168,26 +170,35 @@ function ServeForm({ models, gpus }: { models: CachedModel[]; gpus: Gpu[] }) {
           <>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <label className="flex flex-col gap-1 text-xs text-muted-foreground">Model
-                <select value={repoId} onChange={(e) => setRepoId(e.target.value)} className={inp}>
-                  <option value="">Select a cached model…</option>
-                  {models.map((m) => <option key={m.repo_id} value={m.repo_id}>{m.repo_id}{m.size ? ` (${m.size})` : ""}</option>)}
-                </select>
+                <Select value={toSelectToken(repoId)} onValueChange={(v) => setRepoId(fromSelectToken(v))}>
+                  <SelectTrigger className={inp}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={toSelectToken("")}>Select a cached model…</SelectItem>
+                    {models.map((m) => <SelectItem key={m.repo_id} value={toSelectToken(m.repo_id)}>{m.repo_id}{m.size ? ` (${m.size})` : ""}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </label>
               <label className="flex flex-col gap-1 text-xs text-muted-foreground">Backend
-                <select value={backend} onChange={(e) => setBackend(e.target.value as ServeBackend)} className={inp}>
-                  {SERVE_BACKENDS.map((b) => <option key={b.value} value={b.value}>{b.label}</option>)}
-                </select>
+                <Select value={backend} onValueChange={(v) => setBackend(v as ServeBackend)}>
+                  <SelectTrigger className={inp}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {SERVE_BACKENDS.map((b) => <SelectItem key={b.value} value={b.value}>{b.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </label>
             </div>
 
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               {gpus.length > 0 && (
                 <label className="flex flex-col gap-1 text-xs text-muted-foreground">GPU(s)
-                  <select value={gpuSel} onChange={(e) => setGpuSel(e.target.value)} className={inp}>
-                    <option value="">Auto / all</option>
-                    {gpus.map((g) => <option key={g.index} value={String(g.index)}>{g.index}: {g.name || `GPU ${g.index}`}</option>)}
-                    {gpus.length > 1 && <option value={gpus.map((g) => g.index).join(",")}>All ({gpus.map((g) => g.index).join(",")})</option>}
-                  </select>
+                  <Select value={toSelectToken(gpuSel)} onValueChange={(v) => setGpuSel(fromSelectToken(v))}>
+                    <SelectTrigger className={inp}><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={toSelectToken("")}>Auto / all</SelectItem>
+                      {gpus.map((g) => <SelectItem key={g.index} value={toSelectToken(String(g.index))}>{g.index}: {g.name || `GPU ${g.index}`}</SelectItem>)}
+                      {gpus.length > 1 && <SelectItem value={gpus.map((g) => g.index).join(",")}>All ({gpus.map((g) => g.index).join(",")})</SelectItem>}
+                    </SelectContent>
+                  </Select>
                 </label>
               )}
               {showQuant && (
@@ -207,7 +218,7 @@ function ServeForm({ models, gpus }: { models: CachedModel[]; gpus: Gpu[] }) {
               <label className="text-xs text-muted-foreground">SSH port<input value={sshPort} onChange={(event) => setSshPort(event.target.value)} placeholder="22" className={cn(inp, "mt-1 w-full")} /></label>
               <label className="text-xs text-muted-foreground">Tensor parallel<input value={tp} onChange={(event) => setTp(event.target.value)} placeholder="GPU count" className={cn(inp, "mt-1 w-full")} /></label>
               <label className="text-xs text-muted-foreground">GPU memory utilization<input value={gpuUtil} onChange={(event) => setGpuUtil(event.target.value)} placeholder="0.9" className={cn(inp, "mt-1 w-full")} /></label>
-              <label className="text-xs text-muted-foreground">Dtype<select value={dtype} onChange={(event) => setDtype(event.target.value)} className={cn(inp, "mt-1 w-full")}><option value="auto">auto</option><option value="bfloat16">bfloat16</option><option value="float16">float16</option><option value="float32">float32</option></select></label>
+              <label className="text-xs text-muted-foreground">Dtype<Select value={dtype} onValueChange={(v) => setDtype(v)}><SelectTrigger className={cn(inp, "mt-1 w-full")}><SelectValue /></SelectTrigger><SelectContent><SelectItem value="auto">auto</SelectItem><SelectItem value="bfloat16">bfloat16</SelectItem><SelectItem value="float16">float16</SelectItem><SelectItem value="float32">float32</SelectItem></SelectContent></Select></label>
               <label className="text-xs text-muted-foreground">KV cache dtype<input value={kvDtype} onChange={(event) => setKvDtype(event.target.value)} placeholder="auto / fp8" className={cn(inp, "mt-1 w-full")} /></label>
               <label className="text-xs text-muted-foreground">Max sequences<input value={maxSeqs} onChange={(event) => setMaxSeqs(event.target.value)} placeholder="256" className={cn(inp, "mt-1 w-full")} /></label>
               <label className="text-xs text-muted-foreground">Tool-call parser<input value={toolParser} onChange={(event) => setToolParser(event.target.value)} placeholder="hermes" className={cn(inp, "mt-1 w-full")} /></label>
@@ -379,7 +390,7 @@ function OperationsSection() {
       </div>
       <div className="space-y-3 rounded-lg border bg-card p-3">
         <div><div className="flex items-center gap-1.5 text-sm font-medium"><PackageSearch className="size-4" />Official vLLM recipes</div><p className="text-xs text-muted-foreground">Dependencies, arguments, variants, and hardware overrides from the vLLM recipe catalog.</p></div>
-        <select value={recipeModel} onChange={(event) => setRecipeModel(event.target.value)} className={cn(inp, "w-full")}><option value="">Select a recipe…</option>{(manifest.data?.models || []).map((model) => <option key={model} value={model}>{model}</option>)}</select>
+        <Select value={toSelectToken(recipeModel)} onValueChange={(v) => setRecipeModel(fromSelectToken(v))}><SelectTrigger className={cn(inp, "w-full")}><SelectValue /></SelectTrigger><SelectContent><SelectItem value={toSelectToken("")}>Select a recipe…</SelectItem>{(manifest.data?.models || []).map((model) => <SelectItem key={model} value={toSelectToken(model)}>{model}</SelectItem>)}</SelectContent></Select>
         {recipeModel && recipe.isLoading && <p className="text-xs text-muted-foreground">Loading recipe…</p>}
         {recipeModel && recipeData.exists === false && <p className="text-xs text-muted-foreground">No recipe found for this model.</p>}
         {recipeData.exists === true && <div className="space-y-2 text-xs"><div className="font-medium">{String(recipeData.title || recipeModel)}</div>{recipeData.description ? <p className="text-muted-foreground">{String(recipeData.description)}</p> : null}{Array.isArray(recipeData.base_args) && <code className="block whitespace-pre-wrap rounded bg-muted p-2">{(recipeData.base_args as unknown[]).map(String).join(" ")}</code>}{dependencies.map((dep, index) => <div key={index} className="rounded-md border p-2"><div className="text-muted-foreground">{dep.note || (dep.optional ? "Optional dependency" : "Dependency")}</div>{dep.command && <code className="mt-1 block break-all">{dep.command}</code>}</div>)}</div>}

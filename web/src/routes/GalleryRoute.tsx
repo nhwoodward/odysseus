@@ -10,6 +10,8 @@ import { inputClass } from "@/components/ui/input"
 import { SkeletonGrid } from "@/components/ui/skeleton"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LoadError } from "@/components/ui/load-error"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
+import { toSelectToken, fromSelectToken } from "@/lib/select"
 import { cn } from "@/lib/utils"
 import { toast } from "@/stores/toast"
 import type { GalleryAlbum, GalleryImage } from "@/types"
@@ -57,7 +59,7 @@ function GalleryEditorWorkspace({ images, frameUrl, onFrame }: { images: Gallery
     <section className="rounded-xl border bg-card p-4">
       <h2 className="text-sm font-semibold">New canvas</h2>
       <p className="mt-1 text-xs text-muted-foreground">Start a layered project with brush, crop, transform, filters, masks, history, and AI editing tools.</p>
-      <div className="mt-3 flex gap-2"><select value={size} onChange={(e) => setSize(e.target.value)} className={inp}><option value="1024x1024">Square · 1024×1024</option><option value="1920x1080">Landscape · 1920×1080</option><option value="1080x1920">Portrait · 1080×1920</option><option value="1200x630">Social · 1200×630</option></select><Button onClick={() => onFrame(`/v2/gallery-editor-frame?size=${size}`)}>Create</Button></div>
+      <div className="mt-3 flex gap-2"><Select value={size} onValueChange={(v) => setSize(v)}><SelectTrigger className={inp}><SelectValue /></SelectTrigger><SelectContent><SelectItem value="1024x1024">Square · 1024×1024</SelectItem><SelectItem value="1920x1080">Landscape · 1920×1080</SelectItem><SelectItem value="1080x1920">Portrait · 1080×1920</SelectItem><SelectItem value="1200x630">Social · 1200×630</SelectItem></SelectContent></Select><Button onClick={() => onFrame(`/v2/gallery-editor-frame?size=${size}`)}>Create</Button></div>
     </section>
     {drafts.length > 0 && <section><div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Saved projects</div><div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">{drafts.map((draft) => <div key={draft.id} className="group overflow-hidden rounded-lg border bg-card"><button onClick={() => onFrame(`/v2/gallery-editor-frame?draft=${encodeURIComponent(draft.id)}&name=${encodeURIComponent(draft.name || "Saved project")}`)} className="block w-full text-left">{draft.thumbnail ? <img src={draft.thumbnail} alt="" className="aspect-video w-full object-cover" /> : <div className="flex aspect-video items-center justify-center bg-muted"><Pencil className="size-7 text-muted-foreground" /></div>}<span className="block truncate px-3 pt-2 text-sm font-medium">{draft.name || "Untitled"}</span><span className="block px-3 pb-2 text-xs text-muted-foreground">{draft.width || "?"}×{draft.height || "?"}</span></button><button onClick={() => removeDraft(draft.id)} className="mx-3 mb-2 text-xs text-muted-foreground hover:text-destructive">Delete project</button></div>)}</div></section>}
     <section><div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Edit a photo</div><div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">{images.filter((img) => !isVideo(img)).map((img) => <button key={img.id} onClick={() => onFrame(editorFrameForImage(img))} className="group overflow-hidden rounded-lg border bg-card"><img src={img.url} alt={img.prompt || img.filename} className="aspect-square w-full object-cover" /><span className="block truncate px-2 py-1.5 text-xs text-muted-foreground group-hover:text-foreground">{img.prompt || img.filename}</span></button>)}</div></section>
@@ -383,15 +385,21 @@ export function GalleryRoute() {
                   <button onClick={() => setTagFilter("")} title="Clear tag filter" aria-label="Clear tag filter"><X className="size-3" /></button>
                 </span>
               )}
-              <select value={model} onChange={(e) => setModel(e.target.value)} className="hidden h-7 rounded-md border bg-background px-2 text-xs outline-none md:inline-flex">
-                <option value="">All sources</option>
-                {(gallery.models || []).map((m) => <option key={m} value={m}>{m.split("/").pop()}</option>)}
-              </select>
-              <select value={sort} onChange={(e) => setSort(e.target.value as "recent" | "oldest" | "shuffle")} className="hidden h-7 rounded-md border bg-background px-2 text-xs outline-none md:inline-flex">
-                <option value="recent">Recent</option>
-                <option value="oldest">Oldest</option>
-                <option value="shuffle">Random</option>
-              </select>
+              <Select value={toSelectToken(model)} onValueChange={(v) => setModel(fromSelectToken(v))}>
+                <SelectTrigger className="hidden h-7 rounded-md border bg-background px-2 text-xs outline-none md:inline-flex" aria-label="Model source"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={toSelectToken("")}>All sources</SelectItem>
+                  {(gallery.models || []).map((m) => <SelectItem key={m} value={toSelectToken(m)}>{m.split("/").pop()}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={sort} onValueChange={(v) => setSort(v as "recent" | "oldest" | "shuffle")}>
+                <SelectTrigger className="hidden h-7 rounded-md border bg-background px-2 text-xs outline-none md:inline-flex" aria-label="Sort"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="recent">Recent</SelectItem>
+                  <SelectItem value="oldest">Oldest</SelectItem>
+                  <SelectItem value="shuffle">Random</SelectItem>
+                </SelectContent>
+              </Select>
               <button onClick={runAiTagAll} disabled={aiTagAll.isPending} title="Auto-tag all untagged photos"
                 className="hidden items-center gap-1 rounded-full border px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50 md:inline-flex">
                 {aiTagAll.isPending ? <Loader2 className="size-3 animate-spin" /> : <Sparkles className="size-3" />}

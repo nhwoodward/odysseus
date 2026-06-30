@@ -9,6 +9,8 @@ import { inputClass } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Markdown } from "@/components/chat/Markdown"
 import { RouteHeader } from "@/components/shell/RouteHeader"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
+import { toSelectToken, fromSelectToken } from "@/lib/select"
 import { cn } from "@/lib/utils"
 
 const inp = inputClass
@@ -414,23 +416,32 @@ export function SkillsRoute() {
               <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search skills…" className={cn(inp, "pl-8")} />
             </div>
-            <select value={sort} onChange={(e) => setSort(e.target.value as SortKey)} className={ctrl} title="Sort">
-              <option value="confidence">Confidence</option>
-              <option value="uses">Most used</option>
-              <option value="az">A–Z</option>
-              <option value="recent">Recent</option>
-            </select>
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as StatusFilter)} className={ctrl} title="Status">
-              <option value="all">All status</option>
-              <option value="published">Published</option>
-              <option value="draft">Draft</option>
-            </select>
-            <select value={confFilter} onChange={(e) => setConfFilter(e.target.value as ConfFilter)} className={ctrl} title="Confidence">
-              <option value="all">Any confidence</option>
-              <option value="high">High (≥80%)</option>
-              <option value="med">Medium (50–79%)</option>
-              <option value="low">Low (&lt;50%)</option>
-            </select>
+            <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
+              <SelectTrigger className={ctrl} aria-label="Sort"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="confidence">Confidence</SelectItem>
+                <SelectItem value="uses">Most used</SelectItem>
+                <SelectItem value="az">A–Z</SelectItem>
+                <SelectItem value="recent">Recent</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+              <SelectTrigger className={ctrl} aria-label="Status"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All status</SelectItem>
+                <SelectItem value="published">Published</SelectItem>
+                <SelectItem value="draft">Draft</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={confFilter} onValueChange={(v) => setConfFilter(v as ConfFilter)}>
+              <SelectTrigger className={ctrl} aria-label="Confidence"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Any confidence</SelectItem>
+                <SelectItem value="high">High (≥80%)</SelectItem>
+                <SelectItem value="med">Medium (50–79%)</SelectItem>
+                <SelectItem value="low">Low (&lt;50%)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           {/* Bulk action bar */}
           {selectMode && (

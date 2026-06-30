@@ -39,6 +39,8 @@ import {
 import { Button } from "@/components/ui/button"
 import { RouteHeader } from "@/components/shell/RouteHeader"
 import { useConfirm } from "@/components/ui/confirm"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
+import { toSelectToken, fromSelectToken } from "@/lib/select"
 import { cn } from "@/lib/utils"
 import { CalendarRow } from "@/components/calendar/CalendarRow"
 import { EventCard } from "@/components/calendar/EventCard"
@@ -1039,10 +1041,13 @@ export function CalendarRoute() {
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search events, places, notes" className="h-9 w-full rounded-md border bg-background pl-9 pr-3 text-sm outline-none focus-visible:border-ring" />
           </label>
           {cals.length > 1 && (
-            <select value={filter} onChange={(e) => setFilter(e.target.value)} className={inp} title="Filter by calendar">
-              <option value="">All calendars</option>
-              {cals.map((c) => <option key={c.href} value={c.href}>{c.name}</option>)}
-            </select>
+            <Select value={toSelectToken(filter)} onValueChange={(v) => setFilter(fromSelectToken(v))}>
+              <SelectTrigger className={inp} aria-label="Filter by calendar"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={toSelectToken("")}>All calendars</SelectItem>
+                {cals.map((c) => <SelectItem key={c.href} value={toSelectToken(c.href)}>{c.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
           )}
           <Button size="sm" variant={importantOnly ? "secondary" : "outline"} onClick={() => setImportantOnly((v) => !v)}>
             <AlertTriangle className="size-4" />Important
