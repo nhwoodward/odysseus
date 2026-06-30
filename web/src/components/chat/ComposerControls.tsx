@@ -13,9 +13,9 @@ import { useComposer } from "@/stores/composer"
 import type { GroupMode, GroupParticipant } from "@/stores/composer"
 import { usePanel } from "@/stores/panel"
 import { toast } from "@/stores/toast"
-import { useEscapeClose } from "@/lib/useEscapeClose"
 import { Switch } from "@/components/ui/switch"
 import { IconButton } from "@/components/ui/IconButton"
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { useConfirm } from "@/components/ui/confirm"
 import { BUILTIN_PERSONAS } from "@/lib/personas"
 import { getPersistentPersonaName, setPersistentPersonaSession } from "@/lib/persistentPersona"
@@ -40,50 +40,43 @@ export function SourcesMenu() {
   const navigate = useNavigate()
   const { data: connections } = useConnections()
   const [open, setOpen] = useState(false)
-  useEscapeClose(open, () => setOpen(false))
   const conns = connections || []
   const connected = conns.filter((s) => s.status === "connected")
   return (
-    <div className="relative">
-      <IconButton
-        onClick={() => setOpen((o) => !o)}
-        label="Connected sources"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        className="relative text-muted-foreground"
-        icon={
-          <>
-            <Plug />
-            {connected.length > 0 && (
-              <span className="absolute -right-0.5 -top-0.5 flex size-3.5 items-center justify-center rounded-full bg-primary text-[9px] font-semibold text-primary-foreground">{connected.length}</span>
-            )}
-          </>
-        }
-      />
-      {open && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute bottom-full left-0 z-20 mb-1 w-64 origin-bottom-left animate-pop-in rounded-xl border bg-popover p-2 shadow-lg">
-            <div className="mb-1.5 px-1 text-label font-medium uppercase tracking-wide text-muted-foreground">Connected sources</div>
-            {conns.length === 0 ? (
-              <p className="px-1 pb-1.5 text-xs text-muted-foreground">No sources connected yet.</p>
-            ) : (
-              <div className="flex flex-wrap gap-1 px-0.5">
-                {conns.map((s) => (
-                  <span key={s.id} title={s.status} className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-label", s.status === "connected" ? "text-foreground" : "text-muted-foreground")}>
-                    <span className={cn("size-1.5 rounded-full", s.status === "connected" ? "bg-emerald-500" : s.needs_auth ? "bg-amber-500" : "bg-muted-foreground/50")} />
-                    {s.name}
-                  </span>
-                ))}
-              </div>
-            )}
-            <button onClick={() => { setOpen(false); navigate("/connectors") }} className="mt-2 flex w-full items-center gap-1.5 rounded-md px-1.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground">
-              <Plus className="size-3.5" />Add / manage connectors
-            </button>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <IconButton
+          label="Connected sources"
+          className="relative text-muted-foreground"
+          icon={
+            <>
+              <Plug />
+              {connected.length > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 flex size-3.5 items-center justify-center rounded-full bg-primary text-[9px] font-semibold text-primary-foreground">{connected.length}</span>
+              )}
+            </>
+          }
+        />
+      </PopoverTrigger>
+      <PopoverContent side="top" align="start" sideOffset={4} className="w-64 rounded-xl p-2">
+        <div className="mb-1.5 px-1 text-label font-medium uppercase tracking-wide text-muted-foreground">Connected sources</div>
+        {conns.length === 0 ? (
+          <p className="px-1 pb-1.5 text-xs text-muted-foreground">No sources connected yet.</p>
+        ) : (
+          <div className="flex flex-wrap gap-1 px-0.5">
+            {conns.map((s) => (
+              <span key={s.id} title={s.status} className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-label", s.status === "connected" ? "text-foreground" : "text-muted-foreground")}>
+                <span className={cn("size-1.5 rounded-full", s.status === "connected" ? "bg-emerald-500" : s.needs_auth ? "bg-amber-500" : "bg-muted-foreground/50")} />
+                {s.name}
+              </span>
+            ))}
           </div>
-        </>
-      )}
-    </div>
+        )}
+        <button onClick={() => { setOpen(false); navigate("/connectors") }} className="mt-2 flex w-full items-center gap-1.5 rounded-md px-1.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground">
+          <Plus className="size-3.5" />Add / manage connectors
+        </button>
+      </PopoverContent>
+    </Popover>
   )
 }
 
@@ -103,7 +96,6 @@ export function ModelPicker() {
   const { data: def } = useDefaultChat()
   const c = useComposer()
   const [open, setOpen] = useState(false)
-  useEscapeClose(open, () => setOpen(false))
   const [query, setQuery] = useState("")
   const [favorites, setFavorites] = useState<string[]>(() => {
     try { return JSON.parse(window.localStorage.getItem("odysseus-model-favorites") || "[]") as string[] } catch { return [] }
@@ -155,38 +147,35 @@ export function ModelPicker() {
     return <div className="mb-1"><div className="flex items-center gap-1.5 px-2 py-1 text-label font-medium uppercase tracking-wider text-muted-foreground">{icon}{title}</div>{items.map((option) => renderOption(option, `${title}:`))}</div>
   }
   return (
-    <div className="relative" data-tour="model-picker">
-      <button onClick={() => setOpen((o) => !o)} aria-haspopup="menu" aria-expanded={open} className={trigger}>
-        <span className="max-w-[160px] truncate">{c.model || "Select model"}</span>
-        <ChevronDown className="size-3.5" />
-      </button>
-      {open && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute bottom-full right-0 z-20 mb-1 flex max-h-96 w-[min(92vw,18rem)] origin-bottom-right animate-pop-in flex-col rounded-xl border bg-popover p-1 shadow-lg">
-            <label className="m-1 flex items-center gap-2 rounded-md border bg-background px-2">
-              <Search className="size-3.5 text-muted-foreground" />
-              <input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search models" className="h-8 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground" />
-              {query && <button onClick={() => setQuery("")} aria-label="Clear search"><X className="size-3.5 text-muted-foreground" /></button>}
-            </label>
-            <div className="min-h-0 overflow-y-auto">
-            {special("Favorites", <Star className="size-3" />, favorites)}
-            {special("Recent", <Clock3 className="size-3" />, recent.filter((key) => !favorites.includes(key)))}
-            {(models?.items || []).map((ep) => (
-              <div key={ep.endpoint_id} className="mb-1">
-                <button onClick={() => setCollapsed((values) => values.includes(ep.endpoint_id) ? values.filter((value) => value !== ep.endpoint_id) : [...values, ep.endpoint_id])} className="flex w-full items-center gap-1 px-2 py-1 text-label font-medium uppercase tracking-wider text-muted-foreground hover:text-foreground">
-                  {collapsed.includes(ep.endpoint_id) ? <ChevronRight className="size-3" /> : <ChevronDown className="size-3" />}{ep.endpoint_name || ep.url}
-                </button>
-                {!collapsed.includes(ep.endpoint_id) && filtered.filter((option) => option.endpointId === ep.endpoint_id).map((option) => renderOption(option))}
-              </div>
-            ))}
-            {(models?.items || []).length === 0 && <p className="px-2 py-3 text-sm text-muted-foreground">No models.</p>}
-            {!!models?.items?.length && !filtered.length && <p className="px-2 py-3 text-sm text-muted-foreground">No matching models.</p>}
-            </div>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button data-tour="model-picker" className={trigger}>
+          <span className="max-w-[160px] truncate">{c.model || "Select model"}</span>
+          <ChevronDown className="size-3.5" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent side="top" align="end" sideOffset={4} className="flex max-h-96 w-[min(92vw,18rem)] flex-col rounded-xl p-1">
+        <label className="m-1 flex items-center gap-2 rounded-md border bg-background px-2">
+          <Search className="size-3.5 text-muted-foreground" />
+          <input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search models" className="h-8 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground" />
+          {query && <button onClick={() => setQuery("")} aria-label="Clear search"><X className="size-3.5 text-muted-foreground" /></button>}
+        </label>
+        <div className="min-h-0 overflow-y-auto">
+        {special("Favorites", <Star className="size-3" />, favorites)}
+        {special("Recent", <Clock3 className="size-3" />, recent.filter((key) => !favorites.includes(key)))}
+        {(models?.items || []).map((ep) => (
+          <div key={ep.endpoint_id} className="mb-1">
+            <button onClick={() => setCollapsed((values) => values.includes(ep.endpoint_id) ? values.filter((value) => value !== ep.endpoint_id) : [...values, ep.endpoint_id])} className="flex w-full items-center gap-1 px-2 py-1 text-label font-medium uppercase tracking-wider text-muted-foreground hover:text-foreground">
+              {collapsed.includes(ep.endpoint_id) ? <ChevronRight className="size-3" /> : <ChevronDown className="size-3" />}{ep.endpoint_name || ep.url}
+            </button>
+            {!collapsed.includes(ep.endpoint_id) && filtered.filter((option) => option.endpointId === ep.endpoint_id).map((option) => renderOption(option))}
           </div>
-        </>
-      )}
-    </div>
+        ))}
+        {(models?.items || []).length === 0 && <p className="px-2 py-3 text-sm text-muted-foreground">No models.</p>}
+        {!!models?.items?.length && !filtered.length && <p className="px-2 py-3 text-sm text-muted-foreground">No matching models.</p>}
+        </div>
+      </PopoverContent>
+    </Popover>
   )
 }
 
@@ -207,7 +196,6 @@ export function ToolsMenu() {
   const c = useComposer()
   const confirm = useConfirm()
   const [open, setOpen] = useState(false)
-  useEscapeClose(open, () => setOpen(false))
   const [groupPick, setGroupPick] = useState("")
   const [groupPresetPick, setGroupPresetPick] = useState("")
   const [personaPick, setPersonaPick] = useState("")
@@ -491,16 +479,15 @@ export function ToolsMenu() {
     setGroupPresetPick("")
   }
   return (
-    <div className="relative" data-tour="tools-menu">
-      <button onClick={() => { if (!open) hydrateCustomConfig(); setOpen((o) => !o) }} aria-haspopup="menu" aria-expanded={open} className={cn(trigger, activeCount && "text-foreground")} title="Tools & options">
-        <SlidersHorizontal className="size-4" />
-        <span className="hidden sm:inline">Tools</span>
-        {activeCount > 0 && <span className="rounded-full bg-primary/15 px-1.5 text-micro font-medium text-foreground">{activeCount}</span>}
-      </button>
-      {open && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute bottom-full left-0 z-20 mb-1 max-h-[min(34rem,calc(100vh-7rem))] w-[min(92vw,20rem)] origin-bottom-left animate-pop-in overflow-y-auto rounded-xl border bg-popover p-3 shadow-lg">
+    <Popover open={open} onOpenChange={(o) => { if (o) hydrateCustomConfig(); setOpen(o) }}>
+      <PopoverTrigger asChild>
+        <button data-tour="tools-menu" className={cn(trigger, activeCount && "text-foreground")} title="Tools & options">
+          <SlidersHorizontal className="size-4" />
+          <span className="hidden sm:inline">Tools</span>
+          {activeCount > 0 && <span className="rounded-full bg-primary/15 px-1.5 text-micro font-medium text-foreground">{activeCount}</span>}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent side="top" align="start" sideOffset={4} className="max-h-[min(34rem,calc(100vh-7rem))] w-[min(92vw,20rem)] overflow-y-auto rounded-xl p-3">
             <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tools</div>
             <Row label="Web search"><Toggle on={c.useWeb} onClick={() => c.toggle("useWeb")} /></Row>
             <Row label="Deep research"><Toggle on={c.useResearch} onClick={() => c.toggle("useResearch")} /></Row>
@@ -803,9 +790,7 @@ export function ToolsMenu() {
                 </div>
               )}
             </div>
-          </div>
-        </>
-      )}
-    </div>
+      </PopoverContent>
+    </Popover>
   )
 }
