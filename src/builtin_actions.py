@@ -1438,7 +1438,11 @@ async def action_ping_notes(owner: str, **kwargs) -> Tuple[str, bool]:
                 cache.pop(stale, None)
 
             try:
-                STATE.write_text(_json.dumps(cache), encoding="utf-8")
+                # Atomic write (temp + rename) so a concurrent reader/crash can't
+                # see a truncated/half-written cache and wipe the dedup state.
+                # (audit; the cross-writer RMW lock is a separate follow-up.)
+                from core.atomic_io import atomic_write_json
+                atomic_write_json(str(STATE), cache)
             except Exception as e:
                 logger.warning(f"ping_notes: cache write failed: {e}")
 
