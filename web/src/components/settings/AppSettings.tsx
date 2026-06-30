@@ -11,6 +11,7 @@ import { apiFetch } from "@/lib/api"
 import { useBuiltinTools, useSetBuiltinTools } from "@/api/tools"
 import { Button } from "@/components/ui/button"
 import { IconButton } from "@/components/ui/IconButton"
+import { useConfirm } from "@/components/ui/confirm"
 import { cn } from "@/lib/utils"
 import { inputClass } from "@/components/ui/input"
 import { SectionCard, Row, FieldRow, SettingSwitch, SettingSelect, SettingText, SettingNumber, SettingTextarea, StringListEditor } from "./fields"
@@ -319,6 +320,7 @@ export function ApiTokensSection() {
   const { data: tokens } = useTokens()
   const { data: profiles } = useTokenProfiles()
   const { create, rename, remove } = useTokenMutations()
+  const confirm = useConfirm()
   const [open, setOpen] = useState(false)
   const [name, setName] = useState("")
   const [profile, setProfile] = useState("")
@@ -346,7 +348,7 @@ export function ApiTokensSection() {
               <div className="truncate text-xs text-muted-foreground">{t.scopes.join(", ") || "default"}{t.last_used_at ? ` · used ${new Date(t.last_used_at).toLocaleDateString()}` : " · never used"}</div>
             </div>
             <IconButton icon={<Pencil />} label="Rename" onClick={() => { const n = prompt("Rename token", t.name); if (n && n.trim()) rename.mutate({ id: t.id, name: n.trim() }) }} className="shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-            <IconButton icon={<Trash2 />} label="Revoke" onClick={() => { if (confirm(`Revoke token "${t.name}"? Apps using it will stop working.`)) remove.mutate(t.id) }} className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100" />
+            <IconButton icon={<Trash2 />} label="Revoke" onClick={async () => { if (await confirm({ title: `Revoke token "${t.name}"?`, description: "Apps using it will stop working.", destructive: true, confirmText: "Revoke" })) remove.mutate(t.id) }} className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100" />
           </div>
         ))}
         {(tokens || []).length === 0 && <p className="py-1 text-sm text-muted-foreground">No API tokens.</p>}
@@ -394,8 +396,9 @@ export function DataSection() {
     } catch (e) { setImportMsg(e instanceof SyntaxError ? "Not valid JSON" : "Import failed") }
     finally { if (fileRef.current) fileRef.current.value = "" }
   }
+  const confirm = useConfirm()
   const wipe = async (kind: string) => {
-    if (!confirm(`Permanently delete ALL ${kind}? This cannot be undone.`)) return
+    if (!(await confirm({ title: `Permanently delete ALL ${kind}?`, description: "This cannot be undone.", destructive: true, confirmText: "Delete all" }))) return
     setWipeMsg(`Wiping ${kind}…`)
     try {
       const r = await apiFetch(`/api/admin/wipe/${kind}`, { method: "DELETE" })

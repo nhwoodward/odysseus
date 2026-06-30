@@ -8,6 +8,7 @@ import {
 } from "@/api/rag"
 import { Button } from "@/components/ui/button"
 import { RouteHeader } from "@/components/shell/RouteHeader"
+import { useConfirm } from "@/components/ui/confirm"
 import { cn } from "@/lib/utils"
 
 const inp = "h-9 rounded-md border bg-background px-3 text-sm outline-none focus-visible:border-ring"
@@ -88,6 +89,7 @@ function UploadBar() {
 
 function DocRow({ doc }: { doc: RagFile }) {
   const { removeFile } = useRagMutations()
+  const confirm = useConfirm()
   const target = doc.path || doc.name
   return (
     <div className="group flex items-center gap-3 px-3 py-2.5">
@@ -98,7 +100,7 @@ function DocRow({ doc }: { doc: RagFile }) {
       </div>
       <span className="shrink-0 text-xs text-muted-foreground">{fmtSize(doc.size)}</span>
       <button
-        onClick={() => { if (confirm(`Remove ${doc.name} from the knowledge base?`)) removeFile.mutate(target) }}
+        onClick={async () => { if (await confirm({ title: `Remove ${doc.name} from the knowledge base?`, destructive: true, confirmText: "Remove" })) removeFile.mutate(target) }}
         title="Remove" aria-label="Remove" className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
       ><Trash2 className="size-4" /></button>
     </div>
@@ -128,6 +130,7 @@ function DocumentsSection() {
 
 function ModelRow({ m }: { m: EmbeddingModel }) {
   const { downloadModel, deleteModel } = useRagMutations()
+  const confirm = useConfirm()
   return (
     <div className="flex items-center gap-3 px-3 py-2.5">
       <div className="min-w-0 flex-1">
@@ -147,7 +150,7 @@ function ModelRow({ m }: { m: EmbeddingModel }) {
         : m.downloaded ? (
           <span className="flex shrink-0 items-center gap-1.5">
             <span className="flex items-center gap-1 text-xs text-muted-foreground"><Check className="size-3.5" />downloaded</span>
-            {!m.active && <button onClick={() => { if (confirm(`Delete cached model ${m.model}?`)) deleteModel.mutate(m.model) }} title="Delete cache" aria-label="Delete cache" className="text-muted-foreground hover:text-destructive"><Trash2 className="size-4" /></button>}
+            {!m.active && <button onClick={async () => { if (await confirm({ title: `Delete cached model ${m.model}?`, destructive: true })) deleteModel.mutate(m.model) }} title="Delete cache" aria-label="Delete cache" className="text-muted-foreground hover:text-destructive"><Trash2 className="size-4" /></button>}
           </span>
         ) : (
           <Button size="sm" variant="outline" disabled={downloadModel.isPending} onClick={() => downloadModel.mutate(m.model)}><Download className="size-4" />Download</Button>

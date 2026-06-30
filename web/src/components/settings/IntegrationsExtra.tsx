@@ -12,6 +12,7 @@ import { apiFetch } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { IconButton } from "@/components/ui/IconButton"
 import { Switch } from "@/components/ui/switch"
+import { useConfirm } from "@/components/ui/confirm"
 import { cn } from "@/lib/utils"
 
 const H = "mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
@@ -78,6 +79,7 @@ function EmailWritingStyle() {
 export function EmailAccountsSection() {
   const { data: accounts } = useEmailAccounts()
   const { remove, setDefault } = useEmailAccountMutations()
+  const confirm = useConfirm()
   const [adding, setAdding] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   return (
@@ -93,7 +95,7 @@ export function EmailAccountsSection() {
             {!a.is_default && <IconButton icon={<Star />} label="Set default" onClick={() => setDefault.mutate(a.id)} className="shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />}
             <IconButton icon={<ExternalLink />} label="Connect Google Workspace" onClick={() => window.open(`/api/email/oauth/google/authorize?account_id=${encodeURIComponent(a.id)}`, "_blank", "noopener")} className="shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
             <IconButton icon={<Pencil />} label="Edit" onClick={() => setEditId(a.id)} className="shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-            <IconButton icon={<Trash2 />} label="Delete" onClick={() => { if (confirm(`Delete account "${a.name}"?`)) remove.mutate(a.id) }} className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100" />
+            <IconButton icon={<Trash2 />} label="Delete" onClick={async () => { if (await confirm({ title: `Delete account "${a.name}"?`, destructive: true })) remove.mutate(a.id) }} className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100" />
           </div>
         ))}
         {(accounts || []).length === 0 && <p className="py-1 text-sm text-muted-foreground">No email accounts.</p>}
@@ -135,6 +137,7 @@ function CalDavForm({ initial, onClose }: { initial?: CalDavAccount; onClose: ()
 export function CalendarAccountsSection() {
   const { data: accounts } = useCalDavAccounts()
   const { remove } = useCalDavMutations()
+  const confirm = useConfirm()
   const [adding, setAdding] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   return (
@@ -145,7 +148,7 @@ export function CalendarAccountsSection() {
           <div key={a.id} className="group flex items-center gap-2 rounded-lg border bg-card p-3">
             <div className="min-w-0 flex-1"><div className="truncate text-sm font-medium">{a.label}</div><div className="truncate text-xs text-muted-foreground">{a.username} · {a.url}</div></div>
             <IconButton icon={<Pencil />} label="Edit" onClick={() => setEditId(a.id)} className="shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-            <IconButton icon={<Trash2 />} label="Delete" onClick={() => { if (confirm(`Delete "${a.label}"?`)) remove.mutate(a.id) }} className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100" />
+            <IconButton icon={<Trash2 />} label="Delete" onClick={async () => { if (await confirm({ title: `Delete "${a.label}"?`, destructive: true })) remove.mutate(a.id) }} className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100" />
           </div>
         ))}
         {(accounts || []).length === 0 && <p className="py-1 text-sm text-muted-foreground">No calendar accounts.</p>}
@@ -206,6 +209,7 @@ export function ContactsSection() {
   const { data: contacts } = useContactList()
   const { data: carddav } = useCardDavConfig()
   const mutations = useContactMutations()
+  const confirm = useConfirm()
   const [msg, setMsg] = useState("")
   const [query, setQuery] = useState("")
   const [editing, setEditing] = useState<Contact | null>(null)
@@ -251,7 +255,7 @@ export function ContactsSection() {
           {filtered.map((contact) => <div key={contact.uid} className="group flex items-center gap-2 rounded-md border px-2.5 py-2">
             <div className="min-w-0 flex-1"><div className="truncate text-sm font-medium">{contact.name || contact.emails[0]}</div><div className="truncate text-xs text-muted-foreground">{[contact.emails.join(", "), contact.phones.join(", "), contact.address].filter(Boolean).join(" · ")}</div></div>
             <IconButton icon={<Pencil />} label="Edit contact" onClick={() => beginEdit(contact)} className="text-muted-foreground opacity-0 group-hover:opacity-100" />
-            <IconButton icon={<Trash2 />} label="Delete contact" onClick={() => { if (confirm(`Delete ${contact.name || "this contact"}?`)) mutations.remove.mutate(contact.uid) }} className="text-muted-foreground opacity-0 hover:text-destructive group-hover:opacity-100" />
+            <IconButton icon={<Trash2 />} label="Delete contact" onClick={async () => { if (await confirm({ title: `Delete ${contact.name || "this contact"}?`, destructive: true })) mutations.remove.mutate(contact.uid) }} className="text-muted-foreground opacity-0 hover:text-destructive group-hover:opacity-100" />
           </div>)}
           {!filtered.length && <p className="py-2 text-xs text-muted-foreground">No contacts found.</p>}
         </div>
@@ -265,7 +269,7 @@ export function ContactsSection() {
           <Button variant="outline" size="sm" onClick={() => window.open("/api/contacts/export", "_blank")}><Download className="size-4" />Export</Button>
           <input ref={fileRef} type="file" accept=".vcf,.csv,.json" className="hidden" onChange={(e) => onImport(e.target.files?.[0])} />
           <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}><Upload className="size-4" />Import</Button>
-          <Button variant="outline" size="sm" className="border-destructive/40 text-destructive hover:bg-destructive/10" onClick={async () => { if (confirm("Delete ALL contacts?")) { await clearContacts(); setMsg("Cleared.") } }}>Clear all</Button>
+          <Button variant="outline" size="sm" className="border-destructive/40 text-destructive hover:bg-destructive/10" onClick={async () => { if (await confirm({ title: "Delete ALL contacts?", destructive: true, confirmText: "Delete all" })) { await clearContacts(); setMsg("Cleared.") } }}>Clear all</Button>
         </div>
         {msg && <p className="text-xs text-muted-foreground">{msg}</p>}
       </div>

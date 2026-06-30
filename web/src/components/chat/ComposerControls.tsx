@@ -16,6 +16,7 @@ import { toast } from "@/stores/toast"
 import { useEscapeClose } from "@/lib/useEscapeClose"
 import { Switch } from "@/components/ui/switch"
 import { IconButton } from "@/components/ui/IconButton"
+import { useConfirm } from "@/components/ui/confirm"
 import { BUILTIN_PERSONAS } from "@/lib/personas"
 import { getPersistentPersonaName, setPersistentPersonaSession } from "@/lib/persistentPersona"
 import { cn } from "@/lib/utils"
@@ -202,6 +203,7 @@ export function ToolsMenu() {
   const saveGroupPresets = useSavePresetGroups()
   const { data: threadDocs } = useSessionDocuments(sessionId)
   const c = useComposer()
+  const confirm = useConfirm()
   const [open, setOpen] = useState(false)
   useEscapeClose(open, () => setOpen(false))
   const [groupPick, setGroupPick] = useState("")
@@ -403,10 +405,10 @@ export function ToolsMenu() {
       onError: () => toast("Couldn't expand persona"),
     })
   }
-  const deletePersona = () => {
+  const deletePersona = async () => {
     const templateId = personaPick.startsWith("template:") ? personaPick.slice("template:".length) : templates?.find((t) => t.name.toLowerCase() === personaName.trim().toLowerCase())?.id
     if (!templateId) return
-    if (!confirm(`Delete "${personaName || "this persona"}"?`)) return
+    if (!(await confirm({ title: `Delete "${personaName || "this persona"}"?`, destructive: true }))) return
     templateMutations.remove.mutate(templateId, {
       onSuccess: () => {
         setPersonaPick("")
@@ -479,10 +481,10 @@ export function ToolsMenu() {
     const mode: GroupMode = group.mode === "round-robin" ? "round-robin" : "parallel"
     c.setGroupParticipants(next, mode)
   }
-  const deleteGroupPreset = () => {
+  const deleteGroupPreset = async () => {
     const idx = Number(groupPresetPick)
     if (!Number.isInteger(idx) || !groupPresets?.[idx]) return
-    if (!confirm(`Delete "${groupPresets[idx].name || `Group ${idx + 1}`}"?`)) return
+    if (!(await confirm({ title: `Delete "${groupPresets[idx].name || `Group ${idx + 1}`}"?`, destructive: true }))) return
     saveGroupPresets.mutate(groupPresets.filter((_, i) => i !== idx))
     setGroupPresetPick("")
   }

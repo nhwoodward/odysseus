@@ -17,6 +17,7 @@ import { UserPrivileges } from "@/components/settings/UserPrivileges"
 import { useSetUserAdmin, useProviders, useDeviceFlow, COPILOT_PROVIDER, CHATGPT_PROVIDER, type DeviceFlowProvider } from "@/api/advanced"
 import { Button } from "@/components/ui/button"
 import { IconButton } from "@/components/ui/IconButton"
+import { useConfirm } from "@/components/ui/confirm"
 import { inputClass } from "@/components/ui/input"
 import { SkeletonList } from "@/components/ui/skeleton"
 import { LoadError } from "@/components/ui/load-error"
@@ -210,6 +211,7 @@ function PresetEditor({ initial, onCancel, onSaved }: { initial?: PresetConfig &
 function PresetSection() {
   const { data: config } = usePresetConfig()
   const { disable } = useCustomPresetMutations()
+  const confirm = useConfirm()
   const [editing, setEditing] = useState<(PresetConfig & { id: string }) | null>(null)
   const [creating, setCreating] = useState(false)
   // Surface every enabled custom preset from the config map.
@@ -226,7 +228,7 @@ function PresetSection() {
               <span className="min-w-0 truncate text-sm font-medium">{p.character_name || p.name || p.id}</span>
               <div className="flex items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
                 <button onClick={() => { setCreating(false); setEditing(p) }} title="Edit" aria-label="Edit" className="text-muted-foreground hover:text-foreground"><Pencil className="size-4" /></button>
-                <button onClick={() => { if (confirm(`Delete preset "${p.character_name || p.name || p.id}"?`)) disable.mutate(p) }} title="Delete" aria-label="Delete" className="text-muted-foreground hover:text-destructive"><Trash2 className="size-4" /></button>
+                <button onClick={async () => { if (await confirm({ title: `Delete preset "${p.character_name || p.name || p.id}"?`, destructive: true })) disable.mutate(p) }} title="Delete" aria-label="Delete" className="text-muted-foreground hover:text-destructive"><Trash2 className="size-4" /></button>
               </div>
             </div>
             {p.system_prompt && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{p.system_prompt}</p>}
@@ -299,6 +301,7 @@ export function SettingsRoute() {
   const allModels = (models?.items || []).flatMap((e) => [...(e.models || []), ...(e.models_extra || [])])
   const { create: createUser, remove: removeUser, rename: renameUser } = useUserMutations()
   const setAdmin = useSetUserAdmin()
+  const confirm = useConfirm()
   const user = status?.username || status?.user || "—"
   const endpoints = (models?.items || []).filter((e) => e.endpoint_id)
   const userList = users || []
@@ -443,7 +446,7 @@ export function SettingsRoute() {
                   <div className="truncate text-xs text-muted-foreground">{e.url} · {(e.models?.length || 0) + (e.models_extra?.length || 0)} models{e.category ? ` · ${e.category}` : ""}</div>
                 </div>
                 {isAdmin && (
-                  <button onClick={() => { if (confirm("Delete this endpoint?")) del.mutate(e.endpoint_id) }} aria-label="Delete endpoint" className="text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"><Trash2 className="size-4" /></button>
+                  <button onClick={async () => { if (await confirm({ title: "Delete this endpoint?", destructive: true })) del.mutate(e.endpoint_id) }} aria-label="Delete endpoint" className="text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"><Trash2 className="size-4" /></button>
                 )}
               </div>
             ))}
@@ -476,7 +479,7 @@ export function SettingsRoute() {
                   <>
                     <label className="flex items-center gap-1.5 text-label text-muted-foreground" title="Administrator">admin<Switch checked={!!u.is_admin} onCheckedChange={(v) => setAdmin.mutate({ username: u.username, is_admin: v })} /></label>
                     <button onClick={() => { const n = prompt("Rename user", u.username); if (n && n.trim() && n.trim() !== u.username) renameUser.mutate({ username: u.username, new_username: n.trim() }) }} className="text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100" title="Rename user" aria-label="Rename user"><Pencil className="size-4" /></button>
-                    <button onClick={() => { if (confirm(`Delete user "${u.username}"?`)) removeUser.mutate(u.username) }} className="text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100" title="Delete user" aria-label="Delete user"><Trash2 className="size-4" /></button>
+                    <button onClick={async () => { if (await confirm({ title: `Delete user "${u.username}"?`, destructive: true })) removeUser.mutate(u.username) }} className="text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100" title="Delete user" aria-label="Delete user"><Trash2 className="size-4" /></button>
                   </>
                 )}
             </div>

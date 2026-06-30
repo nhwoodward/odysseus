@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { EmptyState } from "@/components/ui/empty-state"
 import { LoadError } from "@/components/ui/load-error"
 import { SkeletonList } from "@/components/ui/skeleton"
+import { useConfirm } from "@/components/ui/confirm"
 import { useMemoryMutations } from "@/api/memory"
 import type { Memory } from "@/types"
 import { CATS, memoryCategory, memoryTimestamp, memoryUses, relativeTime, sourceLabel, defaultMemoryOrder } from "./util"
@@ -134,6 +135,7 @@ const columns: ColumnDef<Memory>[] = [
 // chips, row-selection bulk-delete, a per-row ⋮ menu, and an edit dialog.
 export function MemoryTable({ memories, loading, error, onRetry }: { memories: Memory[]; loading?: boolean; error?: boolean; onRetry?: () => void }) {
   const { update, remove, bulkRemove, pin } = useMemoryMutations()
+  const confirm = useConfirm()
   const [q, setQ] = useState("")
   const [cat, setCat] = useState<string | null>(null)
   const [sorting, setSorting] = useState<SortingState>([])
@@ -158,9 +160,9 @@ export function MemoryTable({ memories, loading, error, onRetry }: { memories: M
   const meta = useMemo<MemoryMeta>(() => ({
     onEdit: openEdit,
     onPin: async (m) => { await pin.mutateAsync({ id: m.id, pinned: !m.pinned }); toast(m.pinned ? "Memory unpinned" : "Pinned — always in context", "success") },
-    onDelete: (m) => { if (confirm("Delete this memory?")) remove.mutate(m.id) },
+    onDelete: async (m) => { if (await confirm({ title: "Delete this memory?", destructive: true })) remove.mutate(m.id) },
     onCopy: (m) => { navigator.clipboard?.writeText(m.text); toast("Copied to clipboard", "success") },
-  }), [openEdit, pin, remove])
+  }), [openEdit, pin, remove, confirm])
 
   const table = useReactTable({
     data: matched, columns,
@@ -196,7 +198,7 @@ export function MemoryTable({ memories, loading, error, onRetry }: { memories: M
   const deleteSelected = async () => {
     const ids = selectedIds
     if (!ids.length) return
-    if (!confirm(`Delete ${ids.length} selected ${ids.length === 1 ? "memory" : "memories"}?`)) return
+    if (!(await confirm({ title: `Delete ${ids.length} selected ${ids.length === 1 ? "memory" : "memories"}?`, destructive: true }))) return
     try {
       await bulkRemove.mutateAsync(ids)
       toast(`Deleted ${ids.length} ${ids.length === 1 ? "memory" : "memories"}`, "success")

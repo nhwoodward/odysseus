@@ -53,6 +53,7 @@ import { readImportedDocuments } from "@/lib/documentImport"
 import { isPdfBackedDocument } from "@/lib/pdfDocument"
 import { Button } from "@/components/ui/button"
 import { IconButton } from "@/components/ui/IconButton"
+import { useConfirm } from "@/components/ui/confirm"
 import { useEscapeClose } from "@/lib/useEscapeClose"
 import { cn } from "@/lib/utils"
 import type { DocItem } from "@/types"
@@ -101,6 +102,7 @@ function Editor({ id, onBack, onOpen }: { id: string; onBack: () => void; onOpen
   const { data, isLoading } = useDocument(id)
   const { data: versions } = useDocVersions(id)
   const { update, remove, create, patchMeta, restore } = useDocMutations()
+  const confirm = useConfirm()
   const [content, setContent] = useState("")
   const [title, setTitle] = useState("")
   const [language, setLanguage] = useState("markdown")
@@ -155,7 +157,7 @@ function Editor({ id, onBack, onOpen }: { id: string; onBack: () => void; onOpen
     setLanguage(next)
     patchMeta.mutate({ id, language: next })
   }
-  const del = () => { if (confirm("Delete this document?")) remove.mutate(id, { onSuccess: onBack }) }
+  const del = async () => { if (await confirm({ title: "Delete this document?", destructive: true })) remove.mutate(id, { onSuccess: onBack }) }
   const exportPdf = async () => {
     setSignedErr("")
     setNotice("")
@@ -166,8 +168,8 @@ function Editor({ id, onBack, onOpen }: { id: string; onBack: () => void; onOpen
       setSignedErr(e instanceof Error ? e.message : "Couldn't export to PDF.")
     }
   }
-  const previewOldVersion = (num: number, oldContent: string) => {
-    if (dirty && !confirm("Discard unsaved edits and preview this version?")) return
+  const previewOldVersion = async (num: number, oldContent: string) => {
+    if (dirty && !(await confirm({ title: "Discard unsaved edits and preview this version?", destructive: true, confirmText: "Discard" }))) return
     setPreviewVersion(num)
     setContent(oldContent)
     setDirty(false)
@@ -486,6 +488,7 @@ export function DocumentsRoute() {
   const { data: sessions } = useSessions()
   const docActions = useDocMutations()
   const tidyActions = useTidyMutations()
+  const confirm = useConfirm()
   const [openId, setOpenIdState] = useState<string | null>(() => searchParams.get("doc"))
   const libraryKey = useMemo(() => [query.trim(), sort, language || "", archived ? "archived" : "active"].join("\u0000"), [query, sort, language, archived])
   const firstPage = library?.documents || EMPTY_DOCUMENTS
@@ -540,7 +543,7 @@ export function DocumentsRoute() {
     })
   }
   const archiveDoc = (id: string) => docActions.archive.mutate({ id, archived: !archived }, { onSuccess: resetLoadedPages })
-  const deleteDoc = (id: string) => { if (confirm("Delete this document?")) docActions.remove.mutate(id, { onSuccess: resetLoadedPages }) }
+  const deleteDoc = async (id: string) => { if (await confirm({ title: "Delete this document?", destructive: true })) docActions.remove.mutate(id, { onSuccess: resetLoadedPages }) }
   const openSourceChat = (doc: DocItem) => {
     if (!doc.session_id) return
     window.localStorage.setItem(LAST_CHAT_SESSION_KEY, doc.session_id)
@@ -578,7 +581,7 @@ export function DocumentsRoute() {
   const runBulk = async (action: LibraryBulkAction) => {
     const ids = selectedVisibleIds
     if (ids.length === 0 || busy) return
-    if (action === "delete" && !confirm(`Delete ${ids.length} selected document${ids.length === 1 ? "" : "s"}?`)) return
+    if (action === "delete" && !(await confirm({ title: `Delete ${ids.length} selected document${ids.length === 1 ? "" : "s"}?`, destructive: true }))) return
     setBusy(action)
     setNotice("")
     try {
@@ -651,7 +654,7 @@ export function DocumentsRoute() {
   }
   const runTidy = async () => {
     if (busy) return
-    if (!confirm("Tidy the library? This permanently deletes empty, junk, and duplicate documents, then asks AI to remove obvious test/throwaway docs.")) return
+    if (!(await confirm({ title: "Tidy the library?", description: "This permanently deletes empty, junk, and duplicate documents, then asks AI to remove obvious test/throwaway docs.", destructive: true, confirmText: "Tidy" }))) return
     setBusy("tidy")
     setNotice("")
     let deleted = 0

@@ -38,6 +38,7 @@ import {
 } from "@/api/calendar"
 import { Button } from "@/components/ui/button"
 import { RouteHeader } from "@/components/shell/RouteHeader"
+import { useConfirm } from "@/components/ui/confirm"
 import { cn } from "@/lib/utils"
 import { CalendarRow } from "@/components/calendar/CalendarRow"
 import { EventCard } from "@/components/calendar/EventCard"
@@ -360,6 +361,7 @@ function viewTitle(view: CalendarView, cursor: Date, weekStart: WeekStart): stri
 
 export function CalendarRoute() {
   const [view, setView] = useState<CalendarView>("month")
+  const confirm = useConfirm()
   const [cursor, setCursor] = useState(() => startOfDay(new Date()))
   const [weekStart, setWeekStart] = useState<WeekStart>(() => {
     if (typeof window === "undefined") return "monday"
@@ -638,8 +640,8 @@ export function CalendarRoute() {
     setEditEvent(ev)
   }
 
-  const deleteEvent = (ev: CalEvent) => {
-    if (confirm("Delete this event?")) remove.mutate(ev.series_uid || ev.uid)
+  const deleteEvent = async (ev: CalEvent) => {
+    if (await confirm({ title: "Delete this event?", destructive: true })) remove.mutate(ev.series_uid || ev.uid)
   }
 
   const renderEvent = (ev: CalEvent, compact = false) => (
@@ -952,9 +954,9 @@ export function CalendarRoute() {
             pending={calMut.update.isPending || calMut.remove.isPending}
             onFilter={() => setFilter(filter === c.href ? "" : c.href)}
             onSave={(name, color) => calMut.update.mutate({ href: c.href, name, color }, { onError: (e) => setNotice(e instanceof Error ? e.message : "Failed to update calendar") })}
-            onDelete={() => {
+            onDelete={async () => {
               if (cals.length <= 1) return
-              if (confirm(`Delete ${c.name} and its events?`)) {
+              if (await confirm({ title: `Delete ${c.name} and its events?`, destructive: true })) {
                 calMut.remove.mutate(c.href, {
                   onSuccess: () => { if (filter === c.href) setFilter("") },
                   onError: (e) => setNotice(e instanceof Error ? e.message : "Failed to delete calendar"),

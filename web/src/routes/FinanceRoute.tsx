@@ -14,6 +14,7 @@ import { SkeletonList } from "@/components/ui/skeleton"
 import { RouteHeader } from "@/components/shell/RouteHeader"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { useAskAssistant } from "@/lib/composerHandoff"
 import { cn } from "@/lib/utils"
@@ -227,43 +228,45 @@ export function FinanceRoute() {
   } else {
     body = (
       <div className="min-h-0 flex-1 overflow-y-auto p-4 lg:p-6">
-        <div className="mb-4 flex flex-wrap items-center gap-1.5">
-          {TABS.map(([id, label]) => (
-            <button key={id} onClick={() => setTab(id)} aria-pressed={tab === id}
-              className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-                tab === id ? "border-foreground bg-foreground text-background" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
-              {label}
-            </button>
-          ))}
-          <Button variant="ghost" size="sm" className="ml-auto" onClick={() => ask(TAB_QUESTION[tab])}>
-            <Sparkles className="size-4" />Ask about this
-          </Button>
-        </div>
-
-        {tab === "overview" && (summary ? <Overview summary={summary} cashflow={cashflow} cashflowError={cashflowError} networth={networth} networthError={networthError} /> : <SkeletonList rows={4} />)}
-        {tab === "spending" && <SpendingTab cashflow={cashflow} cashflowError={cashflowError} />}
-        {tab === "bills" && <BillsTabWrap />}
-        {tab === "accounts" && (
-          <div className="space-y-6">
-            <AccountsTabWrap />
-            {!!items?.length && (
-              <section>
-                <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Connected institutions</h2>
-                <InstitutionList
-                  items={items}
-                  pending={summary?.pending}
-                  renderTrailing={(it) => (
-                    <button onClick={() => setToDisconnect(it)} title="Disconnect" aria-label={`Disconnect ${it.institution_name || "institution"}`}
-                      className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-destructive">
-                      <Trash2 className="size-4" />
-                    </button>
-                  )}
-                />
-              </section>
-            )}
+        <Tabs value={tab} onValueChange={(v) => setTab(v as TabId)}>
+          <div className="mb-4 flex flex-wrap items-center gap-1.5">
+            <TabsList>
+              {TABS.map(([id, label]) => (
+                <TabsTrigger key={id} value={id}>{label}</TabsTrigger>
+              ))}
+            </TabsList>
+            <Button variant="ghost" size="sm" className="ml-auto" onClick={() => ask(TAB_QUESTION[tab])}>
+              <Sparkles className="size-4" />Ask about this
+            </Button>
           </div>
-        )}
-        {tab === "investments" && <InvestmentsTab />}
+
+          <TabsContent value="overview">
+            {summary ? <Overview summary={summary} cashflow={cashflow} cashflowError={cashflowError} networth={networth} networthError={networthError} /> : <SkeletonList rows={4} />}
+          </TabsContent>
+          <TabsContent value="spending"><SpendingTab cashflow={cashflow} cashflowError={cashflowError} /></TabsContent>
+          <TabsContent value="bills"><BillsTabWrap /></TabsContent>
+          <TabsContent value="accounts">
+            <div className="space-y-6">
+              <AccountsTabWrap />
+              {!!items?.length && (
+                <section>
+                  <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Connected institutions</h2>
+                  <InstitutionList
+                    items={items}
+                    pending={summary?.pending}
+                    renderTrailing={(it) => (
+                      <button onClick={() => setToDisconnect(it)} title="Disconnect" aria-label={`Disconnect ${it.institution_name || "institution"}`}
+                        className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-destructive">
+                        <Trash2 className="size-4" />
+                      </button>
+                    )}
+                  />
+                </section>
+              )}
+            </div>
+          </TabsContent>
+          <TabsContent value="investments"><InvestmentsTab /></TabsContent>
+        </Tabs>
 
         <FinanceDisclaimer />
       </div>

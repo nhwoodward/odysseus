@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { IconButton } from "@/components/ui/IconButton"
 import { Switch } from "@/components/ui/switch"
+import { useConfirm } from "@/components/ui/confirm"
 import { cn } from "@/lib/utils"
 
 const H = "mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
@@ -91,6 +92,7 @@ export function ModelEndpointAdmin() {
 export function PresetTemplatesSection() {
   const { data: templates } = usePresetTemplates()
   const { create, remove } = usePresetTemplateMutations()
+  const confirm = useConfirm()
   const [open, setOpen] = useState(false)
   const [name, setName] = useState("")
   const [desc, setDesc] = useState("")
@@ -102,7 +104,7 @@ export function PresetTemplatesSection() {
         {(templates || []).map((t) => (
           <div key={t.id} className="group flex items-center gap-2 rounded-lg border bg-card p-3">
             <span className="min-w-0 flex-1 truncate text-sm font-medium">{t.name}{t.description && <span className="ml-2 font-normal text-muted-foreground">{t.description}</span>}</span>
-            <IconButton icon={<Trash2 />} label="Delete template" onClick={() => { if (confirm(`Delete template "${t.name}"?`)) remove.mutate(t.id) }} className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100" />
+            <IconButton icon={<Trash2 />} label="Delete template" onClick={async () => { if (await confirm({ title: `Delete template "${t.name}"?`, destructive: true })) remove.mutate(t.id) }} className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100" />
           </div>
         ))}
         {(templates || []).length === 0 && <p className="py-1 text-sm text-muted-foreground">No templates.</p>}
@@ -173,6 +175,7 @@ export function SystemLogsSection() {
 export function PresetGroupsSection() {
   const { data: groups } = usePresetGroups()
   const save = useSavePresetGroups()
+  const confirm = useConfirm()
   if (!groups || groups.length === 0) return null
   return (
     <section>
@@ -181,7 +184,7 @@ export function PresetGroupsSection() {
         {groups.map((g, i) => (
           <div key={g.id || i} className="group flex items-center gap-2 rounded-lg border bg-card p-3">
             <span className="min-w-0 flex-1 truncate text-sm font-medium">{g.name || `Group ${i + 1}`}</span>
-            <IconButton icon={<Trash2 />} label="Delete group" onClick={() => { if (confirm("Delete this group?")) save.mutate(groups.filter((_, j) => j !== i)) }} className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100" />
+            <IconButton icon={<Trash2 />} label="Delete group" onClick={async () => { if (await confirm({ title: "Delete this group?", destructive: true })) save.mutate(groups.filter((_, j) => j !== i)) }} className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100" />
           </div>
         ))}
       </div>

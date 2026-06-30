@@ -5,6 +5,7 @@ import { useUi } from "@/stores/ui"
 import { useSettings } from "@/api/settings"
 import { deleteSession, setSessionImportant, useSessions } from "@/api/sessions"
 import { useComposer } from "@/stores/composer"
+import { useConfirm } from "@/components/ui/confirm"
 import { toast } from "@/stores/toast"
 
 // g-leader navigation map (press "g" then the key). Keep in sync with the
@@ -69,6 +70,7 @@ export function useHotkeys(): [boolean, (v: boolean) => void] {
   const navigate = useNavigate()
   const location = useLocation()
   const qc = useQueryClient()
+  const confirm = useConfirm()
   const toggleTheme = useUi((s) => s.toggleTheme)
   const toggleSidebar = useUi((s) => s.toggleSidebar)
   const toggleComposer = useComposer((s) => s.toggle)
@@ -104,12 +106,12 @@ export function useHotkeys(): [boolean, (v: boolean) => void] {
         .then(() => { qc.invalidateQueries({ queryKey: ["sessions"] }); toast(next ? "Chat favorited" : "Chat unfavorited", "success") })
         .catch(() => toast("Couldn't update this chat"))
     }
-    const deleteCurrentSession = () => {
+    const deleteCurrentSession = async () => {
       const sid = currentSessionId()
       if (!sid) return
       const s = sessions?.find((item) => item.id === sid)
       if (s?.is_important) { toast("Unfavorite the chat before deleting it", "info"); return }
-      if (!confirm("Delete this chat?")) return
+      if (!(await confirm({ title: "Delete this chat?", destructive: true }))) return
       deleteSession(sid)
         .then(() => { qc.invalidateQueries({ queryKey: ["sessions"] }); navigate("/chat"); toast("Chat deleted", "success") })
         .catch(() => toast("Couldn't delete this chat"))
@@ -157,7 +159,7 @@ export function useHotkeys(): [boolean, (v: boolean) => void] {
       window.removeEventListener("keydown", onKey)
       window.removeEventListener("odysseus:open-shortcuts", openHelp)
     }
-  }, [location.pathname, navigate, qc, sessions, toggleComposer, toggleTheme, toggleSidebar])
+  }, [location.pathname, navigate, qc, sessions, toggleComposer, toggleTheme, toggleSidebar, confirm])
 
   return [helpOpen, setHelpOpen]
 }

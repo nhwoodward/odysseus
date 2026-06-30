@@ -7,6 +7,7 @@ import { buildEmailDraft } from "@/lib/emailDraft"
 import { parsePdfAnnotations, parsePdfFieldValues, updatePdfFieldValue, writePdfAnnotations, type PdfAnnotation } from "@/lib/pdfDocument"
 import { Button } from "@/components/ui/button"
 import { IconButton } from "@/components/ui/IconButton"
+import { useConfirm } from "@/components/ui/confirm"
 import { useEscapeClose } from "@/lib/useEscapeClose"
 import { cn } from "@/lib/utils"
 
@@ -66,6 +67,7 @@ export function PdfDocumentEditor({
   onOpen: (id: string) => void
 }) {
   const { remove, create } = useDocMutations()
+  const confirm = useConfirm()
   const initialContent = pdfDraftCache.get(doc.id) ?? content
   const [draft, setDraft] = useState(initialContent)
   const draftRef = useRef(initialContent)
@@ -265,7 +267,7 @@ export function PdfDocumentEditor({
   }
 
   const deleteSavedSignature = async (signatureId: string) => {
-    if (!confirm("Delete this signature?")) return
+    if (!(await confirm({ title: "Delete this signature?", destructive: true }))) return
     setErr("")
     try {
       const r = await apiFetch(`/api/signatures/${signatureId}`, { method: "DELETE" })
@@ -317,7 +319,7 @@ export function PdfDocumentEditor({
     }
   }
 
-  const del = () => { if (confirm("Delete this document?")) remove.mutate(doc.id, { onSuccess: onBack }) }
+  const del = async () => { if (await confirm({ title: "Delete this document?", destructive: true })) remove.mutate(doc.id, { onSuccess: onBack }) }
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">

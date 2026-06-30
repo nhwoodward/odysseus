@@ -6,6 +6,7 @@ import { useProjects, useProjectActions, sessionsInProject } from "@/api/project
 import { Button } from "@/components/ui/button"
 import { IconButton } from "@/components/ui/IconButton"
 import { RouteHeader } from "@/components/shell/RouteHeader"
+import { useConfirm } from "@/components/ui/confirm"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LoadError } from "@/components/ui/load-error"
 import { SkeletonList } from "@/components/ui/skeleton"
@@ -17,6 +18,7 @@ export function ProjectsRoute() {
   const { data: sessions } = sessionsQuery
   const { projects } = useProjects()
   const actions = useProjectActions()
+  const confirm = useConfirm()
 
   const [selected, setSelected] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
@@ -54,7 +56,7 @@ export function ProjectsRoute() {
   }
   const doDelete = async () => {
     if (!effective) return
-    if (!confirm(`Delete project "${effective}"? Its ${members.length} chat${members.length === 1 ? "" : "s"} will be unfiled (not deleted).`)) return
+    if (!(await confirm({ title: `Delete project "${effective}"?`, description: `Its ${members.length} chat${members.length === 1 ? "" : "s"} will be unfiled (not deleted).`, destructive: true }))) return
     await actions.remove(effective, members)
     setSelected(null)
   }

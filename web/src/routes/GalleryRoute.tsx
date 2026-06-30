@@ -5,6 +5,7 @@ import { downloadImage, flattenGallery, useGallery, useGalleryAlbums, useGallery
 import { apiFetch, apiJson } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { RouteHeader } from "@/components/shell/RouteHeader"
+import { useConfirm } from "@/components/ui/confirm"
 import { inputClass } from "@/components/ui/input"
 import { SkeletonGrid } from "@/components/ui/skeleton"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -37,10 +38,11 @@ function editorFrameForImage(img: GalleryImage) {
 
 function GalleryEditorWorkspace({ images, frameUrl, onFrame }: { images: GalleryImage[]; frameUrl: string; onFrame: (url: string) => void }) {
   const qc = useQueryClient()
+  const confirm = useConfirm()
   const [size, setSize] = useState("1024x1024")
   const { data: drafts = [] } = useQuery({ queryKey: ["editor-drafts"], queryFn: async () => (await apiJson<{ drafts?: EditorDraft[] }>("/api/editor-drafts")).drafts || [] })
   const removeDraft = async (id: string) => {
-    if (!confirm("Delete this saved editor project?")) return
+    if (!(await confirm({ title: "Delete this saved editor project?", destructive: true }))) return
     const r = await apiFetch(`/api/editor-drafts/${id}`, { method: "DELETE" })
     if (r.ok) qc.invalidateQueries({ queryKey: ["editor-drafts"] })
   }
@@ -64,6 +66,7 @@ function GalleryEditorWorkspace({ images, frameUrl, onFrame }: { images: Gallery
 
 function GallerySettingsPanel({ total, tagged, onTagAll, tagging }: { total: number; tagged: number; onTagAll: () => void; tagging: boolean }) {
   const qc = useQueryClient()
+  const confirm = useConfirm()
   const [busy, setBusy] = useState("")
   const run = async (label: string, path: string) => {
     setBusy(label)
@@ -76,7 +79,7 @@ function GallerySettingsPanel({ total, tagged, onTagAll, tagging }: { total: num
   }
   return <div className="mx-auto max-w-2xl space-y-4">
     <section className="rounded-xl border bg-card p-4"><h2 className="text-sm font-semibold">AI tagging</h2><p className="mt-1 text-xs text-muted-foreground">{tagged}/{total} photos tagged. The configured vision model adds content tags while preserving your own tags.</p><div className="mt-3 h-2 overflow-hidden rounded-full bg-muted"><div className="h-full bg-foreground/70" style={{ width: `${total ? Math.round(tagged / total * 100) : 0}%` }} /></div><div className="mt-4 flex flex-wrap gap-2"><Button size="sm" onClick={onTagAll} disabled={tagging}>{tagging ? "Tagging…" : "Tag untagged photos"}</Button><Button size="sm" variant="outline" onClick={() => run("Clear AI tags", "/api/gallery/clear-ai-tags")} disabled={!!busy}>Clear AI tags</Button><a href="/v2/settings" className="inline-flex h-8 items-center rounded-md border px-3 text-xs font-medium hover:bg-accent">Vision model settings</a></div></section>
-    <section className="rounded-xl border bg-card p-4"><h2 className="text-sm font-semibold">Tag maintenance</h2><p className="mt-1 text-xs text-muted-foreground">Normalize duplicate tags or clear only manually assigned tags across the library.</p><div className="mt-3 flex flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => run("Tag cleanup", "/api/gallery/dedupe-tags")} disabled={!!busy}>Merge duplicate tags</Button><Button size="sm" variant="outline" onClick={() => { if (confirm("Clear all manual gallery tags?")) run("Clear manual tags", "/api/gallery/clear-user-tags") }} disabled={!!busy}>Clear manual tags</Button></div></section>
+    <section className="rounded-xl border bg-card p-4"><h2 className="text-sm font-semibold">Tag maintenance</h2><p className="mt-1 text-xs text-muted-foreground">Normalize duplicate tags or clear only manually assigned tags across the library.</p><div className="mt-3 flex flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => run("Tag cleanup", "/api/gallery/dedupe-tags")} disabled={!!busy}>Merge duplicate tags</Button><Button size="sm" variant="outline" onClick={async () => { if (await confirm({ title: "Clear all manual gallery tags?", destructive: true, confirmText: "Clear" })) run("Clear manual tags", "/api/gallery/clear-user-tags") }} disabled={!!busy}>Clear manual tags</Button></div></section>
   </div>
 }
 function Media({ img, className, controls = false }: { img: GalleryImage; className?: string; controls?: boolean }) {
@@ -91,6 +94,7 @@ function Lightbox({ img, hasPrev, hasNext, onPrev, onNext, onClose, onEdit, onFi
   onClose: () => void; onEdit: (img: GalleryImage) => void; onFilterTag: (tag: string) => void;
 }) {
   const { favorite, remove, rename, rotate, setTags, aiTag, clearAiTags } = useGalleryMutations()
+  const confirm = useConfirm()
   const [name, setName] = useState(img.prompt || "")
   const [tags, setTagsLocal] = useState(img.tags || "")
   // Reset the editable fields when navigating between photos with arrow keys.
@@ -187,7 +191,7 @@ function Lightbox({ img, hasPrev, hasNext, onPrev, onNext, onClose, onEdit, onFi
             <Button size="sm" variant="outline" className="flex-1" onClick={() => favorite.mutate(img.id)}><Star className={cn("size-4", img.favorite && "fill-current")} />{img.favorite ? "Favorited" : "Favorite"}</Button>
             {!isVideo(img) && <Button size="sm" variant="outline" title="Edit" aria-label="Edit" onClick={() => onEdit(img)}><Pencil className="size-4" /></Button>}
             <Button size="sm" variant="outline" title="Download" aria-label="Download" onClick={download}><Download className="size-4" /></Button>
-            <Button size="sm" variant="outline" aria-label="Delete" onClick={() => { if (confirm("Delete this image?")) { remove.mutate(img.id); onClose() } }}><Trash2 className="size-4" /></Button>
+            <Button size="sm" variant="outline" aria-label="Delete" onClick={async () => { if (await confirm({ title: "Delete this image?", destructive: true })) { remove.mutate(img.id); onClose() } }}><Trash2 className="size-4" /></Button>
           </div>
         </div>
       </div>
@@ -227,6 +231,7 @@ export function GalleryRoute() {
   const gallery = useMemo(() => flattenGallery(data), [data])
   const { data: albums = [] } = useGalleryAlbums()
   const { favorite, remove, upload, createAlbum, renameAlbum, deleteAlbum, setAlbumCover, aiTagAll } = useGalleryMutations()
+  const confirm = useConfirm()
   const images = gallery.items
   const open = openId ? images.find((i) => i.id === openId) || null : null
   const openIndex = openId ? images.findIndex((i) => i.id === openId) : -1
@@ -263,8 +268,8 @@ export function GalleryRoute() {
     const name = prompt("Rename album:", album.name)
     if (name?.trim() && name.trim() !== album.name) renameAlbum.mutate({ id: album.id, name: name.trim() })
   }
-  const deleteOneAlbum = (album: GalleryAlbum) => {
-    if (confirm(`Delete album "${album.name}"? Photos stay in your library.`)) {
+  const deleteOneAlbum = async (album: GalleryAlbum) => {
+    if (await confirm({ title: `Delete album "${album.name}"?`, description: "Photos stay in your library.", destructive: true })) {
       deleteAlbum.mutate(album.id)
       if (albumId === album.id) setAlbumId(null)
     }
@@ -275,9 +280,9 @@ export function GalleryRoute() {
     setTab("editor")
   }
   const filterByTag = (t: string) => { setTagFilter(t); setOpenId(null) }
-  const runAiTagAll = () => {
+  const runAiTagAll = async () => {
     const scope = albumId ? `album "${activeAlbum?.name || ""}"` : "your library"
-    if (!confirm(`Auto-tag all untagged photos in ${scope}? This may take a moment.`)) return
+    if (!(await confirm({ title: `Auto-tag all untagged photos in ${scope}?`, description: "This may take a moment.", confirmText: "Auto-tag" }))) return
     setBatchProgress({ done: 0, total: 0 })
     aiTagAll.mutate({ albumId, onProgress: (done, total) => setBatchProgress({ done, total }) }, {
       onSuccess: (r) => {
@@ -455,7 +460,7 @@ export function GalleryRoute() {
               {images.map((img) => (
                 <GridImage key={img.id} img={img} onOpen={() => setOpenId(img.id)}
                   onFavorite={() => favorite.mutate(img.id)}
-                  onDelete={() => { if (confirm("Delete this image?")) remove.mutate(img.id) }}
+                  onDelete={async () => { if (await confirm({ title: "Delete this image?", destructive: true })) remove.mutate(img.id) }}
                   onTag={(t) => filterByTag(t)} />
               ))}
             </div>

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { IconButton } from "@/components/ui/IconButton"
 import { Markdown } from "@/components/chat/Markdown"
 import { Switch } from "@/components/ui/switch"
+import { useConfirm } from "@/components/ui/confirm"
 import { cn } from "@/lib/utils"
 
 const inp = "h-9 w-full rounded-md border bg-background px-3 text-sm outline-none focus-visible:border-ring"
@@ -25,6 +26,7 @@ function McpSection() {
   const [pasteId, setPasteId] = useState<string | null>(null)
   const [callbackUrl, setCallbackUrl] = useState("")
   const [oauthMsg, setOauthMsg] = useState("")
+  const confirm = useConfirm()
   if (!data?.admin) return null
   const submit = () => {
     if (!name.trim()) { setErr("Name required"); return }
@@ -74,7 +76,7 @@ function McpSection() {
               <div className="flex gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
                 {s.has_oauth && <IconButton icon={<KeyRound />} label="Authorize (OAuth)" onClick={() => { authorize(s.id); setPasteId(s.id); setOauthMsg("") }} className="text-muted-foreground" />}
                 <IconButton icon={<RefreshCw />} label="Reconnect" onClick={() => reconnectServer.mutate(s.id)} className="text-muted-foreground" />
-                <IconButton icon={<Trash2 />} label="Delete" onClick={() => { if (confirm(`Delete MCP server "${s.name}"?`)) removeServer.mutate(s.id) }} className="text-muted-foreground hover:text-destructive" />
+                <IconButton icon={<Trash2 />} label="Delete" onClick={async () => { if (await confirm({ title: `Delete MCP server "${s.name}"?`, destructive: true })) removeServer.mutate(s.id) }} className="text-muted-foreground hover:text-destructive" />
               </div>
             </div>
           </div>
@@ -116,6 +118,7 @@ function McpSection() {
 function WebhookSection() {
   const { data } = useWebhooks()
   const { addWebhook, testWebhook, toggleWebhook, removeWebhook } = useAdminMutations()
+  const confirm = useConfirm()
   const [open, setOpen] = useState(false)
   const [name, setName] = useState("")
   const [url, setUrl] = useState("")
@@ -145,7 +148,7 @@ function WebhookSection() {
             <div className="flex gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
               <IconButton icon={<Send />} label="Test" onClick={() => testWebhook.mutate(w.id)} className="text-muted-foreground" />
               <button onClick={() => toggleWebhook.mutate({ id: w.id, is_active: !w.is_active })} title={w.is_active ? "Disable" : "Enable"} className="text-xs text-muted-foreground hover:text-foreground">{w.is_active ? "On" : "Off"}</button>
-              <IconButton icon={<Trash2 />} label="Delete" onClick={() => { if (confirm(`Delete webhook "${w.name}"?`)) removeWebhook.mutate(w.id) }} className="text-muted-foreground hover:text-destructive" />
+              <IconButton icon={<Trash2 />} label="Delete" onClick={async () => { if (await confirm({ title: `Delete webhook "${w.name}"?`, destructive: true })) removeWebhook.mutate(w.id) }} className="text-muted-foreground hover:text-destructive" />
             </div>
           </div>
         ))}
@@ -172,6 +175,7 @@ function WebhookSection() {
 
 function IntegrationRow({ integ }: { integ: Integration }) {
   const { update, remove, test } = useIntegrationMutations()
+  const confirm = useConfirm()
   const [editing, setEditing] = useState(false)
   const [baseUrl, setBaseUrl] = useState(integ.base_url)
   const [apiKey, setApiKey] = useState("")
@@ -207,7 +211,7 @@ function IntegrationRow({ integ }: { integ: Integration }) {
         <div className="flex gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
           <IconButton icon={<Send />} label="Test" onClick={runTest} className="text-muted-foreground" />
           <IconButton icon={<Pencil />} label="Edit" onClick={() => setEditing((v) => !v)} className="text-muted-foreground" />
-          <IconButton icon={<Trash2 />} label="Delete" onClick={() => { if (confirm(`Delete integration "${integ.name}"?`)) remove.mutate(integ.id) }} className="text-muted-foreground hover:text-destructive" />
+          <IconButton icon={<Trash2 />} label="Delete" onClick={async () => { if (await confirm({ title: `Delete integration "${integ.name}"?`, destructive: true })) remove.mutate(integ.id) }} className="text-muted-foreground hover:text-destructive" />
         </div>
       </div>
       {result && <p className="mt-2 text-xs text-muted-foreground">{result}</p>}

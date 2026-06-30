@@ -15,6 +15,7 @@ import type { Prefill } from "@/components/email/types"
 import { buildEmailDraft } from "@/lib/emailDraft"
 import { Button } from "@/components/ui/button"
 import { IconButton } from "@/components/ui/IconButton"
+import { useConfirm } from "@/components/ui/confirm"
 import { cn } from "@/lib/utils"
 
 function replySubject(subject?: string): string {
@@ -606,6 +607,7 @@ export function Reader({
   const { data, isLoading } = useEmail(uid, folder, accountId)
   const { markRead, markUnread, archive, remove, deletePermanent, flag, move, markAnswered, clearAnswered, unflagSpam } = useEmailActions(folder, accountId)
   const { create: createNote } = useNoteMutations()
+  const confirm = useConfirm()
   const { data: attData } = useAttachments(uid, folder, accountId)
   const [aiBusy, setAiBusy] = useState(false)
   const [aiErr, setAiErr] = useState("")
@@ -688,7 +690,7 @@ export function Reader({
   }
   const moveToSpam = async () => {
     if (actionBusy) return
-    if (!confirm("Move this email to Spam?")) return
+    if (!(await confirm({ title: "Move this email to Spam?", confirmText: "Move to Spam", destructive: true }))) return
     setActionBusy("spam"); setActionNotice(""); setActionErr("")
     try {
       await move.mutateAsync({ uid, dest: "Junk" })
@@ -713,7 +715,7 @@ export function Reader({
   }
   const permanentlyDelete = async () => {
     if (actionBusy) return
-    if (!confirm(`Permanently delete "${subject || "(no subject)"}"? This cannot be undone.`)) return
+    if (!(await confirm({ title: `Permanently delete "${subject || "(no subject)"}"?`, description: "This cannot be undone.", destructive: true, confirmText: "Delete" }))) return
     setActionBusy("permanent"); setActionNotice(""); setActionErr("")
     try {
       await deletePermanent.mutateAsync(uid)
@@ -912,7 +914,7 @@ export function Reader({
           <IconButton icon={<MailOpen />} label="Mark unread" onClick={() => after(() => markUnread.mutate(uid))} className="hidden text-muted-foreground md:inline-flex" />
           <MoveMenu folders={folders} current={folder} onMove={(dest) => after(() => move.mutate({ uid, dest }))} />
           <IconButton icon={<Archive />} label="Archive" onClick={() => after(() => archive.mutate(uid))} className="text-muted-foreground" />
-          <IconButton icon={<Trash2 />} label="Delete" onClick={() => { if (confirm("Delete this email?")) after(() => remove.mutate(uid)) }} className="text-muted-foreground hover:text-destructive" />
+          <IconButton icon={<Trash2 />} label="Delete" onClick={async () => { if (await confirm({ title: "Delete this email?", destructive: true })) after(() => remove.mutate(uid)) }} className="text-muted-foreground hover:text-destructive" />
           <ReaderMoreMenu
             disabled={isLoading}
             busy={actionBusy}

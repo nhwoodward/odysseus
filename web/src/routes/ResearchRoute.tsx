@@ -15,6 +15,7 @@ import { Markdown } from "@/components/chat/Markdown"
 import { HtmlPreview } from "@/components/ui/HtmlPreview"
 import { Button } from "@/components/ui/button"
 import { IconButton } from "@/components/ui/IconButton"
+import { useConfirm } from "@/components/ui/confirm"
 import { RouteHeader } from "@/components/shell/RouteHeader"
 import { SkeletonList } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
@@ -462,6 +463,7 @@ function Detail({
   spinningOff: boolean
 }) {
   const { data, isLoading } = useResearchDetail(id)
+  const confirm = useConfirm()
   const [view, setView] = useState<"visual" | "report" | "sources">("visual")
   const [copied, setCopied] = useState(false)
   const sources = data?.sources || []
@@ -488,7 +490,7 @@ function Detail({
             {spinningOff ? <Loader2 className="size-3.5 animate-spin" /> : <MessageSquarePlus className="size-3.5" />}Discuss
           </Button>
           <IconButton onClick={onArchiveToggle} label={archived ? "Restore" : "Archive"} className="text-muted-foreground" icon={archived ? <ArchiveRestore /> : <Archive />} />
-          <IconButton onClick={() => { if (confirm("Delete this research report?")) onDelete() }} label="Delete" className="text-muted-foreground hover:text-destructive" icon={<Trash2 />} />
+          <IconButton onClick={async () => { if (await confirm({ title: "Delete this research report?", destructive: true })) onDelete() }} label="Delete" className="text-muted-foreground hover:text-destructive" icon={<Trash2 />} />
         </div>
       </header>
       {isLoading ? (

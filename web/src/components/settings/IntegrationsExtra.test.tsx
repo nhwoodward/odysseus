@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { AgentPluginsSection, ContactsSection, EmailAccountsSection } from './IntegrationsExtra'
 
@@ -43,7 +43,9 @@ describe('contacts and CardDAV settings', () => {
     fireEvent.click(screen.getByTitle('Edit contact'))
     expect(screen.getByDisplayValue('ada@example.com')).toBeInTheDocument()
     fireEvent.click(screen.getByTitle('Delete contact'))
-    expect(calls.remove.mutate).toHaveBeenCalledWith('c1')
+    // delete is now gated by the async useConfirm() (window.confirm fallback,
+    // mocked true above) — await the resulting microtask before asserting.
+    await waitFor(() => expect(calls.remove.mutate).toHaveBeenCalledWith('c1'))
     fireEvent.click(screen.getByRole('button', { name: 'Save CardDAV' }))
     expect(calls.saveConfig.mutate).toHaveBeenCalledWith(expect.objectContaining({ carddav_url: 'https://dav.example/contacts', carddav_username: 'ada' }), expect.anything())
   })

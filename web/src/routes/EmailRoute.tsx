@@ -22,6 +22,7 @@ import { ScheduledEmailList } from "@/components/email/ScheduledEmailList"
 import { EMAIL_FILTERS, emailIsRead, emailReminderPresets, emailSenderAddress, extractEmailAddress, firstNameFromSender, formatSize, localDateTimeValue } from "@/components/email/emailFormat"
 import type { BulkAction, EmailListItem, EmailListRowAction, Prefill, SenderFilter } from "@/components/email/types"
 import { Button } from "@/components/ui/button"
+import { useConfirm } from "@/components/ui/confirm"
 import { cn } from "@/lib/utils"
 
 interface ReplyDoc { id: string; title: string; content: string }
@@ -408,6 +409,7 @@ export function EmailRoute() {
   const [prefill, setPrefill] = useState<Prefill | undefined>(undefined)
   const { create: createDoc } = useDocMutations()
   const { create: createNote } = useNoteMutations()
+  const confirm = useConfirm()
   const { data: accounts } = useEmailAccounts()
   const accountList = useMemo(() => accounts || [], [accounts])
   const defaultAccount = accountList.find((account) => account.is_default) || accountList[0]
@@ -518,7 +520,7 @@ export function EmailRoute() {
   const cancelScheduledSend = async (item: ScheduledEmail) => {
     const subject = item.subject || "(no subject)"
     const action = item.status === "failed" ? "Remove" : "Cancel"
-    if (!confirm(`${action} scheduled email "${subject}"?`)) return
+    if (!(await confirm({ title: `${action} scheduled email "${subject}"?`, confirmText: action, destructive: true }))) return
     setListNotice("")
     try {
       await cancelScheduled.mutateAsync(item.id)
@@ -528,7 +530,7 @@ export function EmailRoute() {
     }
   }
   const clearReminderEmails = async () => {
-    if (!confirm("Permanently delete all Odysseus reminder emails?")) return
+    if (!(await confirm({ title: "Permanently delete all Odysseus reminder emails?", destructive: true, confirmText: "Delete all" }))) return
     setListNotice("")
     try {
       const r = await bulkActions.deleteReminderEmails.mutateAsync({ permanent: true })
@@ -573,7 +575,7 @@ export function EmailRoute() {
   const runBulkAction = async (action: BulkAction) => {
     const uids = selectedVisibleUids
     if (uids.length === 0 || bulkBusy) return
-    if (action === "delete" && !confirm(`Delete ${uids.length} selected email${uids.length === 1 ? "" : "s"}?`)) return
+    if (action === "delete" && !(await confirm({ title: `Delete ${uids.length} selected email${uids.length === 1 ? "" : "s"}?`, destructive: true }))) return
     const label = action === "done" ? "Marking done" : action === "read" ? "Marking read" : action === "unread" ? "Marking unread" : "Deleting"
     setBulkBusy(label)
     setBulkError("")
@@ -678,19 +680,19 @@ export function EmailRoute() {
           return
         }
         case "spam": {
-          if (!confirm(`Move "${subject}" to Spam?`)) return
+          if (!(await confirm({ title: `Move "${subject}" to Spam?`, confirmText: "Move to Spam", destructive: true }))) return
           setListActionBusy(busyKey)
           await bulkActions.move.mutateAsync({ uid, dest: "Junk" })
           return
         }
         case "trash": {
-          if (!confirm(`Move "${subject}" to Trash?`)) return
+          if (!(await confirm({ title: `Move "${subject}" to Trash?`, confirmText: "Move to Trash", destructive: true }))) return
           setListActionBusy(busyKey)
           await bulkActions.remove.mutateAsync(uid)
           return
         }
         case "permanent": {
-          if (!confirm(`Permanently delete "${subject}"? This cannot be undone.`)) return
+          if (!(await confirm({ title: `Permanently delete "${subject}"?`, description: "This cannot be undone.", destructive: true, confirmText: "Delete" }))) return
           setListActionBusy(busyKey)
           await bulkActions.deletePermanent.mutateAsync(uid)
           return

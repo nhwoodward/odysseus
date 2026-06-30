@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/sidebar"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { useConfirm } from "@/components/ui/confirm"
+import { toast } from "@/stores/toast"
 import type { Session } from "@/types"
 import { removePersistentPersonaSession } from "@/lib/persistentPersona"
 import { cn } from "@/lib/utils"
@@ -81,6 +83,7 @@ export function AppSidebar() {
   const visibleNav = ALL_NAV.filter((i) => i.to === "/chat" || !hidden.has(i.to))
   const firedNoteReminders = useNoteReminders((s) => s.firedCount)
   const { remove, rename, setImportant } = useSessionMutations()
+  const confirm = useConfirm()
   const [editId, setEditId] = useState<string | null>(null)
   const [editName, setEditName] = useState("")
   // Pinned nav favorites shown as direct rows. "/chat" is always pinned; the
@@ -110,9 +113,9 @@ export function AppSidebar() {
     .filter((s) => !s.is_important)
     .sort((x, y) => new Date(y.last_message_at || y.updated_at || 0).getTime() - new Date(x.last_message_at || x.updated_at || 0).getTime())
 
-  const deleteRow = (s: Session) => {
-    if (s.is_important) { alert("Unpin this chat before deleting it."); return }
-    if (!confirm("Delete this chat?")) return
+  const deleteRow = async (s: Session) => {
+    if (s.is_important) { toast("Unpin this chat before deleting it.", "info"); return }
+    if (!(await confirm({ title: "Delete this chat?", destructive: true }))) return
     removePersistentPersonaSession(s.id)
     remove.mutate(s.id)
     if (s.id === sessionId) navigate("/chat")

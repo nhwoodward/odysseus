@@ -46,6 +46,7 @@ import {
 import { Markdown } from "@/components/chat/Markdown"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
+import { useConfirm } from "@/components/ui/confirm"
 import { RouteHeader } from "@/components/shell/RouteHeader"
 import { apiFetch } from "@/lib/api"
 import { cn } from "@/lib/utils"
@@ -885,6 +886,7 @@ function TaskDetail({ task, chainName }: { task: Task; chainName?: string }) {
 
 function TasksList({ tasks, onNew, onEdit }: { tasks: Task[]; onNew: () => void; onEdit: (task: Task) => void }) {
   const { run, stop, pause, resume, revert, clearCache, remove } = useTaskMutations()
+  const confirm = useConfirm()
   const [query, setQuery] = useState("")
   const [sorting, setSorting] = useState<SortingState>([])
   const [filter, setFilter] = useState<string | null>(null)
@@ -917,8 +919,8 @@ function TasksList({ tasks, onNew, onEdit }: { tasks: Task[]; onNew: () => void;
     onEdit,
     onRevert: (t) => revert.mutate(t.id, { onSuccess: () => toast("Task reverted", "success") }),
     onClear: (t) => clearCache.mutate(t.id, { onSuccess: () => toast(`Cleared ${CLEAR_LABELS[t.action || ""] || "cache"}`, "success") }),
-    onDelete: (t) => { if (confirm("Delete this task and its run history?")) remove.mutate(t.id) },
-  }), [run, stop, pause, resume, revert, clearCache, remove, onEdit])
+    onDelete: async (t) => { if (await confirm({ title: "Delete this task and its run history?", destructive: true })) remove.mutate(t.id) },
+  }), [run, stop, pause, resume, revert, clearCache, remove, onEdit, confirm])
 
   const table = useReactTable({
     data: matched, columns: tasksColumns,
@@ -955,7 +957,7 @@ function TasksList({ tasks, onNew, onEdit }: { tasks: Task[]; onNew: () => void;
   const bulkDelete = async () => {
     const ids = selectedIds
     if (!ids.length) return
-    if (!confirm(`Delete ${ids.length} task${ids.length === 1 ? "" : "s"}? This cannot be undone.`)) return
+    if (!(await confirm({ title: `Delete ${ids.length} task${ids.length === 1 ? "" : "s"}?`, description: "This cannot be undone.", destructive: true }))) return
     const failed = (await Promise.allSettled(ids.map((id) => remove.mutateAsync(id)))).filter((r) => r.status === "rejected").length
     setRowSelection({})
     if (failed === ids.length) toast(`Couldn't delete ${ids.length === 1 ? "the task" : "any tasks"}`, "error")

@@ -23,6 +23,7 @@ import {
 } from "lucide-react"
 import { useNoteMutations, useNotes } from "@/api/notes"
 import { Button } from "@/components/ui/button"
+import { useConfirm } from "@/components/ui/confirm"
 import { cn } from "@/lib/utils"
 import { hasActiveNoteReminder, hasReminderTime, useNoteReminders } from "@/stores/noteReminders"
 import type { Note, NoteItem } from "@/types"
@@ -108,6 +109,7 @@ export function NotesRoute() {
   const [archiveView, setArchiveView] = useState(false)
   const { data: notes, isLoading } = useNotes({ archived: archiveView })
   const { create, update, remove, pin, archive, toggleItem, reorder, solveAgent } = useNoteMutations()
+  const confirm = useConfirm()
   const [editNote, setEditNote] = useState<Note | null>(null)
   const [q, setQ] = useState("")
   const [labelFilter, setLabelFilter] = useState("")
@@ -217,15 +219,15 @@ export function NotesRoute() {
     for (const id of selected) archive.mutate(id)
     clearSelect()
   }
-  const bulkDelete = () => {
-    if (!confirm(`Delete ${selected.size} note${selected.size === 1 ? "" : "s"}?`)) return
+  const bulkDelete = async () => {
+    if (!(await confirm({ title: `Delete ${selected.size} note${selected.size === 1 ? "" : "s"}?`, destructive: true }))) return
     for (const id of selected) remove.mutate(id)
     clearSelect()
   }
-  const clearPastReminders = () => {
+  const clearPastReminders = async () => {
     const targets = allNotes.filter(isPastReminder)
     if (!targets.length) return
-    if (!confirm(`Delete ${targets.length} past reminder${targets.length === 1 ? "" : "s"}?`)) return
+    if (!(await confirm({ title: `Delete ${targets.length} past reminder${targets.length === 1 ? "" : "s"}?`, destructive: true }))) return
     for (const note of targets) remove.mutate(note.id)
   }
   const copyNote = async (note: Note) => {
@@ -520,7 +522,7 @@ export function NotesRoute() {
                     onEdit={() => setEditNote(note)}
                     onPin={() => pin.mutate(note.id)}
                     onArchive={() => archive.mutate(note.id)}
-                    onDelete={() => { if (confirm("Delete this note?")) remove.mutate(note.id) }}
+                    onDelete={async () => { if (await confirm({ title: "Delete this note?", destructive: true })) remove.mutate(note.id) }}
                     onToggleItem={(index) => toggleItem.mutate({ id: note.id, index })}
                     onDeleteItem={(index) => update.mutate({ id: note.id, items: noteItems(note).filter((_, itemIndex) => itemIndex !== index) })}
                     onAddItem={(text) => update.mutate({ id: note.id, items: [...noteItems(note), newNoteItem(text)] })}

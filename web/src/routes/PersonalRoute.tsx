@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { IconButton } from "@/components/ui/IconButton"
 import { RouteHeader } from "@/components/shell/RouteHeader"
+import { useConfirm } from "@/components/ui/confirm"
 import { cn } from "@/lib/utils"
 
 function fmtSize(bytes: number): string {
@@ -148,6 +149,7 @@ function UploadDropZone() {
 export function PersonalRoute() {
   const { data, isLoading } = usePersonalIndex()
   const { reload, removeDirectory, removeFile } = usePersonalMutations()
+  const confirm = useConfirm()
   const files = data?.files || []
   const directories = data?.directories || []
 
@@ -180,7 +182,7 @@ export function PersonalRoute() {
                   <Folder className="size-4 shrink-0 text-muted-foreground" />
                   <span className="min-w-0 flex-1 truncate font-mono text-sm">{d}</span>
                   <IconButton
-                    onClick={() => { if (confirm(`Remove ${d} from the index?`)) removeDirectory.mutate(d) }}
+                    onClick={async () => { if (await confirm({ title: `Remove ${d} from the index?`, destructive: true, confirmText: "Remove" })) removeDirectory.mutate(d) }}
                     label="Remove directory"
                     className="shrink-0 text-muted-foreground hover:text-destructive"
                     icon={<Trash2 />}
@@ -208,7 +210,7 @@ export function PersonalRoute() {
                     </div>
                     <span className="shrink-0 text-xs text-muted-foreground">{fmtSize(f.size)}</span>
                     <IconButton
-                      onClick={() => { if (f.path && confirm(`Remove ${f.name}?`)) removeFile.mutate(f.path) }}
+                      onClick={async () => { if (f.path && await confirm({ title: `Remove ${f.name}?`, destructive: true, confirmText: "Remove" })) removeFile.mutate(f.path) }}
                       label="Remove file"
                       disabled={!f.path}
                       className="shrink-0 text-muted-foreground hover:text-destructive disabled:opacity-40"
