@@ -15,6 +15,7 @@ import { Composer } from "@/components/chat/Composer"
 import { ContextPanel } from "@/components/chat/ContextPanel"
 import { ShareMenu } from "@/components/chat/ShareMenu"
 import { ProjectPicker } from "@/components/chat/ProjectPicker"
+import { RouteHeader } from "@/components/shell/RouteHeader"
 import { Mascot } from "@/components/ui/Mascot"
 import { IconButton } from "@/components/ui/IconButton"
 import { apiJson } from "@/lib/api"
@@ -253,37 +254,42 @@ export function ChatConsole() {
   return (
     <div className="flex h-full min-w-0 flex-1">
       <div className="relative flex min-w-0 flex-1 flex-col">
-        <header className="flex h-13 shrink-0 items-center justify-between border-b px-4 text-sm font-medium text-foreground" data-tour="chat-header">
-          <span className="flex min-w-0 items-center gap-2">
-            <span className="truncate">{incognito ? "Incognito chat" : (title || "New chat")}</span>
-            {incognito && (
-              <span className="inline-flex shrink-0 items-center gap-1 rounded-full border bg-muted px-2 py-0.5 text-label font-medium text-muted-foreground">
-                <EyeOff className="size-3" /> Not saved
-              </span>
-            )}
-            {persistentPersonaName && !incognito && (
-              <span className="inline-flex max-w-40 shrink-0 items-center gap-1 rounded-full border bg-muted px-2 py-0.5 text-label font-medium text-muted-foreground">
-                <Users className="size-3" />
-                <span className="truncate">{persistentPersonaName}</span>
-              </span>
-            )}
-          </span>
-          <div className="flex items-center gap-1">
-            {docCount > 0 && (
-              <button
-                onClick={toggleFiles}
-                title={filesPanelOpen ? "Hide files panel" : "Show files in this thread"}
-                className={cn("flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-colors",
-                  filesPanelOpen ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground")}
-              >
-                <FileText className="size-3.5" />{docCount} file{docCount === 1 ? "" : "s"}
-              </button>
-            )}
-            {sessionId && messages.length > 0 && !incognito && <ProjectPicker sessionId={sessionId} />}
-            {sessionId && messages.length > 0 && !incognito && <ShareMenu resourceType="session" resourceId={sessionId} />}
-            {sessionId && messages.length > 0 && <ExportMenu sid={sessionId} messages={messages} />}
-          </div>
-        </header>
+        <RouteHeader
+          data-tour="chat-header"
+          title={(
+            <span className="flex min-w-0 items-center gap-2 text-sm font-semibold">
+              <span className="truncate">{incognito ? "Incognito chat" : (title || "New chat")}</span>
+              {incognito && (
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-full border bg-muted px-2 py-0.5 text-label font-medium text-muted-foreground">
+                  <EyeOff className="size-3" /> Not saved
+                </span>
+              )}
+              {persistentPersonaName && !incognito && (
+                <span className="inline-flex max-w-40 shrink-0 items-center gap-1 rounded-full border bg-muted px-2 py-0.5 text-label font-medium text-muted-foreground">
+                  <Users className="size-3" />
+                  <span className="truncate">{persistentPersonaName}</span>
+                </span>
+              )}
+            </span>
+          )}
+          actions={(
+            <>
+              {docCount > 0 && (
+                <button
+                  onClick={toggleFiles}
+                  title={filesPanelOpen ? "Hide files panel" : "Show files in this thread"}
+                  className={cn("flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-colors",
+                    filesPanelOpen ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground")}
+                >
+                  <FileText className="size-3.5" />{docCount} file{docCount === 1 ? "" : "s"}
+                </button>
+              )}
+              {sessionId && messages.length > 0 && !incognito && <ProjectPicker sessionId={sessionId} />}
+              {sessionId && messages.length > 0 && !incognito && <ShareMenu resourceType="session" resourceId={sessionId} />}
+              {sessionId && messages.length > 0 && <ExportMenu sid={sessionId} messages={messages} />}
+            </>
+          )}
+        />
         <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto">
           {messages.length === 0 ? (
             <div className="flex h-full items-center justify-center p-8">

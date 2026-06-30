@@ -5,6 +5,7 @@ import { useSessions } from "@/api/sessions"
 import { useProjects, useProjectActions, sessionsInProject } from "@/api/projects"
 import { Button } from "@/components/ui/button"
 import { IconButton } from "@/components/ui/IconButton"
+import { RouteHeader } from "@/components/shell/RouteHeader"
 import { cn } from "@/lib/utils"
 
 export function ProjectsRoute() {
@@ -57,10 +58,10 @@ export function ProjectsRoute() {
   return (
     <div className="flex h-full w-full">
       <aside className="flex w-[240px] shrink-0 flex-col border-r">
-        <header className="flex h-13 shrink-0 items-center justify-between border-b px-4">
-          <span className="text-sm font-semibold">Projects</span>
-          <IconButton onClick={() => setCreating(true)} label="New project" className="text-muted-foreground" icon={<Plus />} />
-        </header>
+        <RouteHeader
+          title="Projects"
+          actions={<IconButton onClick={() => setCreating(true)} label="New project" className="text-muted-foreground" icon={<Plus />} />}
+        />
         <div className="flex-1 overflow-y-auto p-2">
           {creating && (
             <div className="mb-1.5 flex items-center gap-1 px-1">

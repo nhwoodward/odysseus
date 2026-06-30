@@ -15,6 +15,7 @@ import { Markdown } from "@/components/chat/Markdown"
 import { HtmlPreview } from "@/components/ui/HtmlPreview"
 import { Button } from "@/components/ui/button"
 import { IconButton } from "@/components/ui/IconButton"
+import { RouteHeader } from "@/components/shell/RouteHeader"
 import { cn } from "@/lib/utils"
 import { toast } from "@/stores/toast"
 import type { Source } from "@/types"
@@ -554,23 +555,26 @@ export function ResearchRoute() {
   return (
     <div className="flex h-full w-full" data-tour="research-root">
       <aside className="flex w-[min(85vw,320px)] shrink-0 flex-col border-r md:w-[320px]" data-tour="research-library">
-        <header className="flex h-13 shrink-0 items-center justify-between border-b px-4 text-sm font-semibold">
-          <span className="flex items-center gap-2"><Telescope className="size-4" />Research</span>
-          <div className="flex items-center gap-1">
-            <IconButton
-              onClick={() => setSelected(null)}
-              label="New research"
-              className="text-muted-foreground"
-              icon={<Plus />}
-            />
-            <button
-              onClick={() => { setShowArchived((v) => !v); setSelected(null) }}
-              className={cn("rounded-md px-2 py-1 text-xs font-medium", showArchived ? "bg-accent text-foreground" : "font-normal text-muted-foreground hover:text-foreground")}
-            >
-              {showArchived ? "Archived" : "Library"}
-            </button>
-          </div>
-        </header>
+        <RouteHeader
+          icon={Telescope}
+          title="Research"
+          actions={(
+            <>
+              <IconButton
+                onClick={() => setSelected(null)}
+                label="New research"
+                className="text-muted-foreground"
+                icon={<Plus />}
+              />
+              <button
+                onClick={() => { setShowArchived((v) => !v); setSelected(null) }}
+                className={cn("rounded-md px-2 py-1 text-xs font-medium", showArchived ? "bg-accent text-foreground" : "font-normal text-muted-foreground hover:text-foreground")}
+              >
+                {showArchived ? "Archived" : "Library"}
+              </button>
+            </>
+          )}
+        />
         <div className="min-h-0 flex-1 overflow-y-auto p-2">
           {!showArchived && activeItems.length > 0 && (
             <div className="mb-3 space-y-1.5">

@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch"
 import { inputClass } from "@/components/ui/input"
 import { Markdown } from "@/components/chat/Markdown"
 import { BrandLogo } from "@/components/connectors/BrandLogo"
+import { RouteHeader } from "@/components/shell/RouteHeader"
 import { EmptyState } from "@/components/ui/empty-state"
 import { IconButton } from "@/components/ui/IconButton"
 import { cn } from "@/lib/utils"
@@ -364,14 +365,18 @@ export function ConnectorsRoute() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <header className="shrink-0 border-b px-4 py-3 lg:px-6">
-        <div className="flex flex-wrap items-center gap-2">
-          <Plug className="size-5 text-muted-foreground" />
-          <h1 className="text-lg font-semibold">Connectors</h1>
-          {entries.length > 0 && <span className="rounded-full bg-muted px-2 py-0.5 text-label font-medium text-muted-foreground">{entries.length}</span>}
-          <div className="ml-auto"><CustomConnector onAdded={() => {}} /></div>
-        </div>
-        <div className="relative mt-3">
+      <RouteHeader
+        title={(
+          <>
+            <Plug className="size-5 text-muted-foreground" />
+            <h1 className="text-lg font-semibold">Connectors</h1>
+            {entries.length > 0 && <span className="rounded-full bg-muted px-2 py-0.5 text-label font-medium text-muted-foreground">{entries.length}</span>}
+          </>
+        )}
+        actions={<CustomConnector onAdded={() => {}} />}
+      />
+      <div className="shrink-0 border-b px-4 py-3 lg:px-6">
+        <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <input
             value={q}
@@ -401,7 +406,7 @@ export function ConnectorsRoute() {
             ))}
           </div>
         )}
-      </header>
+      </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 lg:px-6">
         {conns.length > 0 && (

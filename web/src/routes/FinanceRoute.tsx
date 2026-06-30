@@ -11,6 +11,7 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { SkeletonList } from "@/components/ui/skeleton"
+import { RouteHeader } from "@/components/shell/RouteHeader"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
@@ -189,12 +190,16 @@ export function FinanceRoute() {
   const showOnboarding = !connected || celebrate || connect.isPending
 
   const header = (
-    <header className="flex shrink-0 flex-wrap items-center gap-2 border-b px-4 py-3 lg:px-6">
-      <Landmark className="size-5 text-muted-foreground" />
-      <h1 className="text-lg font-semibold">Finance</h1>
-      <EnvBadge env={status?.env} />
-      {connected && (
-        <div className="ml-auto flex items-center gap-2">
+    <RouteHeader
+      title={(
+        <>
+          <Landmark className="size-5 text-muted-foreground" />
+          <h1 className="text-lg font-semibold">Finance</h1>
+          <EnvBadge env={status?.env} />
+        </>
+      )}
+      actions={connected ? (
+        <>
           {summaryQuery.dataUpdatedAt > 0 && (
             <span className="hidden text-xs text-muted-foreground sm:inline" aria-live="polite">
               {fetching ? "Syncing…" : `Updated ${relTime(summaryQuery.dataUpdatedAt)}`}
@@ -209,9 +214,9 @@ export function FinanceRoute() {
           <Button size="sm" disabled={connect.isPending} onClick={() => connect.mutate()}>
             {connect.isPending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}Connect another
           </Button>
-        </div>
-      )}
-    </header>
+        </>
+      ) : undefined}
+    />
   )
 
   let body: React.ReactNode

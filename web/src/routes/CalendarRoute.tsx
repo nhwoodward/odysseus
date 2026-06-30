@@ -37,6 +37,7 @@ import {
   type EventPatch,
 } from "@/api/calendar"
 import { Button } from "@/components/ui/button"
+import { RouteHeader } from "@/components/shell/RouteHeader"
 import { cn } from "@/lib/utils"
 import { CalendarRow } from "@/components/calendar/CalendarRow"
 import { EventCard } from "@/components/calendar/EventCard"
@@ -970,48 +971,52 @@ export function CalendarRoute() {
 
   return (
     <div className="mx-auto flex h-full w-full max-w-6xl flex-col">
-      <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b px-4 py-2">
-        <div className="min-w-0">
-          <span className="text-sm font-semibold">Calendar</span>
-          <span className="ml-2 text-sm text-muted-foreground">{viewTitle(view, cursor, weekStart)}</span>
-        </div>
-        <div className="flex flex-wrap items-center justify-end gap-1.5">
-          <Button size="icon" variant="ghost" onClick={() => moveCursor(-1)} title="Previous" aria-label="Previous">
-            <ChevronLeft className="size-4" />
-          </Button>
-          <Button size="sm" variant="outline" onClick={goToday}>Today</Button>
-          <Button size="icon" variant="ghost" onClick={() => moveCursor(1)} title="Next" aria-label="Next">
-            <ChevronRight className="size-4" />
-          </Button>
-          <div className="mx-1 hidden h-6 w-px bg-border sm:block" />
-          <div className="flex flex-wrap items-center gap-1.5">
-            {VIEWS.map((v) => (
-              <Button key={v.value} size="sm" variant={view === v.value ? "secondary" : "ghost"} onClick={() => changeView(v.value)} className="px-2 text-xs sm:px-3 sm:text-sm">
-                {v.label}
-              </Button>
-            ))}
+      <RouteHeader
+        title={(
+          <div className="min-w-0">
+            <span className="text-sm font-semibold">Calendar</span>
+            <span className="ml-2 text-sm text-muted-foreground">{viewTitle(view, cursor, weekStart)}</span>
           </div>
-          <div className="mx-1 hidden h-6 w-px bg-border sm:block" />
-          <Button size="sm" variant="outline" disabled={sync.isPending} onClick={runSync} title="Sync with CalDAV">
-            <RefreshCw className={cn("size-4", sync.isPending && "animate-spin")} />Sync
-          </Button>
-          <input ref={fileRef} type="file" accept=".ics,text/calendar" className="hidden" onChange={(e) => { const fl = e.target.files; if (fl?.length) onPickFile(fl[0]); if (fileRef.current) fileRef.current.value = "" }} />
-          <Button size="sm" variant="outline" disabled={importIcs.isPending} onClick={() => fileRef.current?.click()} title="Import .ics file">
-            <Upload className="size-4" />{importIcs.isPending ? "Importing..." : "Import"}
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => {
-              setEditEvent(null)
-              setFormErr("")
-              setCreateInitial(creating ? null : emptyForm(cals[0]?.href || ""))
-              setCreating((c) => !c)
-            }}
-          >
-            <Plus className="size-4" />New
-          </Button>
-        </div>
-      </header>
+        )}
+        actions={(
+          <>
+            <Button size="icon" variant="ghost" onClick={() => moveCursor(-1)} title="Previous" aria-label="Previous">
+              <ChevronLeft className="size-4" />
+            </Button>
+            <Button size="sm" variant="outline" onClick={goToday}>Today</Button>
+            <Button size="icon" variant="ghost" onClick={() => moveCursor(1)} title="Next" aria-label="Next">
+              <ChevronRight className="size-4" />
+            </Button>
+            <div className="mx-1 hidden h-6 w-px bg-border sm:block" />
+            <div className="flex flex-wrap items-center gap-1.5">
+              {VIEWS.map((v) => (
+                <Button key={v.value} size="sm" variant={view === v.value ? "secondary" : "ghost"} onClick={() => changeView(v.value)} className="px-2 text-xs sm:px-3 sm:text-sm">
+                  {v.label}
+                </Button>
+              ))}
+            </div>
+            <div className="mx-1 hidden h-6 w-px bg-border sm:block" />
+            <Button size="sm" variant="outline" disabled={sync.isPending} onClick={runSync} title="Sync with CalDAV">
+              <RefreshCw className={cn("size-4", sync.isPending && "animate-spin")} />Sync
+            </Button>
+            <input ref={fileRef} type="file" accept=".ics,text/calendar" className="hidden" onChange={(e) => { const fl = e.target.files; if (fl?.length) onPickFile(fl[0]); if (fileRef.current) fileRef.current.value = "" }} />
+            <Button size="sm" variant="outline" disabled={importIcs.isPending} onClick={() => fileRef.current?.click()} title="Import .ics file">
+              <Upload className="size-4" />{importIcs.isPending ? "Importing..." : "Import"}
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                setEditEvent(null)
+                setFormErr("")
+                setCreateInitial(creating ? null : emptyForm(cals[0]?.href || ""))
+                setCreating((c) => !c)
+              }}
+            >
+              <Plus className="size-4" />New
+            </Button>
+          </>
+        )}
+      />
 
       <div className="space-y-3 border-b p-3">
         <div className="flex gap-2">

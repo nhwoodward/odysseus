@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch"
 import { useModels, useDefaultChat, useDeleteEndpoint, useEndpointMutations, useSetDefaultModel, testEndpoint } from "@/api/models"
 import { usePresetConfig, useCustomPresetMutations, useExpandPreset, type PresetConfig } from "@/api/presets"
 import { AdminSections } from "@/components/settings/AdminSections"
+import { RouteHeader } from "@/components/shell/RouteHeader"
 import { AppSettingsSections, SidebarItemsSettings } from "@/components/settings/AppSettings"
 import { IntegrationsExtraSections } from "@/components/settings/IntegrationsExtra"
 import { FinancePlaidSection } from "@/components/settings/FinancePlaidSection"
@@ -501,7 +502,7 @@ export function SettingsRoute() {
   return (
     <div className="flex h-full w-full" data-tour="settings-root">
       <aside className={cn("w-full shrink-0 flex-col border-r md:flex md:w-[220px]", mobileDetail ? "hidden" : "flex")} data-tour="settings-nav">
-        <header className="flex h-13 shrink-0 items-center border-b px-4 text-sm font-semibold">Settings</header>
+        <RouteHeader title="Settings" />
         <nav className="flex-1 space-y-0.5 overflow-y-auto p-2">
           {NAV.map((n) => (
             <button key={n.id} onClick={() => { setPage(n.id); setMobileDetail(true) }} className={navRow(page === n.id)}>

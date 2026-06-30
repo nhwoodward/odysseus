@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { downloadImage, flattenGallery, useGallery, useGalleryAlbums, useGalleryMutations } from "@/api/gallery"
 import { apiFetch, apiJson } from "@/lib/api"
 import { Button } from "@/components/ui/button"
+import { RouteHeader } from "@/components/shell/RouteHeader"
 import { inputClass } from "@/components/ui/input"
 import { SkeletonGrid } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
@@ -333,19 +334,23 @@ export function GalleryRoute() {
         setUploadAlbumId(null)
         if (fileRef.current) fileRef.current.value = ""
       }} />
-      <header className="flex h-13 shrink-0 items-center justify-between gap-3 border-b px-4">
-        <div className="flex min-w-0 items-baseline gap-2">
-          <span className="text-sm font-semibold">Gallery</span>
-          <span className="text-xs text-muted-foreground">{gallery.total != null ? formatCount(gallery.total) : ""}</span>
-        </div>
-        <div className="flex min-w-0 items-center gap-2">
-          {tab === "photos" && <div className="relative hidden sm:block" data-tour="gallery-search">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search photos, tags..." className="h-8 w-56 rounded-md border bg-background pl-8 pr-2 text-sm outline-none focus-visible:border-ring" />
-          </div>}
-          <Button size="sm" disabled={upload.isPending} onClick={() => chooseUpload()} data-tour="gallery-upload"><Upload className="size-4" />{upload.isPending ? "Uploading..." : "Upload"}</Button>
-        </div>
-      </header>
+      <RouteHeader
+        title={(
+          <div className="flex min-w-0 items-baseline gap-2">
+            <span className="text-sm font-semibold">Gallery</span>
+            <span className="text-xs text-muted-foreground">{gallery.total != null ? formatCount(gallery.total) : ""}</span>
+          </div>
+        )}
+        actions={(
+          <>
+            {tab === "photos" && <div className="relative hidden sm:block" data-tour="gallery-search">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search photos, tags..." className="h-8 w-56 rounded-md border bg-background pl-8 pr-2 text-sm outline-none focus-visible:border-ring" />
+            </div>}
+            <Button size="sm" disabled={upload.isPending} onClick={() => chooseUpload()} data-tour="gallery-upload"><Upload className="size-4" />{upload.isPending ? "Uploading..." : "Upload"}</Button>
+          </>
+        )}
+      />
       <div className="shrink-0 border-b px-4 py-2">
         <div className="flex flex-wrap items-center gap-1.5 md:gap-2" data-tour="gallery-tabs">
           {(["photos", "albums", "editor", "settings"] as const).map((v) => (

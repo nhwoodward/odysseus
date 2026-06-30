@@ -5,6 +5,7 @@ import { usePrefs, useSetPref } from "@/api/prefs"
 import { useSessions } from "@/api/sessions"
 import { Button } from "@/components/ui/button"
 import { IconButton } from "@/components/ui/IconButton"
+import { RouteHeader } from "@/components/shell/RouteHeader"
 import { Switch } from "@/components/ui/switch"
 import { toast } from "@/stores/toast"
 import { MemoryTable } from "./memory/MemoryTable"
@@ -179,32 +180,34 @@ export function MemoryRoute() {
 
   return (
     <div className="mx-auto flex h-full w-full max-w-5xl flex-col" data-tour="memory-root">
-      <header className="flex h-13 shrink-0 items-center justify-between border-b px-4">
-        <span className="text-sm font-semibold">Memory</span>
-        <div className="flex items-center gap-1.5">
-          <Button size="sm" variant="outline" disabled={tidy.isPending} onClick={runTidy} title="Tidy memories" data-tour="memory-tidy">
-            {tidy.isPending ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-            Tidy
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => setShowExtract((s) => !s)} disabled={extract.isPending} title="Extract memories from a chat session">
-            {extract.isPending ? <Loader2 className="size-4 animate-spin" /> : <MessageSquare className="size-4" />}
-            Extract
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => fileRef.current?.click()} disabled={importFile.isPending} title="Import memories">
-            {importFile.isPending ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
-            Import
-          </Button>
-          <Button size="sm" variant="outline" onClick={exportMemories} title="Export memories"><Download className="size-4" />Export</Button>
-          <IconButton data-tour="memory-settings" icon={<Settings2 />} label="Memory settings" onClick={() => setShowSettings((s) => !s)} className={showSettings ? "text-foreground" : "text-muted-foreground"} />
-        </div>
-        <input
-          ref={fileRef}
-          type="file"
-          hidden
-          accept=".txt,.md,.pdf,.csv,.log,.json,.py,.js,.html"
-          onChange={(e) => { void handleImport(e.currentTarget.files?.[0]); e.currentTarget.value = "" }}
-        />
-      </header>
+      <RouteHeader
+        title="Memory"
+        actions={(
+          <>
+            <Button size="sm" variant="outline" disabled={tidy.isPending} onClick={runTidy} title="Tidy memories" data-tour="memory-tidy">
+              {tidy.isPending ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+              Tidy
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setShowExtract((s) => !s)} disabled={extract.isPending} title="Extract memories from a chat session">
+              {extract.isPending ? <Loader2 className="size-4 animate-spin" /> : <MessageSquare className="size-4" />}
+              Extract
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => fileRef.current?.click()} disabled={importFile.isPending} title="Import memories">
+              {importFile.isPending ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+              Import
+            </Button>
+            <Button size="sm" variant="outline" onClick={exportMemories} title="Export memories"><Download className="size-4" />Export</Button>
+            <IconButton data-tour="memory-settings" icon={<Settings2 />} label="Memory settings" onClick={() => setShowSettings((s) => !s)} className={showSettings ? "text-foreground" : "text-muted-foreground"} />
+          </>
+        )}
+      />
+      <input
+        ref={fileRef}
+        type="file"
+        hidden
+        accept=".txt,.md,.pdf,.csv,.log,.json,.py,.js,.html"
+        onChange={(e) => { void handleImport(e.currentTarget.files?.[0]); e.currentTarget.value = "" }}
+      />
       <div className="flex-1 overflow-y-auto p-4">
         {showSettings && <MemorySettings />}
 

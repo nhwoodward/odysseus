@@ -10,6 +10,7 @@ import {
 } from "@/api/personal"
 import { Button } from "@/components/ui/button"
 import { IconButton } from "@/components/ui/IconButton"
+import { RouteHeader } from "@/components/shell/RouteHeader"
 import { cn } from "@/lib/utils"
 
 function fmtSize(bytes: number): string {
@@ -152,9 +153,7 @@ export function PersonalRoute() {
 
   return (
     <div className="mx-auto flex h-full w-full max-w-4xl flex-col">
-      <header className="flex h-13 shrink-0 items-center gap-2 border-b px-4 text-sm font-semibold">
-        <FolderOpen className="size-4" />Personal files
-      </header>
+      <RouteHeader icon={FolderOpen} title="Personal files" />
       <div className="flex-1 space-y-6 overflow-y-auto p-4">
         <div className="space-y-2">
           <UploadDropZone />

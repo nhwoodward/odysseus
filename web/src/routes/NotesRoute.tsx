@@ -28,6 +28,7 @@ import { hasActiveNoteReminder, hasReminderTime, useNoteReminders } from "@/stor
 import type { Note, NoteItem } from "@/types"
 import { NoteCard } from "@/components/notes/NoteCard"
 import { NoteForm } from "@/components/notes/NoteForm"
+import { RouteHeader } from "@/components/shell/RouteHeader"
 import { goalProgress, isOverdue, itemDone, noteItems, noteLabels } from "@/components/notes/util"
 
 const EMPTY_NOTES: Note[] = []
@@ -329,20 +330,24 @@ export function NotesRoute() {
 
   return (
     <div className="mx-auto flex h-full w-full max-w-6xl flex-col">
-      <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b px-4 py-2">
-        <div className="min-w-0">
-          <span className="text-sm font-semibold">Notes</span>
-          <span className="ml-2 text-sm text-muted-foreground">{archiveView ? "Archive" : `${allNotes.length} active`}</span>
-        </div>
-        <div className="flex flex-wrap items-center gap-1.5">
-          <Button size="sm" variant={archiveView ? "secondary" : "outline"} onClick={() => { setArchiveView((v) => !v); clearSelect(); setEditNote(null); setFilter("all") }}>
-            <Archive className="size-4" />Archive
-          </Button>
-          <Button size="sm" variant={selectMode ? "secondary" : "outline"} onClick={() => { setSelectMode((v) => !v); setSelected(new Set()) }}>
-            <Check className="size-4" />Select
-          </Button>
-        </div>
-      </header>
+      <RouteHeader
+        title={(
+          <div className="min-w-0">
+            <span className="text-sm font-semibold">Notes</span>
+            <span className="ml-2 text-sm text-muted-foreground">{archiveView ? "Archive" : `${allNotes.length} active`}</span>
+          </div>
+        )}
+        actions={(
+          <>
+            <Button size="sm" variant={archiveView ? "secondary" : "outline"} onClick={() => { setArchiveView((v) => !v); clearSelect(); setEditNote(null); setFilter("all") }}>
+              <Archive className="size-4" />Archive
+            </Button>
+            <Button size="sm" variant={selectMode ? "secondary" : "outline"} onClick={() => { setSelectMode((v) => !v); setSelected(new Set()) }}>
+              <Check className="size-4" />Select
+            </Button>
+          </>
+        )}
+      />
 
       {showFirstOpenHint && (
         <div

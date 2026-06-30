@@ -46,6 +46,7 @@ import {
 import { Markdown } from "@/components/chat/Markdown"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
+import { RouteHeader } from "@/components/shell/RouteHeader"
 import { apiFetch } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { toast } from "@/stores/toast"
@@ -1199,9 +1200,9 @@ export function TasksRoute() {
   }
   return (
     <div className="mx-auto flex h-full w-full max-w-5xl flex-col" data-tour="tasks-root">
-      <header className="flex min-h-13 shrink-0 flex-wrap items-center justify-between gap-2 border-b px-4 py-2">
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-          <span className="hidden truncate text-sm font-semibold sm:inline">Automations</span>
+      <RouteHeader
+        title={<span className="hidden truncate text-sm font-semibold sm:inline">Automations</span>}
+        tabs={(
           <div className="flex max-w-full overflow-x-auto rounded-lg bg-muted p-0.5" data-tour="tasks-tabs">
             {(["tasks", "activity", "add"] as const).map((v) => (
               <button
@@ -1213,9 +1214,9 @@ export function TasksRoute() {
               </button>
             ))}
           </div>
-        </div>
-        <Button size="sm" className="shrink-0" onClick={() => openNew()} data-tour="tasks-add"><Sparkles className="size-4" /><span className="hidden sm:inline">New</span></Button>
-      </header>
+        )}
+        actions={<Button size="sm" className="shrink-0" onClick={() => openNew()} data-tour="tasks-add"><Sparkles className="size-4" /><span className="hidden sm:inline">New</span></Button>}
+      />
       <div className="flex-1 overflow-y-auto p-4">
         {tab === "add" ? (
           <div className="space-y-3">

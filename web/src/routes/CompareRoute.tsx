@@ -44,6 +44,7 @@ import {
 import { streamChat } from "@/lib/sse"
 import { safeImageSrc } from "@/lib/safeImage"
 import { Button } from "@/components/ui/button"
+import { RouteHeader } from "@/components/shell/RouteHeader"
 import { Switch } from "@/components/ui/switch"
 import { toast } from "@/stores/toast"
 import { cn } from "@/lib/utils"
@@ -963,47 +964,54 @@ export function CompareRoute() {
 
   return (
     <div className="mx-auto flex h-full w-full max-w-6xl flex-col" data-tour="compare-root">
-      <header className="flex h-13 shrink-0 items-center gap-2 border-b px-2 text-sm font-semibold md:px-4">
-        <GitCompareArrows className="size-4" />Compare models
-        <span className="rounded-full bg-muted px-2 py-0.5 text-label font-medium text-muted-foreground">{panes.length}/{MAX_COMPARE_PANES}</span>
-        <div className="ml-auto flex items-center gap-1">
-          {canProbeModels && selectedModels.length > 0 && unprobedModels.length > 0 && (
-            <Button variant="outline" size="sm" onClick={probeModels} disabled={anyBusy} title="Probe unverified models with a small test request">
-              {probing ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}Probe
-            </Button>
-          )}
-          <Button variant="outline" size="sm" onClick={addPane} disabled={anyBusy || panes.length >= MAX_COMPARE_PANES} title="Add model pane">
-            <Plus className="size-4" />Add
-          </Button>
-          <Button variant="outline" size="sm" onClick={shufflePanes} disabled={!canShuffle} title={roundStarted ? "Reset before shuffling this round" : "Shuffle pane positions"}>
-            <Shuffle className="size-4" />Shuffle
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => setScoreOpen((v) => !v)}><History className="size-4" />Score</Button>
-          <div className="relative" ref={exportMenuRef}>
-            <Button variant="outline" size="sm" onClick={() => setExportOpen((v) => !v)} disabled={!hasExportableRound} title={hasExportableRound ? "Export this comparison" : "Run a comparison to enable export"}>
-              <Share2 className="size-4" />Export<ChevronDown className="size-3.5 opacity-60" />
-            </Button>
-            {exportOpen && (
-              <div className="absolute right-0 z-20 mt-1 w-56 overflow-hidden rounded-md border bg-popover p-1 text-sm text-popover-foreground shadow-md">
-                <button onClick={copyExportMarkdown} className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-accent hover:text-accent-foreground">
-                  <Copy className="size-4 text-muted-foreground" />Copy all as Markdown
-                </button>
-                <button onClick={downloadExportMarkdown} className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-accent hover:text-accent-foreground">
-                  <Download className="size-4 text-muted-foreground" />Download .md
-                </button>
-                <button onClick={printExport} className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-accent hover:text-accent-foreground">
-                  <Printer className="size-4 text-muted-foreground" />Print / Save as PDF
-                </button>
-              </div>
+      <RouteHeader
+        icon={GitCompareArrows}
+        title={(
+          <>
+            <h1 className="truncate text-sm font-semibold">Compare models</h1>
+            <span className="rounded-full bg-muted px-2 py-0.5 text-label font-medium text-muted-foreground">{panes.length}/{MAX_COMPARE_PANES}</span>
+          </>
+        )}
+        actions={(
+          <>
+            {canProbeModels && selectedModels.length > 0 && unprobedModels.length > 0 && (
+              <Button variant="outline" size="sm" onClick={probeModels} disabled={anyBusy} title="Probe unverified models with a small test request">
+                {probing ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}Probe
+              </Button>
             )}
-          </div>
-          {streamBusy ? (
-            <Button variant="outline" size="sm" onClick={stop}><Square className="size-4" />Stop</Button>
-          ) : (
-            <Button variant="ghost" size="icon" title="Reset" aria-label="Reset" onClick={reset} disabled={probing}><RotateCcw className="size-4" /></Button>
-          )}
-        </div>
-      </header>
+            <Button variant="outline" size="sm" onClick={addPane} disabled={anyBusy || panes.length >= MAX_COMPARE_PANES} title="Add model pane">
+              <Plus className="size-4" />Add
+            </Button>
+            <Button variant="outline" size="sm" onClick={shufflePanes} disabled={!canShuffle} title={roundStarted ? "Reset before shuffling this round" : "Shuffle pane positions"}>
+              <Shuffle className="size-4" />Shuffle
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setScoreOpen((v) => !v)}><History className="size-4" />Score</Button>
+            <div className="relative" ref={exportMenuRef}>
+              <Button variant="outline" size="sm" onClick={() => setExportOpen((v) => !v)} disabled={!hasExportableRound} title={hasExportableRound ? "Export this comparison" : "Run a comparison to enable export"}>
+                <Share2 className="size-4" />Export<ChevronDown className="size-3.5 opacity-60" />
+              </Button>
+              {exportOpen && (
+                <div className="absolute right-0 z-20 mt-1 w-56 overflow-hidden rounded-md border bg-popover p-1 text-sm text-popover-foreground shadow-md">
+                  <button onClick={copyExportMarkdown} className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-accent hover:text-accent-foreground">
+                    <Copy className="size-4 text-muted-foreground" />Copy all as Markdown
+                  </button>
+                  <button onClick={downloadExportMarkdown} className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-accent hover:text-accent-foreground">
+                    <Download className="size-4 text-muted-foreground" />Download .md
+                  </button>
+                  <button onClick={printExport} className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-accent hover:text-accent-foreground">
+                    <Printer className="size-4 text-muted-foreground" />Print / Save as PDF
+                  </button>
+                </div>
+              )}
+            </div>
+            {streamBusy ? (
+              <Button variant="outline" size="sm" onClick={stop}><Square className="size-4" />Stop</Button>
+            ) : (
+              <Button variant="ghost" size="icon" title="Reset" aria-label="Reset" onClick={reset} disabled={probing}><RotateCcw className="size-4" /></Button>
+            )}
+          </>
+        )}
+      />
       <div className="flex min-h-0 flex-1 flex-col gap-3 p-2 md:p-4">
         <div className="flex flex-wrap items-center gap-3">
           <div className="inline-flex rounded-md border bg-background p-0.5" data-tour="compare-mode">

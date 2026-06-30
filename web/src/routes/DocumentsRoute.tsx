@@ -44,6 +44,7 @@ import { PdfDocumentEditor } from "@/components/documents/PdfDocumentEditor"
 import { EmailDraftEditor } from "@/components/email/EmailDraftEditor"
 import { HtmlPreview } from "@/components/ui/HtmlPreview"
 import { SkeletonList } from "@/components/ui/skeleton"
+import { RouteHeader } from "@/components/shell/RouteHeader"
 import { detectRenderLang } from "@/lib/artifact"
 import { buildEmailDraft } from "@/lib/emailDraft"
 import { readImportedDocuments } from "@/lib/documentImport"
@@ -706,37 +707,41 @@ export function DocumentsRoute() {
   if (openId) return <div className="mx-auto h-full w-full max-w-4xl" data-tour="library-editor"><Editor id={openId} onBack={() => setOpenId(null)} onOpen={setOpenId} /></div>
   return (
     <div className="mx-auto flex h-full w-full max-w-4xl flex-col" data-tour="library-root">
-      <header className="flex h-13 shrink-0 items-center justify-between gap-2 border-b px-4">
-        <div className="min-w-0">
-          <div className="text-sm font-semibold">Library</div>
-          <div className="text-xs text-muted-foreground">{library?.total ?? 0} document{(library?.total ?? 0) === 1 ? "" : "s"}{isFetching ? " · updating" : ""}</div>
-        </div>
-        <div className="flex items-center gap-1.5" data-tour="library-actions">
-          <input ref={fileInputRef} type="file" multiple accept=".txt,.md,.markdown,.html,.htm,.svg,.css,.scss,.sass,.less,.js,.jsx,.ts,.tsx,.json,.yml,.yaml,.csv,.tsv,.sh,.bash,.sql,.xml,.toml,.ini,.cfg,.conf,.env,.log,.py,.rs,.go,.java,.c,.h,.cpp,.hpp,.rb,.php,.pdf,.docx,.xlsx,.xls,.ods" className="hidden" onChange={(e) => void importFiles(e.currentTarget.files)} />
-          <label className="hidden h-8 items-center gap-1.5 rounded-md border px-2 text-xs text-muted-foreground sm:inline-flex">
-            <Copy className="size-3.5" />
-            <span>Clone to</span>
-            <select
-              value={cloneTargetSessionId}
-              onChange={(e) => {
-                const next = e.target.value
-                setCloneTargetSession(next)
-                if (next) window.localStorage.setItem(LAST_CHAT_SESSION_KEY, next)
-              }}
-              className="-mr-1 max-w-40 bg-transparent text-foreground outline-none"
-              aria-label="Clone target chat"
-            >
-              <option value="">Library</option>
-              {activeSessions.slice(0, 50).map((session) => (
-                <option key={session.id} value={session.id}>{session.name || "Untitled chat"}</option>
-              ))}
-            </select>
-          </label>
-          <Button size="sm" variant="outline" disabled={busy === "import"} onClick={() => fileInputRef.current?.click()}><Upload className="size-4" />{busy === "import" ? "Importing..." : "Import"}</Button>
-          <Button size="sm" variant="outline" disabled={!!busy} title="Remove junk, empty, and duplicate documents" onClick={() => void runTidy()}><Sparkles className="size-4" />{busy === "tidy" ? "Tidying..." : "Tidy"}</Button>
-          <Button size="sm" disabled={docActions.create.isPending} onClick={newDoc}><Plus className="size-4" />New document</Button>
-        </div>
-      </header>
+      <RouteHeader
+        title={(
+          <div className="min-w-0">
+            <div className="text-sm font-semibold">Library</div>
+            <div className="text-xs text-muted-foreground">{library?.total ?? 0} document{(library?.total ?? 0) === 1 ? "" : "s"}{isFetching ? " · updating" : ""}</div>
+          </div>
+        )}
+        actions={(
+          <div className="flex items-center gap-1.5" data-tour="library-actions">
+            <input ref={fileInputRef} type="file" multiple accept=".txt,.md,.markdown,.html,.htm,.svg,.css,.scss,.sass,.less,.js,.jsx,.ts,.tsx,.json,.yml,.yaml,.csv,.tsv,.sh,.bash,.sql,.xml,.toml,.ini,.cfg,.conf,.env,.log,.py,.rs,.go,.java,.c,.h,.cpp,.hpp,.rb,.php,.pdf,.docx,.xlsx,.xls,.ods" className="hidden" onChange={(e) => void importFiles(e.currentTarget.files)} />
+            <label className="hidden h-8 items-center gap-1.5 rounded-md border px-2 text-xs text-muted-foreground sm:inline-flex">
+              <Copy className="size-3.5" />
+              <span>Clone to</span>
+              <select
+                value={cloneTargetSessionId}
+                onChange={(e) => {
+                  const next = e.target.value
+                  setCloneTargetSession(next)
+                  if (next) window.localStorage.setItem(LAST_CHAT_SESSION_KEY, next)
+                }}
+                className="-mr-1 max-w-40 bg-transparent text-foreground outline-none"
+                aria-label="Clone target chat"
+              >
+                <option value="">Library</option>
+                {activeSessions.slice(0, 50).map((session) => (
+                  <option key={session.id} value={session.id}>{session.name || "Untitled chat"}</option>
+                ))}
+              </select>
+            </label>
+            <Button size="sm" variant="outline" disabled={busy === "import"} onClick={() => fileInputRef.current?.click()}><Upload className="size-4" />{busy === "import" ? "Importing..." : "Import"}</Button>
+            <Button size="sm" variant="outline" disabled={!!busy} title="Remove junk, empty, and duplicate documents" onClick={() => void runTidy()}><Sparkles className="size-4" />{busy === "tidy" ? "Tidying..." : "Tidy"}</Button>
+            <Button size="sm" disabled={docActions.create.isPending} onClick={newDoc}><Plus className="size-4" />New document</Button>
+          </div>
+        )}
+      />
       <div className="shrink-0 border-b px-4 py-2" data-tour="library-filters">
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative min-w-0 flex-1 sm:min-w-56">

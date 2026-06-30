@@ -14,6 +14,7 @@ import { useNoteMutations } from "@/api/notes"
 import { EmailDraftEditor } from "@/components/email/EmailDraftEditor"
 import { Reader } from "@/components/email/Reader"
 import { AccountStrip } from "@/components/email/AccountStrip"
+import { RouteHeader } from "@/components/shell/RouteHeader"
 import { EmailFilterPicker } from "@/components/email/EmailFilterPicker"
 import { EmailBulkBar } from "@/components/email/EmailBulkBar"
 import { EmailList } from "@/components/email/EmailList"
@@ -719,34 +720,36 @@ export function EmailRoute() {
         )
       ) : (
         <>
-          <header className="flex h-13 shrink-0 items-center justify-between gap-2 border-b px-4">
-            <FolderMenu folders={folders} current={folder} onPick={(f) => { setFolder(f); setQuery(""); setListFilter("all"); setHasAttachments(false); setSenderFilter(null); clearSelection() }} />
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={refreshMail}
-                disabled={scheduledView ? scheduledFetching : (listFetching || searchFetching)}
-                title="Refresh mail"
-                aria-label="Refresh mail"
-                className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
-              >
-                <RefreshCw className={cn("size-4", (scheduledView ? scheduledFetching : (listFetching || searchFetching)) && "animate-spin")} />
-              </button>
-              {listFilter === "reminders" && (
+          <RouteHeader
+            title={<FolderMenu folders={folders} current={folder} onPick={(f) => { setFolder(f); setQuery(""); setListFilter("all"); setHasAttachments(false); setSenderFilter(null); clearSelection() }} />}
+            actions={(
+              <>
                 <button
                   type="button"
-                  onClick={clearReminderEmails}
-                  disabled={bulkActions.deleteReminderEmails.isPending}
-                  title="Permanently delete Odysseus reminder emails"
-                  aria-label="Permanently delete Odysseus reminder emails"
-                  className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-destructive disabled:pointer-events-none disabled:opacity-50"
+                  onClick={refreshMail}
+                  disabled={scheduledView ? scheduledFetching : (listFetching || searchFetching)}
+                  title="Refresh mail"
+                  aria-label="Refresh mail"
+                  className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
                 >
-                  <Trash2 className="size-4" />
+                  <RefreshCw className={cn("size-4", (scheduledView ? scheduledFetching : (listFetching || searchFetching)) && "animate-spin")} />
                 </button>
-              )}
-              <Button size="sm" onClick={compose}><PenSquare className="size-4" />Compose</Button>
-            </div>
-          </header>
+                {listFilter === "reminders" && (
+                  <button
+                    type="button"
+                    onClick={clearReminderEmails}
+                    disabled={bulkActions.deleteReminderEmails.isPending}
+                    title="Permanently delete Odysseus reminder emails"
+                    aria-label="Permanently delete Odysseus reminder emails"
+                    className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-destructive disabled:pointer-events-none disabled:opacity-50"
+                  >
+                    <Trash2 className="size-4" />
+                  </button>
+                )}
+                <Button size="sm" onClick={compose}><PenSquare className="size-4" />Compose</Button>
+              </>
+            )}
+          />
           <AccountStrip accounts={accountList} current={activeAccountId} onPick={pickAccount} />
           {listNotice && <div className={cn("shrink-0 border-b px-4 py-2 text-xs", listNotice.startsWith("Couldn't") ? "text-destructive" : "text-muted-foreground")}>{listNotice}</div>}
           {scheduledView ? (

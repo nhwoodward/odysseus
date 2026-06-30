@@ -11,6 +11,7 @@ import {
 } from "@/api/cookbook"
 import { Button } from "@/components/ui/button"
 import { IconButton } from "@/components/ui/IconButton"
+import { RouteHeader } from "@/components/shell/RouteHeader"
 import { Badge } from "@/components/ui/badge"
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { cn } from "@/lib/utils"
@@ -395,7 +396,7 @@ export function CookbookRoute() {
 
   return (
     <div className="mx-auto flex h-full w-full max-w-4xl flex-col" data-tour="cookbook-root">
-      <header className="flex h-13 shrink-0 items-center gap-2 border-b px-4 text-sm font-semibold"><FlaskConical className="size-4" />Cookbook</header>
+      <RouteHeader icon={FlaskConical} title="Cookbook" />
       <div className="flex-1 space-y-6 overflow-y-auto p-4">
         <ModelDiscovery />
         <DownloadForm />

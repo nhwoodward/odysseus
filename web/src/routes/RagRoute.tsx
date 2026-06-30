@@ -7,6 +7,7 @@ import {
   type RagFile, type EmbeddingModel,
 } from "@/api/rag"
 import { Button } from "@/components/ui/button"
+import { RouteHeader } from "@/components/shell/RouteHeader"
 import { cn } from "@/lib/utils"
 
 const inp = "h-9 rounded-md border bg-background px-3 text-sm outline-none focus-visible:border-ring"
@@ -212,7 +213,7 @@ function EndpointSection() {
 export function RagRoute() {
   return (
     <div className="mx-auto flex h-full w-full max-w-4xl flex-col">
-      <header className="flex h-13 shrink-0 items-center gap-2 border-b px-4 text-sm font-semibold"><Database className="size-4" />Knowledge base</header>
+      <RouteHeader icon={Database} title="Knowledge base" />
       <div className="flex-1 space-y-6 overflow-y-auto p-4">
         <StatsSection />
         <DocumentsSection />

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { inputClass } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Markdown } from "@/components/chat/Markdown"
+import { RouteHeader } from "@/components/shell/RouteHeader"
 import { cn } from "@/lib/utils"
 
 const inp = inputClass
@@ -392,15 +393,17 @@ export function SkillsRoute() {
       {testTarget && <TestPanel id={testTarget.id} name={testTarget.name} onClose={() => setTestTarget(null)} />}
       {builtinTarget && <BuiltinEditor name={builtinTarget} onClose={() => setBuiltinTarget(null)} />}
       {auditing && <AuditAllPanel onClose={() => setAuditing(false)} />}
-      <header className="flex h-13 shrink-0 items-center justify-between border-b px-4">
-        <span className="text-sm font-semibold">Skills</span>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => (selectMode ? exitSelect() : setSelectMode(true))} title="Select multiple skills"><ListChecks className="size-4" />{selectMode ? "Done" : "Select"}</Button>
-          <Button variant="outline" size="sm" onClick={() => setImporting(true)} title="Install a SKILL.md bundle from a URL"><Link2 className="size-4" />Import</Button>
-          <Button variant="outline" size="sm" disabled={auditAll.isPending} onClick={() => { auditAll.mutate(undefined); setAuditing(true) }} title="Test, judge & auto-publish skills">{auditAll.isPending ? "Auditing…" : "Audit all"}</Button>
-          <Button size="sm" onClick={() => setCreating(true)}><Plus className="size-4" />New skill</Button>
-        </div>
-      </header>
+      <RouteHeader
+        title="Skills"
+        actions={(
+          <>
+            <Button variant="outline" size="sm" onClick={() => (selectMode ? exitSelect() : setSelectMode(true))} title="Select multiple skills"><ListChecks className="size-4" />{selectMode ? "Done" : "Select"}</Button>
+            <Button variant="outline" size="sm" onClick={() => setImporting(true)} title="Install a SKILL.md bundle from a URL"><Link2 className="size-4" />Import</Button>
+            <Button variant="outline" size="sm" disabled={auditAll.isPending} onClick={() => { auditAll.mutate(undefined); setAuditing(true) }} title="Test, judge & auto-publish skills">{auditAll.isPending ? "Auditing…" : "Audit all"}</Button>
+            <Button size="sm" onClick={() => setCreating(true)}><Plus className="size-4" />New skill</Button>
+          </>
+        )}
+      />
       <div className="flex-1 space-y-6 overflow-y-auto p-4">
         <section>
           <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground"><Sparkles className="size-3.5" /> My skills</h2>
