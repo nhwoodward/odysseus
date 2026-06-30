@@ -21,7 +21,7 @@ export function ComposerInput({ ctl }: { ctl: ComposerController }) {
         if (e.key === "ArrowUp" && !text && !e.shiftKey && !e.metaKey && lastSentRef.current) { e.preventDefault(); setText(lastSentRef.current); requestAnimationFrame(grow); return }
         if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit() }
       }}
-      className="!field-sizing-fixed max-h-[200px] min-h-0 w-full resize-none border-0 bg-transparent px-1 py-1.5 text-subhead shadow-none outline-none placeholder:text-muted-foreground"
+      className="!field-sizing-fixed max-h-[200px] min-h-0 w-full resize-none border-0 bg-transparent px-1 py-1.5 text-subhead shadow-none outline-none focus-visible:border-transparent focus-visible:ring-0 placeholder:text-muted-foreground"
     />
   )
 }
