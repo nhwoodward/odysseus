@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { Fragment, useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { EmptyState } from "@/components/ui/empty-state"
 import { SkeletonList } from "@/components/ui/skeleton"
@@ -10,11 +10,12 @@ import {
   Check,
   Clipboard,
   Copy,
+  ChevronRight,
   Edit3,
   FileText,
-  History,
   Link2,
   Mail,
+  MoreHorizontal,
   Pause,
   Play,
   RotateCcw,
@@ -49,6 +50,15 @@ import { apiFetch } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { toast } from "@/stores/toast"
 import type { Task, TaskRun } from "@/types"
+import { Badge } from "@/components/ui/badge"
+import { Card } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
+import {
+  flexRender, getCoreRowModel, getExpandedRowModel, getPaginationRowModel, getSortedRowModel, useReactTable,
+  type Column, type ColumnDef, type SortingState, type RowSelectionState, type ExpandedState,
+} from "@tanstack/react-table"
 
 const inputClass = "h-9 w-full rounded-md border bg-background px-3 text-sm outline-none focus-visible:border-ring"
 const textareaClass = "w-full resize-y rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring"
@@ -714,123 +724,172 @@ function TaskHistory({ taskId }: { taskId: string | null }) {
   )
 }
 
-function TaskCard({
-  task,
-  selectMode,
-  selected,
-  expanded,
-  historyOpen,
-  chainName,
-  onSelect,
-  onEdit,
-  onExpand,
-  onHistory,
-}: {
-  task: Task
-  selectMode: boolean
-  selected: boolean
-  expanded: boolean
-  historyOpen: boolean
-  chainName?: string
-  onSelect: (checked: boolean) => void
-  onEdit: () => void
-  onExpand: () => void
-  onHistory: () => void
-}) {
-  const { run, stop, pause, resume, revert, clearCache, remove } = useTaskMutations()
-  const category = categoryFor(task)
-  const paused = (task.status || "").toLowerCase() === "paused" || task.enabled === false
-  const running = (task.status || "").toLowerCase() === "running"
-  const canClear = !!task.action && CLEARABLE_ACTIONS.has(task.action)
-  const name = task.name || task.title || task.action || "Task"
-  const toggleStatus = () => paused ? resume.mutate(task.id) : pause.mutate(task.id)
-  const webhookUrl = task.trigger_type === "webhook" && task.webhook_token ? `${window.location.origin}/api/tasks/${task.id}/webhook/${task.webhook_token}` : ""
+const STATUS_RANK: Record<string, number> = { active: 0, running: 0, paused: 1, completed: 2 }
+function statusRankOf(t: Task) {
+  return STATUS_RANK[(t.status || "").toLowerCase()] ?? 9
+}
+// Default order with no active column sort: by category order, then name —
+// matches the old "Recent" sort. Column headers take over once clicked.
+function defaultTaskOrder(list: Task[]) {
+  return [...list].sort((a, b) => {
+    const ia = CATEGORY_ORDER.indexOf(categoryFor(a)), ib = CATEGORY_ORDER.indexOf(categoryFor(b))
+    if (ia !== ib) return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib)
+    return (a.name || "").localeCompare(b.name || "")
+  })
+}
+
+// Per-row action handlers threaded to the (module-scope) column cells via the
+// table's `meta`, so the columns stay stable and don't close over hooks.
+interface TasksMeta {
+  onRun: (t: Task) => void
+  onStop: (t: Task) => void
+  onToggleStatus: (t: Task) => void
+  onEdit: (t: Task) => void
+  onRevert: (t: Task) => void
+  onClear: (t: Task) => void
+  onDelete: (t: Task) => void
+}
+
+function taskSortHeader(column: Column<Task, unknown>, label: string) {
+  // getToggleSortingHandler cycles asc → desc → unsorted, so a 3rd click clears
+  // back to the default category order (defaultTaskOrder) — the old "Recent" view.
   return (
-    <div className={cn("rounded-lg border bg-card p-3", paused && "opacity-80")}>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-        <div className="flex min-w-0 flex-1 items-start gap-3">
-          {selectMode && (
-            <input type="checkbox" checked={selected} onChange={(e) => onSelect(e.target.checked)} className="mt-1.5 size-4 rounded border" aria-label={`Select ${name}`} />
-          )}
-          <div
-            role="button"
-            tabIndex={0}
-            onClick={onExpand}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault()
-                onExpand()
-              }
-            }}
-            className="flex min-w-0 flex-1 cursor-pointer items-start gap-3 text-left"
-          >
-            <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"><CategoryIcon category={category} /></span>
-            <span className="min-w-0 flex-1">
-              <span className="flex min-w-0 flex-wrap items-center gap-2">
-                <span className="min-w-0 max-w-full truncate text-sm font-medium">{name}</span>
-                <StatusBadge status={task.status} onClick={toggleStatus} />
-                <span className="rounded-full border bg-muted/40 px-2 py-0.5 text-label text-muted-foreground">{category}</span>
-                {task.is_builtin && <span className="rounded-full border bg-muted/40 px-2 py-0.5 text-label text-muted-foreground">built-in{task.is_modified ? " / edited" : ""}</span>}
-                {(task.task_type === "llm" || task.task_type === "research" || task.model) && <Bot className="size-3.5 text-muted-foreground" aria-label="AI task" />}
-              </span>
-              <span className="mt-1 block truncate text-xs text-muted-foreground">{scheduleLabel(task)}</span>
-              {(task.last_run_status || task.last_run_result) && (
-                <span className="mt-1 block truncate text-xs text-muted-foreground">
-                  Last: {task.last_run_status || "run"}{task.last_run_result ? ` - ${task.last_run_result}` : ""}
-                </span>
-              )}
-            </span>
+    <Button variant="ghost" size="sm" className="-ml-2 h-8" onClick={column.getToggleSortingHandler()}>
+      {label} <ChevronRight className={cn("ml-1 size-3.5 transition-transform", column.getIsSorted() === "asc" ? "rotate-90" : column.getIsSorted() === "desc" ? "-rotate-90" : "opacity-40")} />
+    </Button>
+  )
+}
+
+const tasksColumns: ColumnDef<Task>[] = [
+  {
+    id: "select",
+    header: ({ table }) => (
+      <Checkbox
+        checked={table.getIsAllRowsSelected() ? true : table.getIsSomeRowsSelected() ? "indeterminate" : false}
+        onCheckedChange={(v) => table.toggleAllRowsSelected(!!v)}
+        aria-label="Select all"
+      />
+    ),
+    cell: ({ row }) => <Checkbox checked={row.getIsSelected()} onCheckedChange={(v) => row.toggleSelected(!!v)} aria-label={`Select ${row.original.name || row.original.action || "task"}`} />,
+    enableSorting: false,
+  },
+  {
+    id: "expand",
+    cell: ({ row }) => (
+      <Button variant="ghost" size="iconSm" onClick={row.getToggleExpandedHandler()} aria-label={row.getIsExpanded() ? "Collapse details" : "Expand details"} className="text-muted-foreground">
+        <ChevronRight className={cn("size-4 transition-transform", row.getIsExpanded() && "rotate-90")} />
+      </Button>
+    ),
+    enableSorting: false,
+  },
+  {
+    accessorKey: "name",
+    header: ({ column }) => taskSortHeader(column, "Task"),
+    cell: ({ row }) => {
+      const t = row.original
+      const category = categoryFor(t)
+      const name = t.name || t.title || t.action || "Task"
+      return (
+        <div className="flex min-w-0 max-w-[24rem] items-start gap-2.5">
+          <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"><CategoryIcon category={category} /></span>
+          <div className="min-w-0">
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+              <span className="truncate font-medium">{name}</span>
+              {t.is_builtin && <Badge variant="outline" className="font-normal text-muted-foreground">built-in{t.is_modified ? " / edited" : ""}</Badge>}
+              {(t.task_type === "llm" || t.task_type === "research" || t.model) && <Bot className="size-3.5 text-muted-foreground" aria-label="AI task" />}
+            </div>
+            <div className="mt-0.5 truncate text-xs text-muted-foreground">{scheduleLabel(t)}</div>
           </div>
         </div>
-        <div className="flex shrink-0 flex-wrap items-center justify-end gap-1 sm:flex-nowrap">
-          <button onClick={() => run.mutate(task.id)} title="Run now" aria-label="Run now" className={iconBtn}><RotateCw className="size-4" /></button>
-          {running && <button onClick={() => stop.mutate(task.id)} title="Stop" aria-label="Stop" className={iconBtn}><Square className="size-4" /></button>}
-          {paused
-            ? <button onClick={() => resume.mutate(task.id)} title="Resume" aria-label="Resume" className={iconBtn}><Play className="size-4" /></button>
-            : <button onClick={() => pause.mutate(task.id)} title="Pause" aria-label="Pause" className={iconBtn}><Pause className="size-4" /></button>}
-          <button onClick={onEdit} title="Edit" aria-label="Edit" className={iconBtn}><Edit3 className="size-4" /></button>
-          <button onClick={onHistory} title="Run history" aria-label="Run history" className={cn(iconBtn, historyOpen && "bg-accent text-foreground")}><History className="size-4" /></button>
-          {task.is_builtin && task.is_modified && <button onClick={() => revert.mutate(task.id, { onSuccess: () => toast("Task reverted", "success") })} title="Revert to default" aria-label="Revert to default" className={iconBtn}><RotateCcw className="size-4" /></button>}
-          {canClear && <button onClick={() => clearCache.mutate(task.id, { onSuccess: () => toast(`Cleared ${CLEAR_LABELS[task.action || ""] || "cache"}`, "success") })} title="Clear cache" aria-label="Clear cache" className={iconBtn}><Clipboard className="size-4" /></button>}
-          <button onClick={() => { if (confirm("Delete this task and its run history?")) remove.mutate(task.id) }} title="Delete" aria-label="Delete" className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-4" /></button>
-        </div>
-      </div>
+      )
+    },
+    sortingFn: (a, b) => (a.original.name || "").localeCompare(b.original.name || ""),
+  },
+  {
+    id: "category", accessorFn: (t) => categoryFor(t),
+    header: ({ column }) => taskSortHeader(column, "Category"),
+    cell: ({ row }) => <Badge variant="outline" className="font-normal">{categoryFor(row.original)}</Badge>,
+    sortingFn: (a, b) => categoryFor(a.original).localeCompare(categoryFor(b.original)),
+  },
+  {
+    accessorKey: "status",
+    header: ({ column }) => taskSortHeader(column, "Status"),
+    cell: ({ row, table }) => <StatusBadge status={row.original.status} onClick={() => (table.options.meta as TasksMeta).onToggleStatus(row.original)} />,
+    sortingFn: (a, b) => statusRankOf(a.original) - statusRankOf(b.original),
+  },
+  {
+    id: "lastRun", enableSorting: false, header: "Last run",
+    cell: ({ row }) => {
+      const t = row.original
+      if (!t.last_run_status && !t.last_run_result) return <span className="text-muted-foreground">—</span>
+      return <span className="whitespace-nowrap text-xs capitalize text-muted-foreground" title={t.last_run_result || undefined}>{t.last_run_status || "run"}</span>
+    },
+  },
+  {
+    id: "actions", enableSorting: false,
+    cell: ({ row, table }) => {
+      const t = row.original
+      const meta = table.options.meta as TasksMeta
+      const paused = (t.status || "").toLowerCase() === "paused" || t.enabled === false
+      const running = (t.status || "").toLowerCase() === "running"
+      const canClear = !!t.action && CLEARABLE_ACTIONS.has(t.action)
+      return (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="iconSm" aria-label="Task actions" className="text-muted-foreground"><MoreHorizontal className="size-4" /></Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => meta.onRun(t)}><RotateCw />Run now</DropdownMenuItem>
+            {running && <DropdownMenuItem onClick={() => meta.onStop(t)}><Square />Stop</DropdownMenuItem>}
+            <DropdownMenuItem onClick={() => meta.onToggleStatus(t)}>{paused ? <><Play />Resume</> : <><Pause />Pause</>}</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => meta.onEdit(t)}><Edit3 />Edit</DropdownMenuItem>
+            {t.is_builtin && t.is_modified && <DropdownMenuItem onClick={() => meta.onRevert(t)}><RotateCcw />Revert to default</DropdownMenuItem>}
+            {canClear && <DropdownMenuItem onClick={() => meta.onClear(t)}><Clipboard />Clear cache</DropdownMenuItem>}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem variant="destructive" onClick={() => meta.onDelete(t)}><Trash2 />Delete</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )
+    },
+  },
+]
 
-      {expanded && (
-        <div className="mt-3 grid grid-cols-1 gap-3 border-t pt-3 text-xs text-muted-foreground sm:grid-cols-2">
-          <div><span className="font-medium text-foreground">Type:</span> {task.task_type || "llm"}{task.action ? ` / ${task.action}` : ""}</div>
-          <div><span className="font-medium text-foreground">Output:</span> {task.output_target || "session"}</div>
-          <div><span className="font-medium text-foreground">Model:</span> {task.model || "default"}</div>
-          <div><span className="font-medium text-foreground">Chain:</span> {chainName || "none"}</div>
-          {task.trigger_type === "event" && <div><span className="font-medium text-foreground">Counter:</span> {task.trigger_counter || 0}/{task.trigger_count || 1}</div>}
-          <div><span className="font-medium text-foreground">Notifications:</span> {task.notifications_enabled === false ? "off" : "on"}</div>
-          {webhookUrl && (
-            <div className="sm:col-span-2">
-              <span className="font-medium text-foreground">Webhook:</span>
-              <button type="button" onClick={() => copyText(webhookUrl, "Webhook URL copied")} className="ml-2 inline-flex items-center gap-1 text-foreground hover:underline"><Link2 className="size-3.5" />Copy URL</button>
-            </div>
-          )}
-          {(task.prompt || task.last_run_result) && (
-            <div className="sm:col-span-2">
-              <p className="whitespace-pre-wrap break-words">{compact(task.prompt || task.last_run_result, 520)}</p>
-            </div>
-          )}
-        </div>
-      )}
-      {historyOpen && <TaskHistory taskId={task.id} />}
+function TaskDetail({ task, chainName }: { task: Task; chainName?: string }) {
+  const webhookUrl = task.trigger_type === "webhook" && task.webhook_token ? `${window.location.origin}/api/tasks/${task.id}/webhook/${task.webhook_token}` : ""
+  return (
+    <div className="space-y-3 px-4 py-3">
+      <div className="grid grid-cols-1 gap-2 text-xs text-muted-foreground sm:grid-cols-2">
+        <div><span className="font-medium text-foreground">Type:</span> {task.task_type || "llm"}{task.action ? ` / ${task.action}` : ""}</div>
+        <div><span className="font-medium text-foreground">Output:</span> {task.output_target || "session"}</div>
+        <div><span className="font-medium text-foreground">Model:</span> {task.model || "default"}</div>
+        <div><span className="font-medium text-foreground">Chain:</span> {chainName || "none"}</div>
+        {task.trigger_type === "event" && <div><span className="font-medium text-foreground">Counter:</span> {task.trigger_counter || 0}/{task.trigger_count || 1}</div>}
+        <div><span className="font-medium text-foreground">Notifications:</span> {task.notifications_enabled === false ? "off" : "on"}</div>
+        {webhookUrl && (
+          <div className="sm:col-span-2">
+            <span className="font-medium text-foreground">Webhook:</span>
+            <button type="button" onClick={() => copyText(webhookUrl, "Webhook URL copied")} className="ml-2 inline-flex items-center gap-1 text-foreground hover:underline"><Link2 className="size-3.5" />Copy URL</button>
+          </div>
+        )}
+        {(task.prompt || task.last_run_result) && (
+          <div className="sm:col-span-2">
+            <p className="whitespace-pre-wrap break-words">{compact(task.prompt || task.last_run_result, 520)}</p>
+          </div>
+        )}
+      </div>
+      <TaskHistory taskId={task.id} />
     </div>
   )
 }
 
 function TasksList({ tasks, onNew, onEdit }: { tasks: Task[]; onNew: () => void; onEdit: (task: Task) => void }) {
-  const { pause, resume, remove } = useTaskMutations()
+  const { run, stop, pause, resume, revert, clearCache, remove } = useTaskMutations()
   const [query, setQuery] = useState("")
-  const [sort, setSort] = useState<"recent" | "name" | "status">("recent")
+  const [sorting, setSorting] = useState<SortingState>([])
   const [filter, setFilter] = useState<string | null>(null)
-  const [selectMode, setSelectMode] = useState(false)
-  const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [expanded, setExpanded] = useState<string | null>(null)
-  const [history, setHistory] = useState<string | null>(null)
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
+  const [expanded, setExpanded] = useState<ExpandedState>({})
+
   const taskById = useMemo(() => new Map(tasks.map((t) => [t.id, t])), [tasks])
   const counts = useMemo(() => {
     const out = new Map<string, number>()
@@ -838,45 +897,70 @@ function TasksList({ tasks, onNew, onEdit }: { tasks: Task[]; onNew: () => void;
     return out
   }, [tasks])
   const categories = Array.from(counts.keys()).sort((a, b) => (CATEGORY_ORDER.indexOf(a) < 0 ? 99 : CATEGORY_ORDER.indexOf(a)) - (CATEGORY_ORDER.indexOf(b) < 0 ? 99 : CATEGORY_ORDER.indexOf(b)))
-  const visible = useMemo(() => {
+  const matched = useMemo(() => {
     const q = query.trim().toLowerCase()
     const list = tasks.filter((t) => {
       if (filter && categoryFor(t) !== filter) return false
       if (q && !`${t.name || ""} ${t.prompt || ""} ${t.action || ""}`.toLowerCase().includes(q)) return false
       return true
     })
-    const statusRank: Record<string, number> = { active: 0, running: 0, paused: 1, completed: 2 }
-    return list.sort((a, b) => {
-      if (sort === "name") return (a.name || "").localeCompare(b.name || "")
-      if (sort === "status") {
-        const sa = statusRank[(a.status || "").toLowerCase()] ?? 9
-        const sb = statusRank[(b.status || "").toLowerCase()] ?? 9
-        if (sa !== sb) return sa - sb
-        return (a.name || "").localeCompare(b.name || "")
-      }
-      const ca = categoryFor(a), cb = categoryFor(b)
-      const ia = CATEGORY_ORDER.indexOf(ca), ib = CATEGORY_ORDER.indexOf(cb)
-      if (ia !== ib) return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib)
-      return (a.name || "").localeCompare(b.name || "")
-    })
-  }, [tasks, query, filter, sort])
+    return defaultTaskOrder(list)
+  }, [tasks, query, filter])
   const activeTasks = tasks.filter((t) => (t.status || "").toLowerCase() !== "paused")
   const pausedTasks = tasks.filter((t) => (t.status || "").toLowerCase() === "paused")
-  const toggleSelected = (id: string, checked: boolean) => {
-    setSelected((prev) => {
-      const next = new Set(prev)
-      if (checked) next.add(id); else next.delete(id)
-      return next
+
+  const meta = useMemo<TasksMeta>(() => ({
+    onRun: (t) => run.mutate(t.id),
+    onStop: (t) => stop.mutate(t.id),
+    onToggleStatus: (t) => ((t.status || "").toLowerCase() === "paused" || t.enabled === false) ? resume.mutate(t.id) : pause.mutate(t.id),
+    onEdit,
+    onRevert: (t) => revert.mutate(t.id, { onSuccess: () => toast("Task reverted", "success") }),
+    onClear: (t) => clearCache.mutate(t.id, { onSuccess: () => toast(`Cleared ${CLEAR_LABELS[t.action || ""] || "cache"}`, "success") }),
+    onDelete: (t) => { if (confirm("Delete this task and its run history?")) remove.mutate(t.id) },
+  }), [run, stop, pause, resume, revert, clearCache, remove, onEdit])
+
+  const table = useReactTable({
+    data: matched, columns: tasksColumns,
+    state: { sorting, rowSelection, expanded },
+    onSortingChange: setSorting,
+    onRowSelectionChange: setRowSelection,
+    onExpandedChange: setExpanded,
+    getRowId: (t) => t.id,
+    getRowCanExpand: () => true,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getExpandedRowModel: getExpandedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: { pagination: { pageSize: 25 } },
+    meta,
+  })
+
+  const selectedIds = Object.keys(rowSelection).filter((id) => rowSelection[id])
+  // Prune the selection to ids that still exist, so deleting a task elsewhere
+  // can't strand a stale id that a later bulk-delete would error on.
+  useEffect(() => {
+    setRowSelection((prev) => {
+      const live = new Set(tasks.map((t) => t.id))
+      const next: RowSelectionState = {}
+      let changed = false
+      for (const id of Object.keys(prev)) {
+        if (prev[id] && live.has(id)) next[id] = true
+        else changed = true
+      }
+      return changed ? next : prev
     })
-  }
+  }, [tasks])
+
   const bulkDelete = async () => {
-    const ids = [...selected]
+    const ids = selectedIds
     if (!ids.length) return
     if (!confirm(`Delete ${ids.length} task${ids.length === 1 ? "" : "s"}? This cannot be undone.`)) return
-    await Promise.allSettled(ids.map((id) => remove.mutateAsync(id)))
-    toast(`Deleted ${ids.length} task${ids.length === 1 ? "" : "s"}`, "success")
-    setSelected(new Set())
-    setSelectMode(false)
+    try {
+      await Promise.allSettled(ids.map((id) => remove.mutateAsync(id)))
+      toast(`Deleted ${ids.length} task${ids.length === 1 ? "" : "s"}`, "success")
+    } finally {
+      setRowSelection({})
+    }
   }
   const bulkPause = async () => {
     await Promise.allSettled(activeTasks.map((t) => pause.mutateAsync(t.id)))
@@ -887,65 +971,84 @@ function TasksList({ tasks, onNew, onEdit }: { tasks: Task[]; onNew: () => void;
     toast("Paused tasks resumed", "success")
   }
 
+  const chip = (active: boolean) => cn(chipBase, active ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-accent hover:text-foreground")
+
   return (
     <div data-tour="tasks-list">
       <OnboardingBanner />
-      <div className="mb-3 flex flex-wrap items-center gap-2" data-tour="tasks-bulk-controls">
-        <div className="relative min-w-48 flex-1">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search tasks..." className={cn(inputClass, "pl-8")} />
-        </div>
-        <select value={sort} onChange={(e) => setSort(e.target.value as "recent" | "name" | "status")} className={cn(inputClass, "w-28")}>
-          <option value="recent">Recent</option>
-          <option value="name">A-Z</option>
-          <option value="status">Status</option>
-        </select>
-        <Button size="sm" variant={selectMode ? "secondary" : "outline"} onClick={() => { setSelectMode((v) => !v); setSelected(new Set()) }}>{selectMode ? "Cancel" : "Select"}</Button>
-        <Button size="sm" variant="outline" disabled={!activeTasks.length} onClick={bulkPause}><Pause className="size-4" />Pause all</Button>
-        <Button size="sm" variant="outline" disabled={!pausedTasks.length} onClick={bulkResume}><Play className="size-4" />Resume all</Button>
-        <Button size="sm" onClick={onNew} data-tour="tasks-add"><Sparkles className="size-4" />Add</Button>
-      </div>
-      {categories.length > 1 && (
-        <div className="mb-3 flex flex-wrap gap-1.5">
-          <button onClick={() => setFilter(null)} className={cn(chipBase, !filter ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-accent hover:text-foreground")}>all <span className="opacity-70">{tasks.length}</span></button>
-          {categories.map((c) => (
-            <button key={c} onClick={() => setFilter(filter === c ? null : c)} className={cn(chipBase, filter === c ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-accent hover:text-foreground")}>{c} <span className="opacity-70">{counts.get(c)}</span></button>
-          ))}
-        </div>
+      {!tasks.length ? (
+        <Card className="p-0"><EmptyState icon={ListChecks} title="No tasks yet" description="Create a task to automate work on a schedule, event, or webhook." /></Card>
+      ) : (
+        <Card className="overflow-hidden p-0">
+          <div className="flex flex-wrap items-center gap-2 border-b p-3" data-tour="tasks-bulk-controls">
+            {selectedIds.length > 0 ? (
+              <>
+                <span className="text-sm font-medium">{selectedIds.length} selected</span>
+                <Button size="sm" variant="destructive" disabled={remove.isPending} onClick={bulkDelete}><Trash2 className="size-4" />Delete</Button>
+                <Button size="sm" variant="ghost" onClick={() => setRowSelection({})}>Clear</Button>
+              </>
+            ) : (
+              <>
+                <div className="relative min-w-[180px] flex-1">
+                  <Search className="pointer-events-none absolute left-2.5 top-1/2 z-10 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search tasks..." aria-label="Search tasks" className={cn(inputClass, "h-8 pl-8")} />
+                </div>
+                <Button size="sm" variant="outline" disabled={!activeTasks.length} onClick={bulkPause}><Pause className="size-4" />Pause all</Button>
+                <Button size="sm" variant="outline" disabled={!pausedTasks.length} onClick={bulkResume}><Play className="size-4" />Resume all</Button>
+                <Button size="sm" onClick={onNew} data-tour="tasks-add"><Sparkles className="size-4" />Add</Button>
+              </>
+            )}
+          </div>
+          {categories.length > 1 && (
+            <div className="flex flex-wrap gap-1.5 border-b p-3">
+              <button onClick={() => setFilter(null)} className={chip(!filter)}>all <span className="opacity-70">{tasks.length}</span></button>
+              {categories.map((c) => (
+                <button key={c} onClick={() => setFilter(filter === c ? null : c)} className={chip(filter === c)}>{c} <span className="opacity-70">{counts.get(c)}</span></button>
+              ))}
+            </div>
+          )}
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                {table.getHeaderGroups().map((hg) => (
+                  <TableRow key={hg.id}>
+                    {hg.headers.map((h) => <TableHead key={h.id}>{h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}</TableHead>)}
+                  </TableRow>
+                ))}
+              </TableHeader>
+              <TableBody>
+                {table.getRowModel().rows.length ? table.getRowModel().rows.map((row) => {
+                  const paused = (row.original.status || "").toLowerCase() === "paused" || row.original.enabled === false
+                  return (
+                    <Fragment key={row.id}>
+                      <TableRow data-state={row.getIsSelected() ? "selected" : undefined} className={cn(paused && "opacity-70")}>
+                        {row.getVisibleCells().map((cell) => <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}
+                      </TableRow>
+                      {row.getIsExpanded() && (
+                        <TableRow className="bg-muted/20 hover:bg-transparent">
+                          <TableCell colSpan={tasksColumns.length} className="p-0">
+                            <TaskDetail task={row.original} chainName={row.original.then_task_id ? (taskById.get(row.original.then_task_id)?.name || row.original.then_task_id) : ""} />
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </Fragment>
+                  )
+                }) : (
+                  <TableRow><TableCell colSpan={tasksColumns.length} className="h-24 text-center text-muted-foreground">No matching tasks.</TableCell></TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+          <div className="flex items-center justify-between gap-2 border-t p-3 text-xs text-muted-foreground">
+            <span className="tabular-nums">{matched.length} task{matched.length === 1 ? "" : "s"}</span>
+            <div className="flex items-center gap-2">
+              <span className="tabular-nums">Page {table.getState().pagination.pageIndex + 1} of {Math.max(1, table.getPageCount())}</span>
+              <Button variant="outline" size="iconSm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()} aria-label="Previous page"><ChevronRight className="size-4 rotate-180" /></Button>
+              <Button variant="outline" size="iconSm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()} aria-label="Next page"><ChevronRight className="size-4" /></Button>
+            </div>
+          </div>
+        </Card>
       )}
-      {selectMode && (
-        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border bg-muted/30 p-2 text-xs">
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={visible.length > 0 && visible.every((t) => selected.has(t.id))}
-              onChange={(e) => setSelected(e.target.checked ? new Set(visible.map((t) => t.id)) : new Set())}
-            />
-            All visible
-          </label>
-          <span className="text-muted-foreground">{selected.size} selected</span>
-          <Button size="sm" variant="destructive" disabled={!selected.size} onClick={bulkDelete}><Trash2 className="size-4" />Delete</Button>
-        </div>
-      )}
-      <div className="space-y-2">
-        {!tasks.length && <EmptyState icon={ListChecks} title="No tasks yet" description="Create a task to automate work on a schedule, event, or webhook." />}
-        {tasks.length > 0 && visible.length === 0 && <p className="py-8 text-center text-sm text-muted-foreground">No matching tasks.</p>}
-        {visible.map((t) => (
-          <TaskCard
-            key={t.id}
-            task={t}
-            selectMode={selectMode}
-            selected={selected.has(t.id)}
-            expanded={expanded === t.id}
-            historyOpen={history === t.id}
-            chainName={t.then_task_id ? (taskById.get(t.then_task_id)?.name || t.then_task_id) : ""}
-            onSelect={(checked) => toggleSelected(t.id, checked)}
-            onEdit={() => onEdit(t)}
-            onExpand={() => setExpanded((cur) => cur === t.id ? null : t.id)}
-            onHistory={() => setHistory((cur) => cur === t.id ? null : t.id)}
-          />
-        ))}
-      </div>
     </div>
   )
 }

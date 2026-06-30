@@ -34,7 +34,7 @@ interface MemoryMeta {
 
 function sortHeader(column: Column<Memory, unknown>, label: string, align: "left" | "right" = "left") {
   const btn = (
-    <Button variant="ghost" size="sm" className={cn("h-8", align === "right" ? "-mr-2" : "-ml-2")} onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+    <Button variant="ghost" size="sm" className={cn("h-8", align === "right" ? "-mr-2" : "-ml-2")} onClick={column.getToggleSortingHandler()}>
       {label} <ArrowUpDown className="ml-1 size-3.5" />
     </Button>
   )
