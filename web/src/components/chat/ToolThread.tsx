@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils"
 import { safeImageSrc } from "@/lib/safeImage"
 import { useNow, formatElapsed } from "@/lib/useNow"
 import { visibleCommand } from "@/lib/agentRun"
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
 import type { ToolEvent, ToolDiff } from "@/types"
 
 // One hunk of a unified diff, colored per line like the legacy UI
@@ -61,13 +62,17 @@ export function ToolStepDetail({ t }: { t: ToolEvent }) {
   return (
     <>
       {cmd && !diff && (
-        <details className="mt-1 group">
-          <summary className={cn("cursor-pointer select-none font-mono text-label text-muted-foreground transition-colors hover:text-foreground", "flex items-center gap-1")}>
-            <ChevronRight className="size-3 shrink-0 transition-transform duration-200 group-open:rotate-90" />
-            <span className="truncate">{cmd.split("\n")[0]}</span>
-          </summary>
-          <pre className="mt-1 max-h-48 overflow-auto rounded bg-muted p-2 text-label leading-relaxed">{cmd}</pre>
-        </details>
+        <Collapsible className="mt-1">
+          <CollapsibleTrigger asChild>
+            <button className="group flex cursor-pointer items-center gap-1 font-mono text-label text-muted-foreground transition-colors hover:text-foreground">
+              <ChevronRight className="size-3 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-90" />
+              <span className="truncate">{cmd.split("\n")[0]}</span>
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <pre className="mt-1 max-h-48 overflow-auto rounded bg-muted p-2 text-label leading-relaxed">{cmd}</pre>
+          </CollapsibleContent>
+        </Collapsible>
       )}
       {t.running && t.progress && <div className="mt-1 truncate pl-5 font-mono text-label text-muted-foreground">{t.progress}</div>}
       {diff && <DiffView diff={t.diff!} open={diffOpen} onToggle={() => setDiffOpen((o) => !o)} />}
@@ -119,17 +124,19 @@ export function ToolThread({ tools, defaultOpen = false }: { tools: ToolEvent[];
   // Agent turns pass defaultOpen so the steps are visible like the legacy UI.
   const [open, setOpen] = useState(defaultOpen)
   return (
-    <div className="rounded-lg border bg-card text-xs">
-      <button onClick={() => setOpen((o) => !o)} className="flex w-full items-center gap-2 px-3 py-2 text-muted-foreground transition-colors hover:text-foreground">
-        <ChevronRight className={cn("size-3.5 transition-transform duration-200", open && "rotate-90")} />
-        {anyRunning ? <Loader2 className="size-3.5 animate-spin" /> : <Terminal className="size-3.5" />}
-        <span>{anyRunning ? "Working…" : `${tools.length} step${tools.length > 1 ? "s" : ""}`}</span>
-      </button>
-      {open && (
+    <Collapsible open={open} onOpenChange={setOpen} className="rounded-lg border bg-card text-xs">
+      <CollapsibleTrigger asChild>
+        <button className="flex w-full items-center gap-2 px-3 py-2 text-muted-foreground transition-colors hover:text-foreground">
+          <ChevronRight className={cn("size-3.5 transition-transform duration-200", open && "rotate-90")} />
+          {anyRunning ? <Loader2 className="size-3.5 animate-spin" /> : <Terminal className="size-3.5" />}
+          <span>{anyRunning ? "Working…" : `${tools.length} step${tools.length > 1 ? "s" : ""}`}</span>
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
         <div className="space-y-2.5 border-t px-3 py-2">
           {tools.map((t, i) => <ToolRow key={i} t={t} />)}
         </div>
-      )}
-    </div>
+      </CollapsibleContent>
+    </Collapsible>
   )
 }

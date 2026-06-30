@@ -7,6 +7,8 @@ import { Marker, MarkerContent } from "@/components/ui/marker"
 import { Textarea } from "@/components/ui/textarea"
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
+import { Attachment, AttachmentMedia, AttachmentContent, AttachmentTitle, AttachmentDescription, AttachmentTrigger } from "@/components/ui/attachment"
 import { IconButton } from "@/components/ui/IconButton"
 import { StreamingMarkdown, Markdown } from "./Markdown"
 import { ToolThread } from "./ToolThread"
@@ -36,10 +38,20 @@ function Attachments({ items }: { items: ChatAttachment[] }) {
     {items.map((a, i) => {
       const image = (a.mime || "").startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp)$/i.test(a.name)
       if (image && a.id) return <ImageAttachment key={a.id || i} attachment={a} />
-      return <a key={a.id || i} href={a.id ? `/api/upload/${a.id}` : undefined} download={a.name} className="flex max-w-72 items-center gap-2 rounded-xl border bg-card px-3 py-2 text-left hover:bg-accent">
-        <File className="size-4 shrink-0 text-muted-foreground" />
-        <span className="min-w-0"><span className="block truncate text-sm">{a.name}</span>{a.size != null && <span className="block text-label text-muted-foreground">{formatSize(a.size)}</span>}</span>
-      </a>
+      return (
+        <Attachment key={a.id || i} size="sm" className="max-w-72">
+          <AttachmentMedia variant="icon"><File className="size-4 text-muted-foreground" /></AttachmentMedia>
+          <AttachmentContent>
+            <AttachmentTitle>{a.name}</AttachmentTitle>
+            {a.size != null && <AttachmentDescription>{formatSize(a.size)}</AttachmentDescription>}
+          </AttachmentContent>
+          {a.id && (
+            <AttachmentTrigger asChild>
+              <a href={`/api/upload/${a.id}`} download={a.name} aria-label={`Download ${a.name}`} />
+            </AttachmentTrigger>
+          )}
+        </Attachment>
+      )
     })}
   </div>
 }
@@ -63,8 +75,8 @@ function ImageAttachment({ attachment }: { attachment: ChatAttachment }) {
   }
   return <div className="overflow-hidden rounded-xl border bg-card text-left">
     <button onClick={() => window.open(`/api/upload/${attachment.id}`, "_blank")} className="block"><img src={attachment.previewUrl || `/api/upload/${attachment.id}?thumb=1`} alt={attachment.name} className="max-h-48 max-w-72 object-contain" /></button>
-    <div className="flex max-w-72 items-center gap-2 px-2.5 py-1.5"><span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{attachment.name}</span><button onClick={open ? () => setOpen(false) : load} title="Review image description / OCR" className="text-muted-foreground hover:text-foreground"><ScanText className="size-3.5" /></button></div>
-    {open && <div className="space-y-1.5 border-t p-2"><textarea value={text} onChange={(event) => setText(event.target.value)} rows={4} placeholder={loading ? "Analyzing image…" : "Image description or OCR text"} className="w-64 resize-y rounded-md border bg-background p-2 text-xs outline-none focus-visible:border-ring" /><div className="flex justify-end"><button onClick={save} disabled={loading} className="rounded-md border px-2 py-1 text-label hover:bg-accent disabled:opacity-50">{saved ? "Saved" : "Save text"}</button></div></div>}
+    <div className="flex max-w-72 items-center gap-2 px-2.5 py-1.5"><span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{attachment.name}</span><IconButton label="Review image description / OCR" icon={<ScanText className="size-3.5" />} variant="ghost" size="iconSm" className="text-muted-foreground hover:text-foreground" onClick={open ? () => setOpen(false) : load} /></div>
+    {open && <div className="space-y-1.5 border-t p-2"><Textarea value={text} onChange={(event) => setText(event.target.value)} rows={4} placeholder={loading ? "Analyzing image…" : "Image description or OCR text"} className="w-64 resize-y !field-sizing-fixed bg-background text-xs" /><div className="flex justify-end"><button onClick={save} disabled={loading} className="rounded-md border px-2 py-1 text-label hover:bg-accent disabled:opacity-50">{saved ? "Saved" : "Save text"}</button></div></div>}
   </div>
 }
 
@@ -168,14 +180,18 @@ function Reasoning({ text, live }: { text: string; live: boolean }) {
   }, [live, autoOpened])
   useEffect(() => { if (live && open && bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight }, [text, live, open])
   return (
-    <div className="animate-fade-in rounded-lg border bg-card text-xs">
-      <button onClick={() => setOpen((o) => !o)} className="flex w-full items-center gap-2 px-3 py-2 text-muted-foreground transition-colors hover:text-foreground">
-        <ChevronRight className={cn("size-3.5 transition-transform duration-200", open && "rotate-90")} />
-        <Brain className={cn("size-3.5", live && "animate-pulse-soft")} />
-        <span className={cn(live && "shimmer-text")}>{live ? "Thinking…" : "Reasoning"}</span>
-      </button>
-      {open && <div ref={bodyRef} className="max-h-64 overflow-y-auto border-t px-3 py-2 text-xs leading-relaxed"><Markdown>{text}</Markdown></div>}
-    </div>
+    <Collapsible open={open} onOpenChange={setOpen} className="animate-fade-in rounded-lg border bg-card text-xs">
+      <CollapsibleTrigger asChild>
+        <button className="flex w-full items-center gap-2 px-3 py-2 text-muted-foreground transition-colors hover:text-foreground">
+          <ChevronRight className={cn("size-3.5 transition-transform duration-200", open && "rotate-90")} />
+          <Brain className={cn("size-3.5", live && "animate-pulse-soft")} />
+          <span className={cn(live && "shimmer-text")}>{live ? "Thinking…" : "Reasoning"}</span>
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div ref={bodyRef} className="max-h-64 overflow-y-auto border-t px-3 py-2 text-xs leading-relaxed"><Markdown>{text}</Markdown></div>
+      </CollapsibleContent>
+    </Collapsible>
   )
 }
 
@@ -218,14 +234,18 @@ function Plan({ text }: { text: string }) {
   const done = (text.match(/^[-*]\s*\[x\]/gim) || []).length
   const total = (text.match(/^[-*]\s*\[[ xX]\]/gim) || []).length
   return (
-    <div className="animate-fade-in rounded-lg border bg-card text-xs">
-      <button onClick={() => setOpen((o) => !o)} className="flex w-full items-center gap-2 px-3 py-2 text-muted-foreground transition-colors hover:text-foreground">
-        <ChevronRight className={cn("size-3.5 transition-transform duration-200", open && "rotate-90")} />
-        <ListChecks className="size-3.5" />
-        <span>Plan{total ? ` · ${done}/${total}` : ""}</span>
-      </button>
-      {open && <div className="border-t px-3 py-1"><Markdown>{text}</Markdown></div>}
-    </div>
+    <Collapsible open={open} onOpenChange={setOpen} className="animate-fade-in rounded-lg border bg-card text-xs">
+      <CollapsibleTrigger asChild>
+        <button className="flex w-full items-center gap-2 px-3 py-2 text-muted-foreground transition-colors hover:text-foreground">
+          <ChevronRight className={cn("size-3.5 transition-transform duration-200", open && "rotate-90")} />
+          <ListChecks className="size-3.5" />
+          <span>Plan{total ? ` · ${done}/${total}` : ""}</span>
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="border-t px-3 py-1"><Markdown>{text}</Markdown></div>
+      </CollapsibleContent>
+    </Collapsible>
   )
 }
 
@@ -369,26 +389,30 @@ export function Message({ m, onRegenerate, onEdit, onDelete, onFork, onRewrite, 
          Deliverables strip (opens the side panel); the flat reply path keeps
          the inline collapsible list here. */}
       {!useRounds && m.sources && m.sources.length > 0 && (
-        <details className="mt-1 animate-fade-in rounded-lg border bg-card text-xs group">
-          <summary className="flex cursor-pointer list-none items-center gap-1.5 px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground">
-            <ChevronRight className="size-3 transition-transform duration-200 group-open:rotate-90" />
-            <BookOpen className="size-3.5" />
-            <span>{m.sources.length} source{m.sources.length === 1 ? "" : "s"}</span>
-          </summary>
-          <ol className="space-y-1 border-t px-3 py-2">
-            {m.sources.map((s, i) => {
-              const href = safeHref(s.url)
-              return (
-              <li key={i} className="flex items-start gap-1.5">
-                <span className="text-muted-foreground/60">{i + 1}.</span>
-                {href
-                  ? <a href={href} target="_blank" rel="noreferrer" title={s.snippet} className="min-w-0 truncate text-foreground hover:underline">{s.title || href}</a>
-                  : <span className="min-w-0 truncate text-muted-foreground">{s.title || "(no url)"}</span>}
-              </li>
-              )
-            })}
-          </ol>
-        </details>
+        <Collapsible className="mt-1 animate-fade-in rounded-lg border bg-card text-xs">
+          <CollapsibleTrigger asChild>
+            <button className="group flex w-full cursor-pointer items-center gap-1.5 px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground">
+              <ChevronRight className="size-3 transition-transform duration-200 group-data-[state=open]:rotate-90" />
+              <BookOpen className="size-3.5" />
+              <span>{m.sources.length} source{m.sources.length === 1 ? "" : "s"}</span>
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <ol className="space-y-1 border-t px-3 py-2">
+              {m.sources.map((s, i) => {
+                const href = safeHref(s.url)
+                return (
+                <li key={i} className="flex items-start gap-1.5">
+                  <span className="text-muted-foreground/60">{i + 1}.</span>
+                  {href
+                    ? <a href={href} target="_blank" rel="noreferrer" title={s.snippet} className="min-w-0 truncate text-foreground hover:underline">{s.title || href}</a>
+                    : <span className="min-w-0 truncate text-muted-foreground">{s.title || "(no url)"}</span>}
+                </li>
+                )
+              })}
+            </ol>
+          </CollapsibleContent>
+        </Collapsible>
       )}
       {/* The animated mascot is the "assistant is working" indicator — it stays
          under the message for the whole stream, with an elapsed timer and a
