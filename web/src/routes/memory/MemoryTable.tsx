@@ -46,8 +46,8 @@ const columns: ColumnDef<Memory>[] = [
     id: "select",
     header: ({ table }) => (
       <Checkbox
-        checked={table.getIsAllRowsSelected() ? true : table.getIsSomeRowsSelected() ? "indeterminate" : false}
-        onCheckedChange={(v) => table.toggleAllRowsSelected(!!v)}
+        checked={table.getIsAllPageRowsSelected() ? true : table.getIsSomePageRowsSelected() ? "indeterminate" : false}
+        onCheckedChange={(v) => table.toggleAllPageRowsSelected(!!v)}
         aria-label="Select all"
       />
     ),

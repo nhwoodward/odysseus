@@ -766,8 +766,8 @@ const tasksColumns: ColumnDef<Task>[] = [
     id: "select",
     header: ({ table }) => (
       <Checkbox
-        checked={table.getIsAllRowsSelected() ? true : table.getIsSomeRowsSelected() ? "indeterminate" : false}
-        onCheckedChange={(v) => table.toggleAllRowsSelected(!!v)}
+        checked={table.getIsAllPageRowsSelected() ? true : table.getIsSomePageRowsSelected() ? "indeterminate" : false}
+        onCheckedChange={(v) => table.toggleAllPageRowsSelected(!!v)}
         aria-label="Select all"
       />
     ),
@@ -956,20 +956,21 @@ function TasksList({ tasks, onNew, onEdit }: { tasks: Task[]; onNew: () => void;
     const ids = selectedIds
     if (!ids.length) return
     if (!confirm(`Delete ${ids.length} task${ids.length === 1 ? "" : "s"}? This cannot be undone.`)) return
-    try {
-      await Promise.allSettled(ids.map((id) => remove.mutateAsync(id)))
-      toast(`Deleted ${ids.length} task${ids.length === 1 ? "" : "s"}`, "success")
-    } finally {
-      setRowSelection({})
-    }
+    const failed = (await Promise.allSettled(ids.map((id) => remove.mutateAsync(id)))).filter((r) => r.status === "rejected").length
+    setRowSelection({})
+    if (failed === ids.length) toast(`Couldn't delete ${ids.length === 1 ? "the task" : "any tasks"}`, "error")
+    else if (failed) toast(`Deleted ${ids.length - failed} of ${ids.length}; ${failed} failed`, "info")
+    else toast(`Deleted ${ids.length} task${ids.length === 1 ? "" : "s"}`, "success")
   }
   const bulkPause = async () => {
-    await Promise.allSettled(activeTasks.map((t) => pause.mutateAsync(t.id)))
-    toast("Active tasks paused", "success")
+    const n = activeTasks.length
+    const failed = (await Promise.allSettled(activeTasks.map((t) => pause.mutateAsync(t.id)))).filter((r) => r.status === "rejected").length
+    toast(failed === n ? "Couldn't pause tasks" : failed ? `Paused ${n - failed} of ${n}; ${failed} failed` : "Active tasks paused", failed === n ? "error" : "success")
   }
   const bulkResume = async () => {
-    await Promise.allSettled(pausedTasks.map((t) => resume.mutateAsync(t.id)))
-    toast("Paused tasks resumed", "success")
+    const n = pausedTasks.length
+    const failed = (await Promise.allSettled(pausedTasks.map((t) => resume.mutateAsync(t.id)))).filter((r) => r.status === "rejected").length
+    toast(failed === n ? "Couldn't resume tasks" : failed ? `Resumed ${n - failed} of ${n}; ${failed} failed` : "Paused tasks resumed", failed === n ? "error" : "success")
   }
 
   const chip = (active: boolean) => cn(chipBase, active ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-accent hover:text-foreground")

@@ -15,7 +15,8 @@ import { cn } from "@/lib/utils"
 const PAGE_SIZE = 25
 
 // Display flips Plaid's sign (debits positive → reads negative; credits → +green).
-const displayAmount = (a?: number) => (a == null ? null : -a)
+// `-a + 0` normalizes negative zero (−$0) to 0 so a $0 txn renders as "$0".
+const displayAmount = (a?: number) => (a == null ? null : -a + 0)
 
 const columns: ColumnDef<Txn>[] = [
   {
@@ -136,7 +137,7 @@ export function FinanceTransactionsTable({ transactions }: { transactions: Txn[]
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search transactions…" aria-label="Search transactions" className="h-8 pl-8" />
         </div>
         <button onClick={() => setCat(null)} aria-pressed={!cat} className={chip(!cat)}>All</button>
-        {cats.map((c) => <button key={c} onClick={() => setCat(cat === c ? null : c)} aria-pressed={cat === c} className={chip(cat === c)}>{prettyCat(c)}</button>)}
+        {(cat && !cats.includes(cat) ? [...cats, cat] : cats).map((c) => <button key={c} onClick={() => setCat(cat === c ? null : c)} aria-pressed={cat === c} className={chip(cat === c)}>{prettyCat(c)}</button>)}
       </div>
       <div className="overflow-x-auto">
         <Table>

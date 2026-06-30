@@ -21,17 +21,17 @@ export function AccountsTab({ balances }: { balances: Balances }) {
     return <EmptyState icon={Landmark} title="No accounts" description="Connected accounts and their balances will appear here." />
   }
   const assets = balances.assets || 0
-  const used = new Set<string>()
+  const used = new Set<typeof accounts[number]>()
   const grouped: { key: string; label: string; asset: boolean; items: typeof accounts; total: number }[] = []
   for (const g of GROUPS) {
     const items = accounts.filter((a) => g.match((a.type || "").toLowerCase()))
     if (!items.length) continue
-    items.forEach((a) => used.add(a.account_id || ""))
+    items.forEach((a) => used.add(a))
     grouped.push({ key: g.key, label: g.label, asset: g.asset, items, total: items.reduce((s, a) => s + (a.current || 0), 0) })
   }
   // "Other" = types outside the asset/liability groups (Plaid kind "other"), which
   // aren't in balances.assets — so don't show a "% of assets" that wouldn't add up.
-  const other = accounts.filter((a) => !used.has(a.account_id || ""))
+  const other = accounts.filter((a) => !used.has(a))
   if (other.length) grouped.push({ key: "other", label: "Other", asset: false, items: other, total: other.reduce((s, a) => s + (a.current || 0), 0) })
 
   return (
