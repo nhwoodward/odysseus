@@ -18,6 +18,8 @@ import { useSetUserAdmin, useProviders, useDeviceFlow, COPILOT_PROVIDER, CHATGPT
 import { Button } from "@/components/ui/button"
 import { IconButton } from "@/components/ui/IconButton"
 import { inputClass } from "@/components/ui/input"
+import { SkeletonList } from "@/components/ui/skeleton"
+import { LoadError } from "@/components/ui/load-error"
 import { cn } from "@/lib/utils"
 
 const inpCls = inputClass
@@ -288,7 +290,7 @@ export function SettingsRoute() {
   const { theme, setTheme, accent, setAccent, font, setFont, density, setDensity } = useUi()
   const { data: status } = useAuthStatus()
   const qc = useQueryClient()
-  const { data: models } = useModels()
+  const { data: models, isLoading: modelsLoading, isError: modelsError, refetch: refetchModels } = useModels()
   const { data: def } = useDefaultChat()
   const setDefault = useSetDefaultModel()
   const { data: users } = useUsers()
@@ -428,18 +430,26 @@ export function SettingsRoute() {
     <section data-tour="settings-endpoints">
       <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Model endpoints</h2>
       <div className="space-y-2">
-        {endpoints.map((e) => (
-          <div key={e.endpoint_id} className="group flex items-center gap-3 rounded-lg border bg-card p-3">
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-medium">{e.endpoint_name || e.url}</div>
-              <div className="truncate text-xs text-muted-foreground">{e.url} · {(e.models?.length || 0) + (e.models_extra?.length || 0)} models{e.category ? ` · ${e.category}` : ""}</div>
-            </div>
-            {isAdmin && (
-              <button onClick={() => { if (confirm("Delete this endpoint?")) del.mutate(e.endpoint_id) }} aria-label="Delete endpoint" className="text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"><Trash2 className="size-4" /></button>
-            )}
-          </div>
-        ))}
-        {endpoints.length === 0 && <p className="py-2 text-sm text-muted-foreground">{isAdmin ? "No saved endpoints." : "No model endpoints are available for your account."}</p>}
+        {modelsLoading ? (
+          <SkeletonList rows={3} />
+        ) : modelsError ? (
+          <LoadError onRetry={() => refetchModels()} />
+        ) : (
+          <>
+            {endpoints.map((e) => (
+              <div key={e.endpoint_id} className="group flex items-center gap-3 rounded-lg border bg-card p-3">
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-medium">{e.endpoint_name || e.url}</div>
+                  <div className="truncate text-xs text-muted-foreground">{e.url} · {(e.models?.length || 0) + (e.models_extra?.length || 0)} models{e.category ? ` · ${e.category}` : ""}</div>
+                </div>
+                {isAdmin && (
+                  <button onClick={() => { if (confirm("Delete this endpoint?")) del.mutate(e.endpoint_id) }} aria-label="Delete endpoint" className="text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"><Trash2 className="size-4" /></button>
+                )}
+              </div>
+            ))}
+            {endpoints.length === 0 && <p className="py-2 text-sm text-muted-foreground">{isAdmin ? "No saved endpoints." : "No model endpoints are available for your account."}</p>}
+          </>
+        )}
       </div>
       {!isAdmin && <p className="mt-2 rounded-md border bg-muted/30 p-2 text-xs text-muted-foreground">Model endpoint management is admin-only. You can still use any models shared with your account.</p>}
       {isAdmin && <div className="mt-2 flex flex-wrap gap-2"><AddEndpointForm /><Button variant="outline" size="sm" disabled={discovering} onClick={discoverEndpoints}>{discovering ? "Scanning…" : "Discover local"}</Button><Button variant="outline" size="sm" onClick={probeLocalEndpoints}>Probe local</Button></div>}

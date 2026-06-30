@@ -15,6 +15,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { EmptyState } from "@/components/ui/empty-state"
+import { LoadError } from "@/components/ui/load-error"
+import { SkeletonList } from "@/components/ui/skeleton"
 import { useMemoryMutations } from "@/api/memory"
 import type { Memory } from "@/types"
 import { CATS, memoryCategory, memoryTimestamp, memoryUses, relativeTime, sourceLabel, defaultMemoryOrder } from "./util"
@@ -130,7 +132,7 @@ const columns: ColumnDef<Memory>[] = [
 // dashboard-01 data table for the Memory store: sortable (text/category/source/
 // uses/updated) + paginated, with category/source badges, search + category
 // chips, row-selection bulk-delete, a per-row ⋮ menu, and an edit dialog.
-export function MemoryTable({ memories }: { memories: Memory[] }) {
+export function MemoryTable({ memories, loading, error, onRetry }: { memories: Memory[]; loading?: boolean; error?: boolean; onRetry?: () => void }) {
   const { update, remove, bulkRemove, pin } = useMemoryMutations()
   const [q, setQ] = useState("")
   const [cat, setCat] = useState<string | null>(null)
@@ -216,6 +218,12 @@ export function MemoryTable({ memories }: { memories: Memory[] }) {
     }
   }
 
+  if (loading) {
+    return <Card className="p-0"><SkeletonList rows={6} className="p-3" /></Card>
+  }
+  if (error) {
+    return <Card className="p-0"><LoadError onRetry={onRetry} /></Card>
+  }
   if (!memories.length) {
     return (
       <Card className="p-0">

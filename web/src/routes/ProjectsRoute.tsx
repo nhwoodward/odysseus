@@ -6,11 +6,15 @@ import { useProjects, useProjectActions, sessionsInProject } from "@/api/project
 import { Button } from "@/components/ui/button"
 import { IconButton } from "@/components/ui/IconButton"
 import { RouteHeader } from "@/components/shell/RouteHeader"
+import { EmptyState } from "@/components/ui/empty-state"
+import { LoadError } from "@/components/ui/load-error"
+import { SkeletonList } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 
 export function ProjectsRoute() {
   const navigate = useNavigate()
-  const { data: sessions } = useSessions()
+  const sessionsQuery = useSessions()
+  const { data: sessions } = sessionsQuery
   const { projects } = useProjects()
   const actions = useProjectActions()
 
@@ -71,17 +75,30 @@ export function ProjectsRoute() {
               <button onClick={doCreate} aria-label="Create project" className="text-muted-foreground hover:text-foreground"><Check className="size-4" /></button>
             </div>
           )}
-          {projects.map((p) => (
-            <button key={p.name} onClick={() => setSelected(p.name)}
-              className={cn("flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-sm transition-colors",
-                p.name === effective ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground")}>
-              <FolderKanban className="size-4 shrink-0" />
-              <span className="min-w-0 flex-1 truncate">{p.name}</span>
-              <span className="shrink-0 text-xs text-muted-foreground">{p.count}</span>
-            </button>
-          ))}
-          {projects.length === 0 && !creating && (
-            <p className="px-2 py-6 text-center text-xs text-muted-foreground">No projects yet. Create one to group chats and give them shared instructions.</p>
+          {sessionsQuery.isLoading ? (
+            <SkeletonList rows={5} className="p-1" />
+          ) : sessionsQuery.isError ? (
+            <LoadError onRetry={() => sessionsQuery.refetch()} className="m-1" />
+          ) : (
+            <>
+              {projects.map((p) => (
+                <button key={p.name} onClick={() => setSelected(p.name)}
+                  className={cn("flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-sm transition-colors",
+                    p.name === effective ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground")}>
+                  <FolderKanban className="size-4 shrink-0" />
+                  <span className="min-w-0 flex-1 truncate">{p.name}</span>
+                  <span className="shrink-0 text-xs text-muted-foreground">{p.count}</span>
+                </button>
+              ))}
+              {projects.length === 0 && !creating && (
+                <EmptyState
+                  icon={FolderKanban}
+                  title="No projects yet"
+                  description="Create one to group chats and give them shared instructions."
+                  className="mt-2"
+                />
+              )}
+            </>
           )}
         </div>
       </aside>

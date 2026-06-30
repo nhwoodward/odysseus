@@ -92,7 +92,7 @@ function normalizeSuggestion(item: MemoryImportSuggestion | string): ReviewItem 
 
 export function MemoryRoute() {
   const fileRef = useRef<HTMLInputElement | null>(null)
-  const { data: memories } = useMemory()
+  const { data: memories, isLoading: memoriesLoading, isError: memoriesError, refetch: refetchMemories } = useMemory()
   const { data: sessions } = useSessions()
   const { add, tidy, importFile, extract } = useMemoryMutations()
   const [text, setText] = useState("")
@@ -285,7 +285,7 @@ export function MemoryRoute() {
         )}
 
         <div data-tour="memory-list">
-          <MemoryTable memories={memories || []} />
+          <MemoryTable memories={memories || []} loading={memoriesLoading} error={memoriesError} onRetry={() => refetchMemories()} />
         </div>
       </div>
     </div>

@@ -427,8 +427,8 @@ function AiDraft({ onDraft }: { onDraft: (draft: TaskPayload) => void }) {
 function TaskEditor({ existing, draft, tasks, onClose }: { existing?: Task | null; draft?: TaskPayload | null; tasks: Task[]; onClose: () => void }) {
   const { create, update, saveUrgentEmailSettings } = useTaskMutations()
   const { data: outputTargets } = useTaskOutputTargets()
-  const { data: actions } = useTaskActions()
-  const { data: events } = useTaskEvents()
+  const { data: actions, isLoading: actionsLoading } = useTaskActions()
+  const { data: events, isLoading: eventsLoading } = useTaskEvents()
   const { data: models } = useModels()
   const { data: urgentSettings } = useUrgentEmailSettings(true)
   const [form, setForm] = useState<TaskFormState>(() => initialState(existing || draft || undefined))
@@ -510,7 +510,7 @@ function TaskEditor({ existing, draft, tasks, onClose }: { existing?: Task | nul
               <div>
                 <label className={labelClass}>Action</label>
                 <select value={form.action} onChange={(e) => set("action", e.target.value)} className={inputClass}>
-                  {(actions || []).length === 0 && <option value="">Loading actions...</option>}
+                  {(actions || []).length === 0 && <option value="">{actionsLoading ? "Loading actions..." : "No actions available"}</option>}
                   {(actions || []).map((a) => <option key={a.name} value={a.name}>{a.name}{a.description ? ` - ${a.description}` : ""}</option>)}
                 </select>
               </div>
@@ -602,7 +602,7 @@ function TaskEditor({ existing, draft, tasks, onClose }: { existing?: Task | nul
               <div>
                 <label className={labelClass}>Event</label>
                 <select value={form.trigger_event} onChange={(e) => set("trigger_event", e.target.value)} className={inputClass}>
-                  {(events || []).length === 0 && <option value="">Loading events...</option>}
+                  {(events || []).length === 0 && <option value="">{eventsLoading ? "Loading events..." : "No events available"}</option>}
                   {(events || []).map((ev) => <option key={ev.name} value={ev.name}>{ev.name}{ev.description ? ` - ${ev.description}` : ""}</option>)}
                 </select>
               </div>

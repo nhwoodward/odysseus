@@ -15,6 +15,8 @@ import { Markdown } from "@/components/chat/Markdown"
 import { BrandLogo } from "@/components/connectors/BrandLogo"
 import { RouteHeader } from "@/components/shell/RouteHeader"
 import { EmptyState } from "@/components/ui/empty-state"
+import { LoadError } from "@/components/ui/load-error"
+import { SkeletonCards } from "@/components/ui/skeleton"
 import { IconButton } from "@/components/ui/IconButton"
 import { cn } from "@/lib/utils"
 
@@ -282,7 +284,7 @@ function CustomConnector({ onAdded }: { onAdded: () => void }) {
 }
 
 export function ConnectorsRoute() {
-  const { data: catalog, isLoading } = useConnectorCatalog()
+  const { data: catalog, isLoading, isError, refetch } = useConnectorCatalog()
   const { data: connections } = useConnections()
   const { disconnect, setAvailability } = useConnectorMutations()
   const [q, setQ] = useState("")
@@ -418,9 +420,11 @@ export function ConnectorsRoute() {
           </section>
         )}
 
-        {isLoading && <p className="text-sm text-muted-foreground">Loading connectors…</p>}
+        {isLoading && <SkeletonCards count={6} />}
 
-        {!isLoading && entries.length > 0 && (
+        {!isLoading && isError && <LoadError onRetry={() => refetch()} />}
+
+        {!isLoading && !isError && entries.length > 0 && (
           <div className="mb-3 flex items-center justify-between gap-2">
             <h2 className="truncate text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {searching ? `Results for “${q}”` : activeTab === "featured" ? "Featured" : activeTab === "all" ? "All connectors" : activeTab}
@@ -429,7 +433,7 @@ export function ConnectorsRoute() {
           </div>
         )}
 
-        {grouped ? (
+        {!isLoading && !isError && (grouped ? (
           byCategory.map(([cat, items]) => (
             <section key={cat} className="mb-6">
               <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{cat}</h3>
@@ -438,9 +442,9 @@ export function ConnectorsRoute() {
           ))
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{visible.map(card)}</div>
-        )}
+        ))}
 
-        {!isLoading && visible.length === 0 && (
+        {!isLoading && !isError && visible.length === 0 && (
           <EmptyState
             icon={Search}
             title={searching ? `No connectors match “${q}”` : "Nothing here yet"}

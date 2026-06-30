@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button"
 import { RouteHeader } from "@/components/shell/RouteHeader"
 import { inputClass } from "@/components/ui/input"
 import { SkeletonGrid } from "@/components/ui/skeleton"
+import { EmptyState } from "@/components/ui/empty-state"
+import { LoadError } from "@/components/ui/load-error"
 import { cn } from "@/lib/utils"
 import { toast } from "@/stores/toast"
 import type { GalleryAlbum, GalleryImage } from "@/types"
@@ -221,7 +223,7 @@ export function GalleryRoute() {
   const sentinelRef = useRef<HTMLDivElement>(null)
   const dragDepth = useRef(0)
   const galleryQuery = useGallery({ search: q, sort, model, album: albumId, favorites, tag: tagFilter })
-  const { data, isFetching, fetchNextPage, hasNextPage, isFetchingNextPage } = galleryQuery
+  const { data, isFetching, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = galleryQuery
   const gallery = useMemo(() => flattenGallery(data), [data])
   const { data: albums = [] } = useGalleryAlbums()
   const { favorite, remove, upload, createAlbum, renameAlbum, deleteAlbum, setAlbumCover, aiTagAll } = useGalleryMutations()
@@ -460,7 +462,12 @@ export function GalleryRoute() {
             <div ref={sentinelRef} className="h-px" />
             {isFetchingNextPage && <div className="flex justify-center py-4 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /></div>}
             {images.length === 0 && isFetching && <SkeletonGrid count={12} className="mt-1" />}
-            {images.length === 0 && !isFetching && <p className="py-8 text-center text-sm text-muted-foreground">{q || albumId || favorites || model || tagFilter ? "No matches." : "No photos yet."}</p>}
+            {images.length === 0 && !isFetching && isError && <LoadError onRetry={() => refetch()} className="mt-4" />}
+            {images.length === 0 && !isFetching && !isError && (
+              q || albumId || favorites || model || tagFilter
+                ? <p className="py-8 text-center text-sm text-muted-foreground">No matches.</p>
+                : <EmptyState icon={ImageIcon} title="No photos yet" description="Upload images or generate them in chat to start building your gallery." className="mt-4" />
+            )}
           </>
         )}
       </div>

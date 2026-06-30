@@ -16,6 +16,7 @@ import { HtmlPreview } from "@/components/ui/HtmlPreview"
 import { Button } from "@/components/ui/button"
 import { IconButton } from "@/components/ui/IconButton"
 import { RouteHeader } from "@/components/shell/RouteHeader"
+import { SkeletonList } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { toast } from "@/stores/toast"
 import type { Source } from "@/types"
@@ -491,7 +492,7 @@ function Detail({
         </div>
       </header>
       {isLoading ? (
-        <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" />Loading…</div>
+        <SkeletonList rows={6} className="p-6" />
       ) : view === "visual" ? (
         reportLoading ? (
           <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" />Rendering visual report…</div>
@@ -595,7 +596,7 @@ export function ResearchRoute() {
               <div className="px-1 pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Library</div>
             )}
             {isLoading ? (
-              <div className="flex items-center gap-2 px-2 py-4 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" />Loading…</div>
+              <SkeletonList rows={5} className="p-2" />
             ) : items.length === 0 ? (
               <p className="px-2 py-8 text-center text-sm text-muted-foreground">
                 {showArchived ? "No archived research." : "No research yet. Start one on the right."}

@@ -165,7 +165,7 @@ function ModelsSection() {
       {isLoading ? <p className="text-sm text-muted-foreground">Loading models…</p>
         : data && !data.admin ? <p className="rounded-lg border bg-card p-3 text-sm text-muted-foreground">Embedding model management is admin only.</p>
         : data && !data.available ? <p className="rounded-lg border bg-card p-3 text-sm text-muted-foreground">fastembed is not installed.</p>
-        : models.length === 0 ? <p className="rounded-lg border bg-card p-3 text-sm text-muted-foreground">No embedding models available.</p>
+        : models.length === 0 ? <EmptyState icon={Cpu} title="No embedding models available" description="No embedding models are available to download or use right now." />
         : <div className="divide-y rounded-lg border bg-card">{models.map((m) => <ModelRow key={m.model} m={m} />)}</div>}
     </section>
   )

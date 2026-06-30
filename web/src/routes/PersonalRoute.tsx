@@ -89,7 +89,7 @@ function Browser({ onPick }: { onPick: (path: string) => void }) {
         )}
       </div>
       <div className="max-h-56 overflow-y-auto p-1">
-        {isLoading ? <p className="p-2 text-xs text-muted-foreground">Loading…</p>
+        {isLoading ? <SkeletonList rows={3} className="p-1" />
           : isError ? <p className="p-2 text-xs text-muted-foreground">Could not list this folder.</p>
           : dirs.length === 0 ? <p className="p-2 text-xs text-muted-foreground">No subfolders here.</p>
           : dirs.map((d) => <BrowserRow key={d.path} dir={d} onOpen={setPath} />)}

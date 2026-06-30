@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Trash2, Sparkles, Wrench, Pencil, ArrowLeft, Save, Plus, Play, FlaskConical, Link2, RotateCcw, CheckCircle2, XCircle, AlertTriangle, HelpCircle, Loader2, Search, X, Eye, EyeOff, ListChecks } from "lucide-react"
 import { EmptyState } from "@/components/ui/empty-state"
+import { SkeletonList } from "@/components/ui/skeleton"
 import { useSkills, useBuiltinSkills, useSkillMarkdown, useSkillMutations, useRunSkill, useStartSkillTest, useSkillTestStatus, useBuiltinSkill, useAuditAllStatus, useCancelAuditAll } from "@/api/skills"
 import type { SkillVerdict, SkillRow, AuditResult } from "@/api/skills"
 import { Button } from "@/components/ui/button"
@@ -201,7 +202,7 @@ function BuiltinEditor({ name, onClose }: { name: string; onClose: () => void })
         <DialogTitle className="mb-1 flex items-center gap-2 text-sm font-semibold"><Wrench className="size-4" /> Override {name}</DialogTitle>
         <p className="mb-3 text-xs text-amber-600 dark:text-amber-400">Editing changes how the assistant is told to use this built-in tool.</p>
         {err && <p className="mb-2 text-xs text-destructive">{err}</p>}
-        {isLoading ? <div className="py-6 text-sm text-muted-foreground">Loading…</div> : (
+        {isLoading ? <SkeletonList rows={6} className="py-2" /> : (
           <textarea value={text} onChange={(e) => { setText(e.target.value); setDirty(true) }} spellCheck={false} rows={14} className="min-h-0 flex-1 resize-none rounded-md border bg-background p-3 font-mono text-xs leading-relaxed outline-none focus-visible:border-ring" />
         )}
         <div className="mt-3 flex items-center justify-between gap-2">
@@ -233,7 +234,7 @@ function SkillEditor({ id, onBack }: { id: string; onBack: () => void }) {
         <Button size="sm" onClick={save} disabled={!dirty || saveMarkdown.isPending}><Save className="size-4" />{saveMarkdown.isPending ? "Saving…" : dirty ? "Save" : "Saved"}</Button>
       </header>
       {err && <p className="px-4 pt-2 text-xs text-destructive">{err}</p>}
-      {isLoading ? <div className="p-6 text-sm text-muted-foreground">Loading…</div> : (
+      {isLoading ? <SkeletonList rows={6} className="p-4" /> : (
         <textarea value={md} onChange={(e) => { setMd(e.target.value); setDirty(true) }} spellCheck={false} className="min-h-0 flex-1 resize-none bg-transparent p-4 font-mono text-xs leading-relaxed outline-none" />
       )}
     </div>

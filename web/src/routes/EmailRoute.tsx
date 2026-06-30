@@ -806,6 +806,8 @@ export function EmailRoute() {
                           </Button>
                         </div>
                       ) : undefined} />
+              ) : listFetching && !data ? (
+                <SkeletonList rows={6} className="p-4" />
               ) : (
                 <EmailList
                   emails={inboxEmails}

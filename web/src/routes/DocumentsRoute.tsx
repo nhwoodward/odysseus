@@ -44,6 +44,8 @@ import { PdfDocumentEditor } from "@/components/documents/PdfDocumentEditor"
 import { EmailDraftEditor } from "@/components/email/EmailDraftEditor"
 import { HtmlPreview } from "@/components/ui/HtmlPreview"
 import { SkeletonList } from "@/components/ui/skeleton"
+import { EmptyState } from "@/components/ui/empty-state"
+import { LoadError } from "@/components/ui/load-error"
 import { RouteHeader } from "@/components/shell/RouteHeader"
 import { detectRenderLang } from "@/lib/artifact"
 import { buildEmailDraft } from "@/lib/emailDraft"
@@ -480,7 +482,7 @@ export function DocumentsRoute() {
   const [cloneTargetSession, setCloneTargetSession] = useState<string | null>(() => searchParams.get("session") || rememberedSessionId() || null)
   const [loadedPage, setLoadedPage] = useState<{ key: string; documents: DocItem[] }>({ key: "", documents: [] })
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const { data: library, isFetching } = useDocuments({ search: query, sort, language, archived, limit: LIBRARY_PAGE_SIZE })
+  const { data: library, isFetching, isLoading, isError, refetch } = useDocuments({ search: query, sort, language, archived, limit: LIBRARY_PAGE_SIZE })
   const { data: sessions } = useSessions()
   const docActions = useDocMutations()
   const tidyActions = useTidyMutations()
@@ -802,41 +804,54 @@ export function DocumentsRoute() {
       )}
       {notice && <div className={cn("shrink-0 border-b px-4 py-2 text-xs", /couldn.t|could not|failed/i.test(notice) ? "text-destructive" : "text-muted-foreground")}>{notice}</div>}
       <div className="flex-1 overflow-y-auto p-4" data-tour="library-list">
-        <div className="space-y-2">
-          {list.map((doc) => (
-            <DocumentRow
-              key={doc.id}
-              doc={doc}
-              selected={selectedIds.has(doc.id)}
-              selectMode={selectMode}
-              archived={archived}
-              onOpen={() => setOpenId(doc.id)}
-              onOpenSource={() => openSourceChat(doc)}
-              onClone={() => void cloneOne(doc)}
-              onExportPdf={() => void exportPdf(doc)}
-              onToggle={() => toggleSelected(doc.id)}
-              onStartSelect={() => {
-                setSelectMode(true)
-                setSelectedIds(new Set([doc.id]))
-              }}
-              onArchive={() => archiveDoc(doc.id)}
-              onDelete={() => deleteDoc(doc.id)}
-              cloneBusy={busy === `clone:${doc.id}`}
-            />
-          ))}
-          {list.length === 0 && (
-            <p className="py-10 text-center text-sm text-muted-foreground">
-              {query || language ? "No documents match your filters." : archived ? "No archived documents." : "No documents yet."}
-            </p>
-          )}
-          {library && library.total > list.length && (
-            <div className="py-3 text-center">
-              <Button type="button" size="sm" variant="outline" disabled={!!busy} onClick={() => void loadMore()}>
-                {busy === "load-more" ? "Loading..." : `Load more (${list.length} of ${library.total})`}
-              </Button>
-            </div>
-          )}
-        </div>
+        {isLoading ? (
+          <SkeletonList rows={6} />
+        ) : isError ? (
+          <LoadError onRetry={() => refetch()} />
+        ) : (
+          <div className="space-y-2">
+            {list.map((doc) => (
+              <DocumentRow
+                key={doc.id}
+                doc={doc}
+                selected={selectedIds.has(doc.id)}
+                selectMode={selectMode}
+                archived={archived}
+                onOpen={() => setOpenId(doc.id)}
+                onOpenSource={() => openSourceChat(doc)}
+                onClone={() => void cloneOne(doc)}
+                onExportPdf={() => void exportPdf(doc)}
+                onToggle={() => toggleSelected(doc.id)}
+                onStartSelect={() => {
+                  setSelectMode(true)
+                  setSelectedIds(new Set([doc.id]))
+                }}
+                onArchive={() => archiveDoc(doc.id)}
+                onDelete={() => deleteDoc(doc.id)}
+                cloneBusy={busy === `clone:${doc.id}`}
+              />
+            ))}
+            {list.length === 0 && (
+              query || language ? (
+                <p className="py-10 text-center text-sm text-muted-foreground">No documents match your filters.</p>
+              ) : (
+                <EmptyState
+                  icon={FileText}
+                  title={archived ? "No archived documents" : "No documents yet"}
+                  description={archived ? "Documents you archive will appear here." : "Create a document or import files to build your library."}
+                  className="mt-4"
+                />
+              )
+            )}
+            {library && library.total > list.length && (
+              <div className="py-3 text-center">
+                <Button type="button" size="sm" variant="outline" disabled={!!busy} onClick={() => void loadMore()}>
+                  {busy === "load-more" ? "Loading..." : `Load more (${list.length} of ${library.total})`}
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
