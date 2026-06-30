@@ -7,6 +7,8 @@ import { IconButton } from "@/components/ui/IconButton"
 import { Markdown } from "@/components/chat/Markdown"
 import { Switch } from "@/components/ui/switch"
 import { useConfirm } from "@/components/ui/confirm"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
+import { toSelectToken, fromSelectToken } from "@/lib/select"
 import { cn } from "@/lib/utils"
 
 const inp = "h-9 w-full rounded-md border bg-background px-3 text-sm outline-none focus-visible:border-ring"
@@ -92,11 +94,14 @@ function McpSection() {
       {open ? (
         <div className="mt-2 space-y-2 rounded-lg border bg-card p-3">
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Server name" className={inp} />
-          <select value={transport} onChange={(e) => setTransport(e.target.value)} className={inp}>
-            <option value="stdio">stdio</option>
-            <option value="sse">sse</option>
-            <option value="http">http</option>
-          </select>
+          <Select value={transport} onValueChange={(v) => setTransport(v)}>
+            <SelectTrigger className={inp}><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="stdio">stdio</SelectItem>
+              <SelectItem value="sse">sse</SelectItem>
+              <SelectItem value="http">http</SelectItem>
+            </SelectContent>
+          </Select>
           {transport === "stdio"
             ? <input value={command} onChange={(e) => setCommand(e.target.value)} placeholder="Command (e.g. npx -y @scope/server)" className={inp} />
             : <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Server URL" className={inp} />}
@@ -263,10 +268,13 @@ function IntegrationsSection() {
       </div>
       {open ? (
         <div className="mt-2 space-y-2 rounded-lg border bg-card p-3">
-          <select value={preset} onChange={(e) => { const p = e.target.value; setPreset(p); const pr = (presets || {})[p]; if (pr && !name.trim()) setName(pr.name) }} className={inp}>
-            <option value="">Custom (no preset)</option>
-            {presetEntries.map(([k, v]) => <option key={k} value={k}>{v.name}</option>)}
-          </select>
+          <Select value={toSelectToken(preset)} onValueChange={(v) => { const p = fromSelectToken(v); setPreset(p); const pr = (presets || {})[p]; if (pr && !name.trim()) setName(pr.name) }}>
+            <SelectTrigger className={inp}><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value={toSelectToken("")}>Custom (no preset)</SelectItem>
+              {presetEntries.map(([k, v]) => <SelectItem key={k} value={toSelectToken(k)}>{v.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
           {chosen?.description && (
             <div className="max-h-40 overflow-y-auto rounded-md border bg-muted/40 p-2 text-xs text-muted-foreground">
               <Markdown>{chosen.description}</Markdown>

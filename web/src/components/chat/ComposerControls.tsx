@@ -19,6 +19,8 @@ import { IconButton } from "@/components/ui/IconButton"
 import { useConfirm } from "@/components/ui/confirm"
 import { BUILTIN_PERSONAS } from "@/lib/personas"
 import { getPersistentPersonaName, setPersistentPersonaSession } from "@/lib/persistentPersona"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
+import { toSelectToken, fromSelectToken } from "@/lib/select"
 import { cn } from "@/lib/utils"
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
@@ -533,10 +535,13 @@ export function ToolsMenu() {
               </div>
               <label className="block text-xs font-medium text-muted-foreground">
                 Preset
-                <select value={c.presetId} onChange={(e) => c.setPreset(e.target.value)} className={cn(selectCls, "mt-1")} disabled={(presets || []).length === 0}>
-                  <option value="">{(presets || []).length ? "None" : "No saved presets"}</option>
-                  {(presets || []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
+                <Select value={toSelectToken(c.presetId)} onValueChange={(v) => c.setPreset(fromSelectToken(v))} disabled={(presets || []).length === 0}>
+                  <SelectTrigger className={cn(selectCls, "mt-1")}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={toSelectToken("")}>{(presets || []).length ? "None" : "No saved presets"}</SelectItem>
+                    {(presets || []).map((p) => <SelectItem key={p.id} value={toSelectToken(p.id)}>{p.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </label>
               <label className="block text-xs font-medium text-muted-foreground">
                 Prefix
@@ -618,11 +623,14 @@ export function ToolsMenu() {
                 </div>
               )}
               <div className="flex gap-1.5">
-                <select value={personaPick} onChange={(e) => selectPersona(e.target.value)} className={cn(selectCls, "min-w-0 flex-1")} disabled={!!lockedPersonaName}>
-                  <option value="">New persona</option>
-                  {(customConfig?.character_name || customConfig?.system_prompt) && <option value="custom">Current custom</option>}
-                  {personaOptions.map((persona) => <option key={persona.id} value={persona.id}>{persona.name}</option>)}
-                </select>
+                <Select value={toSelectToken(personaPick)} onValueChange={(v) => selectPersona(fromSelectToken(v))} disabled={!!lockedPersonaName}>
+                  <SelectTrigger className={cn(selectCls, "min-w-0 flex-1")}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={toSelectToken("")}>New persona</SelectItem>
+                    {(customConfig?.character_name || customConfig?.system_prompt) && <SelectItem value="custom">Current custom</SelectItem>}
+                    {personaOptions.map((persona) => <SelectItem key={persona.id} value={toSelectToken(persona.id)}>{persona.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
                 <button
                   onClick={() => { setPersonaPick(""); setPersonaName(""); setPersonaPrompt(""); setTemperature(1); setMaxTokens(0) }}
                   disabled={!!lockedPersonaName}
@@ -709,12 +717,15 @@ export function ToolsMenu() {
                 <div className="space-y-2">
                   {(groupPresets || []).length > 0 && (
                     <div className="flex gap-1.5">
-                      <select value={groupPresetPick} onChange={(e) => applyGroupPreset(e.target.value)} className={cn(selectCls, "min-w-0 flex-1")}>
-                        <option value="">Saved group…</option>
-                        {(groupPresets || []).map((group, idx) => (
-                          <option key={group.id || idx} value={idx}>{group.name || `Group ${idx + 1}`}</option>
-                        ))}
-                      </select>
+                      <Select value={toSelectToken(groupPresetPick)} onValueChange={(v) => applyGroupPreset(fromSelectToken(v))}>
+                        <SelectTrigger className={cn(selectCls, "min-w-0 flex-1")}><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={toSelectToken("")}>Saved group…</SelectItem>
+                          {(groupPresets || []).map((group, idx) => (
+                            <SelectItem key={group.id || idx} value={toSelectToken(String(idx))}>{group.name || `Group ${idx + 1}`}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <button
                         onClick={deleteGroupPreset}
                         disabled={!groupPresetPick}
@@ -752,23 +763,29 @@ export function ToolsMenu() {
                             icon={<Trash2 />}
                           />
                         </div>
-                        <select value={p.personaId || ""} onChange={(e) => setParticipantPersona(p.id, e.target.value)} className="h-8 w-full rounded-md border bg-background px-2 text-xs text-muted-foreground outline-none focus-visible:border-ring">
-                          <option value="">No persona</option>
-                          {personaOptions.map((persona) => <option key={persona.id} value={persona.id}>{persona.name}</option>)}
-                        </select>
+                        <Select value={toSelectToken(p.personaId || "")} onValueChange={(v) => setParticipantPersona(p.id, fromSelectToken(v))}>
+                          <SelectTrigger className="h-8 w-full rounded-md border bg-background px-2 text-xs text-muted-foreground outline-none focus-visible:border-ring"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={toSelectToken("")}>No persona</SelectItem>
+                            {personaOptions.map((persona) => <SelectItem key={persona.id} value={toSelectToken(persona.id)}>{persona.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
                       </div>
                     ))}
                     {c.groupParticipants.length === 0 && <div className="rounded-md border border-dashed px-2 py-2 text-xs text-muted-foreground">No participants</div>}
                   </div>
                   <div className="flex gap-1.5">
-                    <select value={groupPick} onChange={(e) => setGroupPick(e.target.value)} className={cn(selectCls, "min-w-0 flex-1")}>
-                      <option value="">Add model…</option>
-                      {modelOptions.map((m) => (
-                        <option key={m.key} value={m.key} disabled={c.groupParticipants.some((p) => p.id === m.key)}>
-                          {m.display}{m.endpointName ? ` · ${m.endpointName}` : ""}
-                        </option>
-                      ))}
-                    </select>
+                    <Select value={toSelectToken(groupPick)} onValueChange={(v) => setGroupPick(fromSelectToken(v))}>
+                      <SelectTrigger className={cn(selectCls, "min-w-0 flex-1")}><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={toSelectToken("")}>Add model…</SelectItem>
+                        {modelOptions.map((m) => (
+                          <SelectItem key={m.key} value={toSelectToken(m.key)} disabled={c.groupParticipants.some((p) => p.id === m.key)}>
+                            {m.display}{m.endpointName ? ` · ${m.endpointName}` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <button
                       onClick={addGroupParticipant}
                       disabled={!groupPick || c.groupParticipants.length >= 8}

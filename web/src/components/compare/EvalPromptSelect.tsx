@@ -1,5 +1,7 @@
 import { useMemo } from "react"
 import { type CompareMode, type EvalPrompt } from "@/components/compare/util"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem, SelectGroup, SelectLabel } from "@/components/ui/select"
+import { toSelectToken, fromSelectToken } from "@/lib/select"
 
 const EVAL_PROMPTS: Record<CompareMode, EvalPrompt[]> = {
   chat: [
@@ -48,27 +50,29 @@ function groupedEvalPrompts(mode: CompareMode) {
 export function EvalPromptSelect({ mode, disabled, onPick }: { mode: CompareMode; disabled: boolean; onPick: (prompt: EvalPrompt) => void }) {
   const groups = useMemo(() => groupedEvalPrompts(mode), [mode])
   return (
-    <select
-      aria-label="Eval prompts"
-      value=""
+    <Select
+      value={toSelectToken("")}
       disabled={disabled}
-      onChange={(e) => {
-        const index = Number(e.target.value)
+      onValueChange={(v) => {
+        const index = Number(fromSelectToken(v))
         const item = Number.isFinite(index) ? EVAL_PROMPTS[mode][index] : undefined
         if (item) onPick(item)
       }}
-      className="h-9 w-full rounded-md border bg-background px-2 text-sm text-muted-foreground outline-none focus-visible:border-ring disabled:opacity-50 md:w-44"
     >
-      <option value="">Eval prompts</option>
-      {groups.map((group) => (
-        <optgroup key={group.sub} label={group.sub}>
-          {group.items.map((item) => (
-            <option key={`${item.sub}-${item.label}`} value={item.index}>
-              {item.label}{item.answer ? " ✓" : ""}
-            </option>
-          ))}
-        </optgroup>
-      ))}
-    </select>
+      <SelectTrigger aria-label="Eval prompts" className="h-9 w-full rounded-md border bg-background px-2 text-sm text-muted-foreground outline-none focus-visible:border-ring disabled:opacity-50 md:w-44"><SelectValue /></SelectTrigger>
+      <SelectContent>
+        <SelectItem value={toSelectToken("")}>Eval prompts</SelectItem>
+        {groups.map((group) => (
+          <SelectGroup key={group.sub}>
+            <SelectLabel>{group.sub}</SelectLabel>
+            {group.items.map((item) => (
+              <SelectItem key={`${item.sub}-${item.label}`} value={toSelectToken(String(item.index))}>
+                {item.label}{item.answer ? " ✓" : ""}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        ))}
+      </SelectContent>
+    </Select>
   )
 }

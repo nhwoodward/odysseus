@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button"
 import { IconButton } from "@/components/ui/IconButton"
 import { Switch } from "@/components/ui/switch"
 import { useConfirm } from "@/components/ui/confirm"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 
 const H = "mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
@@ -48,7 +49,7 @@ function EmailAccountForm({ initial, onClose }: { initial?: EmailAccount; onClos
       <div className="text-label font-medium uppercase tracking-wider text-muted-foreground">SMTP (outgoing)</div>
       <div className="flex gap-2"><input value={f.smtp_host || ""} onChange={(e) => set("smtp_host", e.target.value)} placeholder="smtp host" className={inp} /><input value={f.smtp_port ?? ""} onChange={(e) => set("smtp_port", Number(e.target.value) || 465)} type="number" placeholder="465" className={cn(inp, "w-24")} /></div>
       <div className="flex gap-2">
-        <select value={f.smtp_security || "ssl"} onChange={(e) => set("smtp_security", e.target.value)} className={inp}><option value="ssl">SSL/TLS</option><option value="starttls">STARTTLS</option><option value="none">None</option></select>
+        <Select value={f.smtp_security || "ssl"} onValueChange={(v) => set("smtp_security", v)}><SelectTrigger className={inp}><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ssl">SSL/TLS</SelectItem><SelectItem value="starttls">STARTTLS</SelectItem><SelectItem value="none">None</SelectItem></SelectContent></Select>
         <input value={f.smtp_user || ""} onChange={(e) => set("smtp_user", e.target.value)} placeholder="smtp user" className={inp} />
       </div>
       <input onChange={(e) => set("smtp_password", e.target.value)} type="password" placeholder={initial?.has_smtp_password ? "•••• (unchanged)" : "smtp password"} autoComplete="off" className={inp} />

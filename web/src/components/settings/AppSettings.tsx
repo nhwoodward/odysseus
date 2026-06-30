@@ -14,6 +14,8 @@ import { IconButton } from "@/components/ui/IconButton"
 import { useConfirm } from "@/components/ui/confirm"
 import { cn } from "@/lib/utils"
 import { inputClass } from "@/components/ui/input"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
+import { toSelectToken, fromSelectToken } from "@/lib/select"
 import { SectionCard, Row, FieldRow, SettingSwitch, SettingSelect, SettingText, SettingNumber, SettingTextarea, StringListEditor } from "./fields"
 
 interface ModelRef { endpoint_id: string; model: string }
@@ -38,7 +40,17 @@ function ModelFallbackEditor({ label, value, choices, onChange }: { label: strin
           </div>
         ))}
         <div className="flex gap-2">
-          <select id={id} value={sel} onChange={(e) => setSel(e.target.value)} className={cn(inputClass, "w-auto flex-1 px-2")}><option value="">Add fallback…</option>{choices.map((c) => <option key={c.endpoint_id + c.model} value={c.model}>{c.model}</option>)}</select>
+          <Select value={toSelectToken(sel)} onValueChange={(v) => setSel(fromSelectToken(v))}>
+            <SelectTrigger id={id} className={cn(inputClass, "w-auto flex-1 px-2")}><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value={toSelectToken("")}>Add fallback…</SelectItem>
+              {/* Dedupe by model name: add() resolves the pick via choices.find(c => c.model === sel),
+                  which keeps the first matching endpoint — so listing a model twice adds nothing. */}
+              {[...new Map(choices.map((c) => [c.model, c])).values()].map((c) => (
+                <SelectItem key={c.endpoint_id + c.model} value={toSelectToken(c.model)}>{c.model}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <IconButton icon={<Plus />} label="Add fallback" onClick={add} disabled={!sel} className="text-muted-foreground transition-colors disabled:opacity-40" />
         </div>
       </div>
@@ -367,10 +379,13 @@ export function ApiTokensSection() {
         <div className="mt-2 space-y-2 rounded-lg border bg-card p-3">
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Token name (e.g. Claude Code)" className={tokInp} />
           {profileNames.length > 0 && (
-            <select value={profile} onChange={(e) => setProfile(e.target.value)} className={tokInp}>
-              <option value="">Default scopes</option>
-              {profileNames.map((p) => <option key={p} value={p}>{p}</option>)}
-            </select>
+            <Select value={toSelectToken(profile)} onValueChange={(v) => setProfile(fromSelectToken(v))}>
+              <SelectTrigger className={tokInp}><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={toSelectToken("")}>Default scopes</SelectItem>
+                {profileNames.map((p) => <SelectItem key={p} value={toSelectToken(p)}>{p}</SelectItem>)}
+              </SelectContent>
+            </Select>
           )}
           {err && <p className="text-xs text-destructive">{err}</p>}
           <div className="flex justify-end gap-2"><Button variant="ghost" size="sm" onClick={() => setOpen(false)}>Cancel</Button><Button size="sm" disabled={create.isPending} onClick={add}>{create.isPending ? "Creating…" : "Create token"}</Button></div>

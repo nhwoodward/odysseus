@@ -8,6 +8,7 @@ import { Brush, Image, ImagePlus, ListChecks, Palette, StickyNote, Target, X } f
 import { uploadNoteImage, type NotePayload } from "@/api/notes"
 import { Button } from "@/components/ui/button"
 import { IconButton } from "@/components/ui/IconButton"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 import { toast } from "@/stores/toast"
 import type { Note, NoteItem } from "@/types"
@@ -446,9 +447,12 @@ export function NoteForm({
         </div>
         <div>
           <label htmlFor={`${mode}-note-repeat`} className="mb-1 block text-xs text-muted-foreground">Repeat</label>
-          <select id={`${mode}-note-repeat`} value={form.repeat} onChange={(e) => set("repeat", e.target.value)} disabled={!form.dueDate} className={input}>
-            {REPEATS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-          </select>
+          <Select value={form.repeat} onValueChange={(v) => set("repeat", v)} disabled={!form.dueDate}>
+            <SelectTrigger id={`${mode}-note-repeat`} className={input}><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {REPEATS.map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
         <div>
           <label htmlFor={`${mode}-note-tags`} className="mb-1 block text-xs text-muted-foreground">Tags</label>

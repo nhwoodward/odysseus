@@ -3,7 +3,7 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 // Canonical text-field class — kept as a named export so the ~7 routes that
-// style their own <input>/<select> elements stay visually aligned with <Input>
+// style their own native input/select elements stay visually aligned with <Input>
 // without re-declaring the string.
 export const inputClass =
   "h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
