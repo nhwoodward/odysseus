@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@fontsource/roboto": "^5.2.10",
+    "@shadcn/react": "^0.2.0",
     "@tanstack/react-query": "^5.101.0",
     "@tanstack/react-table": "^8.21.3",
     "class-variance-authority": "^0.7.1",
