@@ -75,8 +75,12 @@ def parse_skill_source(url: str) -> ResolvedSource:
         raise SkillImportError("URL is required")
 
     # skills.sh often links to GitHub; try to unwrap ?url= or redirect target later.
-    if "skills.sh" in raw and "github.com" not in raw:
-        ok, reason = check_outbound_url(raw)
+    # Match the skills.sh HOST exactly (not a substring anywhere in the URL — that
+    # let `http://10.0.0.5/?skills.sh` reach an internal host) and block private
+    # targets on the initial fetch. (audit)
+    _sh_host = (urlparse(raw).hostname or "").lower()
+    if (_sh_host == "skills.sh" or _sh_host.endswith(".skills.sh")) and "github.com" not in raw:
+        ok, reason = check_outbound_url(raw, block_private=True)
         if not ok:
             raise SkillImportError(reason)
         with httpx.Client(follow_redirects=True, timeout=20.0) as client:

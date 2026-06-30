@@ -140,6 +140,14 @@ _MCP_READONLY_VERBS = (
     "list", "get", "read", "search", "fetch", "query", "find", "describe",
     "show", "view", "lookup", "count", "status", "info", "inspect", "summar",
 )
+# If any of these appears ANYWHERE in the tool name, treat it as a write even
+# when the name starts with a read verb (e.g. "get_and_purge"). Fail closed so
+# plan mode never runs a mutating tool whose name merely reads safe. (audit)
+_MCP_DESTRUCTIVE_VERBS = (
+    "delete", "purge", "remove", "destroy", "drop", "write", "update",
+    "create", "modify", "rename", "revoke", "kill", "clear", "reset",
+    "upload", "patch", "send", "expire",
+)
 
 
 def mcp_tool_is_readonly(tool: Dict) -> bool:
@@ -165,8 +173,11 @@ def mcp_tool_is_readonly(tool: Dict) -> bool:
         return True
     if read_hint is False or destructive is True:
         return False
-    # No usable hint — heuristic on the tool name's leading verb.
+    # No usable hint — heuristic on the tool name. Reject if a destructive verb
+    # appears anywhere, else require a leading read verb.
     name = (tool.get("name") or "").lower()
+    if any(v in name for v in _MCP_DESTRUCTIVE_VERBS):
+        return False
     return name.startswith(_MCP_READONLY_VERBS)
 
 
