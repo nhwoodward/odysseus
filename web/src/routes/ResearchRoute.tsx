@@ -15,6 +15,8 @@ import { Markdown } from "@/components/chat/Markdown"
 import { HtmlPreview } from "@/components/ui/HtmlPreview"
 import { Button } from "@/components/ui/button"
 import { IconButton } from "@/components/ui/IconButton"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
+import { toSelectToken, fromSelectToken } from "@/lib/select"
 import { useConfirm } from "@/components/ui/confirm"
 import { RouteHeader } from "@/components/shell/RouteHeader"
 import { SkeletonList } from "@/components/ui/skeleton"
@@ -383,22 +385,31 @@ function StartForm({ onStarted }: { onStarted: () => void }) {
       <div className="mt-4 flex flex-wrap items-end gap-4" data-tour="research-settings">
         <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
           Rounds
-          <select value={rounds} onChange={(e) => setRounds(Number(e.target.value))} className="h-9 rounded-md border bg-background px-2 text-sm text-foreground outline-none focus:border-ring">
-            {ROUNDS.map((r) => <option key={r.v} value={r.v}>{r.l}</option>)}
-          </select>
+          <Select value={String(rounds)} onValueChange={(v) => setRounds(Number(v))}>
+            <SelectTrigger className="h-9 px-2 font-normal text-foreground"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {ROUNDS.map((r) => <SelectItem key={r.v} value={String(r.v)}>{r.l}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </label>
         <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
           Search engine
-          <select value={searchProvider} onChange={(e) => setSearchProvider(e.target.value)} className="h-9 rounded-md border bg-background px-2 text-sm text-foreground outline-none focus:border-ring">
-            {SEARCH_PROVIDERS.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
-          </select>
+          <Select value={toSelectToken(searchProvider)} onValueChange={(v) => setSearchProvider(fromSelectToken(v))}>
+            <SelectTrigger className="h-9 px-2 font-normal text-foreground"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {SEARCH_PROVIDERS.map((p) => <SelectItem key={p.key || "__empty__"} value={toSelectToken(p.key)}>{p.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </label>
         <label className="flex min-w-[200px] flex-col gap-1 text-xs font-medium text-muted-foreground">
           Model
-          <select value={model} onChange={(e) => setModel(e.target.value)} className="h-9 rounded-md border bg-background px-2 text-sm text-foreground outline-none focus:border-ring">
-            <option value="">Default (research)</option>
-            {flat.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
-          </select>
+          <Select value={toSelectToken(model)} onValueChange={(v) => setModel(fromSelectToken(v))}>
+            <SelectTrigger className="h-9 px-2 font-normal text-foreground"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value={toSelectToken("")}>Default (research)</SelectItem>
+              {flat.map((f) => <SelectItem key={f.id} value={toSelectToken(f.id)}>{f.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </label>
         {draftCount > 1 && (
           <div className="flex rounded-lg bg-muted p-0.5">

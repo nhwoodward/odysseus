@@ -2,6 +2,8 @@ import { useRef, useState } from "react"
 import { Image, RefreshCw, X } from "lucide-react"
 import { uploadCalendarBackgroundImage, type Calendar as CalendarInfo } from "@/api/calendar"
 import { Button } from "@/components/ui/button"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
+import { toSelectToken, fromSelectToken } from "@/lib/select"
 import { cn } from "@/lib/utils"
 import {
   EVENT_TYPES,
@@ -103,32 +105,44 @@ export function EventForm({
         {mode === "create" && (
           <div>
             <label className="mb-1 block text-xs text-muted-foreground">Calendar</label>
-            <select value={f.calendarHref} onChange={(e) => set("calendarHref", e.target.value)} className={inp}>
-              {calendars.map((c) => (
-                <option key={c.href} value={c.href}>{c.name}</option>
-              ))}
-            </select>
+            <Select value={f.calendarHref} onValueChange={(v) => set("calendarHref", v)}>
+              <SelectTrigger className={inp}><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {calendars.map((c) => (
+                  <SelectItem key={c.href} value={c.href}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         )}
         <div>
           <label className="mb-1 block text-xs text-muted-foreground">Repeat</label>
-          <select value={f.recur} onChange={(e) => set("recur", e.target.value)} className={inp}>
-            {RECUR_OPTIONS.map((o) => <option key={o.value || "none"} value={o.value}>{o.label}</option>)}
-            {f.recur === "custom" && <option value="custom">Custom RRULE</option>}
-          </select>
+          <Select value={toSelectToken(f.recur)} onValueChange={(v) => set("recur", fromSelectToken(v))}>
+            <SelectTrigger className={inp}><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {RECUR_OPTIONS.map((o) => <SelectItem key={o.value || "none"} value={toSelectToken(o.value)}>{o.label}</SelectItem>)}
+              {f.recur === "custom" && <SelectItem value="custom">Custom RRULE</SelectItem>}
+            </SelectContent>
+          </Select>
         </div>
         <div>
           <label className="mb-1 block text-xs text-muted-foreground">Type</label>
-          <select value={f.eventType} onChange={(e) => set("eventType", e.target.value)} className={inp}>
-            <option value="">No type</option>
-            {EVENT_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-          </select>
+          <Select value={toSelectToken(f.eventType)} onValueChange={(v) => set("eventType", fromSelectToken(v))}>
+            <SelectTrigger className={inp}><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value={toSelectToken("")}>No type</SelectItem>
+              {EVENT_TYPES.map((t) => <SelectItem key={t.value} value={toSelectToken(t.value)}>{t.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
         <div>
           <label className="mb-1 block text-xs text-muted-foreground">Importance</label>
-          <select value={f.importance} onChange={(e) => set("importance", e.target.value)} className={inp}>
-            {IMPORTANCE_OPTIONS.map((i) => <option key={i.value} value={i.value}>{i.label}</option>)}
-          </select>
+          <Select value={f.importance} onValueChange={(v) => set("importance", v)}>
+            <SelectTrigger className={inp}><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {IMPORTANCE_OPTIONS.map((i) => <SelectItem key={i.value} value={i.value}>{i.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
       </div>
       {f.recur === "custom" && (
@@ -137,9 +151,12 @@ export function EventForm({
       <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_9rem_minmax(0,1fr)]">
         <div>
           <label className="mb-1 block text-xs text-muted-foreground">Reminder</label>
-          <select value={f.reminder} onChange={(e) => set("reminder", e.target.value)} className={inp}>
-            {REMINDER_OPTIONS.map((r) => <option key={r.value || "none"} value={r.value}>{r.label}</option>)}
-          </select>
+          <Select value={toSelectToken(f.reminder)} onValueChange={(v) => set("reminder", fromSelectToken(v))}>
+            <SelectTrigger className={inp}><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {REMINDER_OPTIONS.map((r) => <SelectItem key={r.value || "none"} value={toSelectToken(r.value)}>{r.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
         <div>
           <label className="mb-1 block text-xs text-muted-foreground">Color</label>

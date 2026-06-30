@@ -4,6 +4,8 @@ import { useMemory, useMemoryMutations, type MemoryImportSuggestion } from "@/ap
 import { usePrefs, useSetPref } from "@/api/prefs"
 import { useSessions } from "@/api/sessions"
 import { Button } from "@/components/ui/button"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
+import { toSelectToken, fromSelectToken } from "@/lib/select"
 import { IconButton } from "@/components/ui/IconButton"
 import { RouteHeader } from "@/components/shell/RouteHeader"
 import { Switch } from "@/components/ui/switch"
@@ -219,9 +221,12 @@ export function MemoryRoute() {
             onKeyDown={(e) => { if (e.key === "Enter") void submit() }}
             className="h-9 min-w-52 flex-1 rounded-md border bg-background px-3 text-sm outline-none focus-visible:border-ring"
           />
-          <select value={cat} onChange={(e) => setCat(e.target.value)} className="h-9 rounded-md border bg-background px-2 text-sm capitalize">
-            {CATS.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
+          <Select value={cat} onValueChange={setCat}>
+            <SelectTrigger className="h-9 px-2 capitalize"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {CATS.map((c) => <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>)}
+            </SelectContent>
+          </Select>
           <Button onClick={submit} disabled={add.isPending}><Plus className="size-4" />Add</Button>
         </div>
 
@@ -233,16 +238,15 @@ export function MemoryRoute() {
             </div>
             <p className="mb-2 text-xs text-muted-foreground">Analyze a conversation for facts worth remembering, then review the suggestions before saving.</p>
             <div className="flex flex-wrap gap-2">
-              <select
-                value={extractSession}
-                onChange={(e) => setExtractSession(e.target.value)}
-                className="h-9 min-w-52 flex-1 rounded-md border bg-background px-2 text-sm outline-none focus-visible:border-ring"
-              >
-                <option value="">Select a session...</option>
-                {(sessions || []).map((s) => (
-                  <option key={s.id} value={s.id}>{s.name || s.id.slice(0, 8)}</option>
-                ))}
-              </select>
+              <Select value={toSelectToken(extractSession)} onValueChange={(v) => setExtractSession(fromSelectToken(v))}>
+                <SelectTrigger className="h-9 min-w-52 flex-1 px-2 font-normal text-foreground"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={toSelectToken("")}>Select a session...</SelectItem>
+                  {(sessions || []).map((s) => (
+                    <SelectItem key={s.id} value={toSelectToken(s.id)}>{s.name || s.id.slice(0, 8)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <input
                 value={extractSession}
                 onChange={(e) => setExtractSession(e.target.value)}

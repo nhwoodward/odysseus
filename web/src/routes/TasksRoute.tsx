@@ -46,6 +46,8 @@ import {
 import { Markdown } from "@/components/chat/Markdown"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem, SelectGroup, SelectLabel } from "@/components/ui/select"
+import { toSelectToken, fromSelectToken } from "@/lib/select"
 import { useConfirm } from "@/components/ui/confirm"
 import { RouteHeader } from "@/components/shell/RouteHeader"
 import { apiFetch } from "@/lib/api"
@@ -510,10 +512,13 @@ function TaskEditor({ existing, draft, tasks, onClose }: { existing?: Task | nul
             <div className="space-y-3">
               <div>
                 <label className={labelClass}>Action</label>
-                <select value={form.action} onChange={(e) => set("action", e.target.value)} className={inputClass}>
-                  {(actions || []).length === 0 && <option value="">{actionsLoading ? "Loading actions..." : "No actions available"}</option>}
-                  {(actions || []).map((a) => <option key={a.name} value={a.name}>{a.name}{a.description ? ` - ${a.description}` : ""}</option>)}
-                </select>
+                <Select value={toSelectToken(form.action)} onValueChange={(v) => set("action", fromSelectToken(v))}>
+                  <SelectTrigger className={inputClass}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {(actions || []).length === 0 && <SelectItem value={toSelectToken("")}>{actionsLoading ? "Loading actions..." : "No actions available"}</SelectItem>}
+                    {(actions || []).map((a) => <SelectItem key={a.name} value={toSelectToken(a.name)}>{a.name}{a.description ? ` - ${a.description}` : ""}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
               {form.action === "check_email_urgency" && (
                 <div>
@@ -543,9 +548,12 @@ function TaskEditor({ existing, draft, tasks, onClose }: { existing?: Task | nul
               </div>
               <div>
                 <label className={labelClass}>Persona</label>
-                <select value={form.character_id} onChange={(e) => set("character_id", e.target.value)} className={inputClass}>
-                  {PERSONAS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                </select>
+                <Select value={toSelectToken(form.character_id)} onValueChange={(v) => set("character_id", fromSelectToken(v))}>
+                  <SelectTrigger className={inputClass}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {PERSONAS.map(([value, label]) => <SelectItem key={value || "__empty__"} value={toSelectToken(value)}>{label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           )}
@@ -560,9 +568,12 @@ function TaskEditor({ existing, draft, tasks, onClose }: { existing?: Task | nul
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className={labelClass}>Frequency</label>
-                <select value={form.schedule} onChange={(e) => set("schedule", e.target.value)} className={inputClass}>
-                  {["daily", "weekly", "monthly", "once", "cron"].map((s) => <option key={s} value={s}>{s}</option>)}
-                </select>
+                <Select value={form.schedule} onValueChange={(v) => set("schedule", v)}>
+                  <SelectTrigger className={inputClass}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {["daily", "weekly", "monthly", "once", "cron"].map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
               {form.schedule !== "cron" && (
                 <div>
@@ -573,9 +584,12 @@ function TaskEditor({ existing, draft, tasks, onClose }: { existing?: Task | nul
               {form.schedule === "weekly" && (
                 <div>
                   <label className={labelClass}>Day Of Week</label>
-                  <select value={form.scheduled_day} onChange={(e) => set("scheduled_day", e.target.value)} className={inputClass}>
-                    {DAYS.map((d, i) => <option key={d} value={i}>{d}</option>)}
-                  </select>
+                  <Select value={String(form.scheduled_day)} onValueChange={(v) => set("scheduled_day", v)}>
+                    <SelectTrigger className={inputClass}><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {DAYS.map((d, i) => <SelectItem key={d} value={String(i)}>{d}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
               )}
               {form.schedule === "monthly" && (
@@ -602,10 +616,13 @@ function TaskEditor({ existing, draft, tasks, onClose }: { existing?: Task | nul
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_10rem]">
               <div>
                 <label className={labelClass}>Event</label>
-                <select value={form.trigger_event} onChange={(e) => set("trigger_event", e.target.value)} className={inputClass}>
-                  {(events || []).length === 0 && <option value="">{eventsLoading ? "Loading events..." : "No events available"}</option>}
-                  {(events || []).map((ev) => <option key={ev.name} value={ev.name}>{ev.name}{ev.description ? ` - ${ev.description}` : ""}</option>)}
-                </select>
+                <Select value={toSelectToken(form.trigger_event)} onValueChange={(v) => set("trigger_event", fromSelectToken(v))}>
+                  <SelectTrigger className={inputClass}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {(events || []).length === 0 && <SelectItem value={toSelectToken("")}>{eventsLoading ? "Loading events..." : "No events available"}</SelectItem>}
+                    {(events || []).map((ev) => <SelectItem key={ev.name} value={toSelectToken(ev.name)}>{ev.name}{ev.description ? ` - ${ev.description}` : ""}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <label className={labelClass}>Every N</label>
@@ -630,33 +647,43 @@ function TaskEditor({ existing, draft, tasks, onClose }: { existing?: Task | nul
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className={labelClass}>Output</label>
-              <select value={form.output_target} onChange={(e) => set("output_target", e.target.value)} className={inputClass}>
-                {(outputTargets || [{ value: "session", label: "Session" }]).map((t) => <option key={t.value} value={t.value}>{t.label || t.value}</option>)}
-              </select>
+              <Select value={form.output_target} onValueChange={(v) => set("output_target", v)}>
+                <SelectTrigger className={inputClass}><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(outputTargets || [{ value: "session", label: "Session" }]).map((t) => <SelectItem key={t.value} value={t.value}>{t.label || t.value}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <label className={labelClass}>Model</label>
-              <select value={form.model_key} onChange={(e) => set("model_key", e.target.value)} className={inputClass}>
-                <option value="">Use session default</option>
-                {modelOptions.map((ep) => (
-                  <optgroup key={ep.endpoint_id || ep.url} label={ep.endpoint_name || ep.host || ep.url || "Endpoint"}>
-                    {[...(ep.models || []), ...(ep.models_extra || [])].sort().map((m) => <option key={`${ep.url}::${m}`} value={`${ep.url}::${m}`}>{m}</option>)}
-                  </optgroup>
-                ))}
-                {form.model_key && !modelOptions.some((ep) => [...(ep.models || []), ...(ep.models_extra || [])].some((m) => `${ep.url}::${m}` === form.model_key)) && (
-                  <option value={form.model_key}>{modelLabel(form.model_key)} (unlisted endpoint)</option>
-                )}
-              </select>
+              <Select value={toSelectToken(form.model_key)} onValueChange={(v) => set("model_key", fromSelectToken(v))}>
+                <SelectTrigger className={inputClass}><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={toSelectToken("")}>Use session default</SelectItem>
+                  {modelOptions.map((ep) => (
+                    <SelectGroup key={ep.endpoint_id || ep.url}>
+                      <SelectLabel>{ep.endpoint_name || ep.host || ep.url || "Endpoint"}</SelectLabel>
+                      {[...(ep.models || []), ...(ep.models_extra || [])].sort().map((m) => <SelectItem key={`${ep.url}::${m}`} value={`${ep.url}::${m}`}>{m}</SelectItem>)}
+                    </SelectGroup>
+                  ))}
+                  {form.model_key && !modelOptions.some((ep) => [...(ep.models || []), ...(ep.models_extra || [])].some((m) => `${ep.url}::${m}` === form.model_key)) && (
+                    <SelectItem value={toSelectToken(form.model_key)}>{modelLabel(form.model_key)} (unlisted endpoint)</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
             <div>
               <label className={labelClass}>Chain</label>
-              <select value={form.then_task_id} onChange={(e) => set("then_task_id", e.target.value)} className={inputClass}>
-                <option value="">None</option>
-                {otherTasks.map((t) => <option key={t.id} value={t.id}>{t.name || t.action || "Task"}</option>)}
-              </select>
+              <Select value={toSelectToken(form.then_task_id)} onValueChange={(v) => set("then_task_id", fromSelectToken(v))}>
+                <SelectTrigger className={inputClass}><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={toSelectToken("")}>None</SelectItem>
+                  {otherTasks.map((t) => <SelectItem key={t.id} value={toSelectToken(t.id)}>{t.name || t.action || "Task"}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <label className="flex h-9 items-center gap-2 rounded-md border px-3 text-sm">
               <Switch checked={form.notifications_enabled} onCheckedChange={(v) => set("notifications_enabled", v)} />

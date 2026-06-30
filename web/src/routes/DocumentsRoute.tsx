@@ -52,6 +52,8 @@ import { buildEmailDraft } from "@/lib/emailDraft"
 import { readImportedDocuments } from "@/lib/documentImport"
 import { isPdfBackedDocument } from "@/lib/pdfDocument"
 import { Button } from "@/components/ui/button"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
+import { toSelectToken, fromSelectToken } from "@/lib/select"
 import { IconButton } from "@/components/ui/IconButton"
 import { useConfirm } from "@/components/ui/confirm"
 import { useEscapeClose } from "@/lib/useEscapeClose"
@@ -243,9 +245,12 @@ function Editor({ id, onBack, onOpen }: { id: string; onBack: () => void; onOpen
           className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1 text-sm font-semibold outline-none hover:border-border focus-visible:border-ring"
           aria-label="Document title"
         />
-        <select value={language} onChange={(e) => changeLanguage(e.target.value)} className="h-8 rounded-md border bg-background px-2 text-xs outline-none focus-visible:border-ring" aria-label="Document language">
-          {LANGUAGE_OPTIONS.map((lang) => <option key={lang} value={lang}>{lang}</option>)}
-        </select>
+        <Select value={language} onValueChange={changeLanguage}>
+          <SelectTrigger aria-label="Document language" className="h-8 px-2 text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {LANGUAGE_OPTIONS.map((lang) => <SelectItem key={lang} value={lang}>{lang}</SelectItem>)}
+          </SelectContent>
+        </Select>
         {renderable && (
           <div className="mr-1 flex rounded-lg bg-muted p-0.5">
             <button onClick={() => setView("preview")} className={segBtn(view === "preview")}><Eye className="size-3.5" />Preview</button>
@@ -725,21 +730,23 @@ export function DocumentsRoute() {
             <label className="hidden h-8 items-center gap-1.5 rounded-md border px-2 text-xs text-muted-foreground sm:inline-flex">
               <Copy className="size-3.5" />
               <span>Clone to</span>
-              <select
-                value={cloneTargetSessionId}
-                onChange={(e) => {
-                  const next = e.target.value
+              <Select
+                value={toSelectToken(cloneTargetSessionId)}
+                onValueChange={(v) => {
+                  const next = fromSelectToken(v)
                   setCloneTargetSession(next)
                   if (next) window.localStorage.setItem(LAST_CHAT_SESSION_KEY, next)
                 }}
-                className="-mr-1 max-w-40 bg-transparent text-foreground outline-none"
                 aria-label="Clone target chat"
               >
-                <option value="">Library</option>
-                {activeSessions.slice(0, 50).map((session) => (
-                  <option key={session.id} value={session.id}>{session.name || "Untitled chat"}</option>
-                ))}
-              </select>
+                <SelectTrigger size="sm" className="-mr-1 max-w-40 border-0 bg-transparent px-1 text-xs text-foreground shadow-none focus-visible:ring-0"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={toSelectToken("")}>Library</SelectItem>
+                  {activeSessions.slice(0, 50).map((session) => (
+                    <SelectItem key={session.id} value={toSelectToken(session.id)}>{session.name || "Untitled chat"}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </label>
             <Button size="sm" variant="outline" disabled={busy === "import"} onClick={() => fileInputRef.current?.click()}><Upload className="size-4" />{busy === "import" ? "Importing..." : "Import"}</Button>
             <Button size="sm" variant="outline" disabled={!!busy} title="Remove junk, empty, and duplicate documents" onClick={() => void runTidy()}><Sparkles className="size-4" />{busy === "tidy" ? "Tidying..." : "Tidy"}</Button>
@@ -759,12 +766,15 @@ export function DocumentsRoute() {
             />
             {query && <button onClick={() => setQuery("")} title="Clear search" aria-label="Clear search" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"><X className="size-4" /></button>}
           </div>
-          <select value={sort} onChange={(e) => { setSort(e.target.value as DocumentSort); clearSelection() }} className="h-9 rounded-md border bg-background px-2 text-sm outline-none focus-visible:border-ring" aria-label="Sort documents">
-            <option value="recent">Recent</option>
-            <option value="oldest">Oldest</option>
-            <option value="alpha">A-Z</option>
-            <option value="edits">Most edited</option>
-          </select>
+          <Select value={sort} onValueChange={(v) => { setSort(v as DocumentSort); clearSelection() }}>
+            <SelectTrigger aria-label="Sort documents" className="h-9 px-2"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="recent">Recent</SelectItem>
+              <SelectItem value="oldest">Oldest</SelectItem>
+              <SelectItem value="alpha">A-Z</SelectItem>
+              <SelectItem value="edits">Most edited</SelectItem>
+            </SelectContent>
+          </Select>
           <button
             type="button"
             onClick={() => { setArchived((value) => !value); clearSelection() }}

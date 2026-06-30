@@ -3,9 +3,11 @@ import { X, Plus } from "lucide-react"
 import type { ReactNode } from "react"
 import { IconButton } from "@/components/ui/IconButton"
 import { Switch } from "@/components/ui/switch"
-import { Input, inputClass } from "@/components/ui/input"
+import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Field, FieldLabel, FieldDescription } from "@/components/ui/field"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
+import { toSelectToken, fromSelectToken } from "@/lib/select"
 import { cn } from "@/lib/utils"
 
 // Reusable settings field primitives, built on the shadcn Field + Input/Textarea
@@ -50,9 +52,12 @@ export function SettingSelect({ label, hint, value, onChange, options, disabled 
   const id = useId()
   return (
     <Row label={label} hint={hint} htmlFor={id}>
-      <select id={id} value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} className={cn(inputClass, "w-auto min-w-40 max-w-[60vw] px-2")}>
-        {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-      </select>
+      <Select value={toSelectToken(value)} onValueChange={(v) => onChange(fromSelectToken(v))} disabled={disabled}>
+        <SelectTrigger id={id} className="w-auto min-w-40 max-w-[60vw]"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          {options.map((o) => <SelectItem key={o.value} value={toSelectToken(o.value)}>{o.label}</SelectItem>)}
+        </SelectContent>
+      </Select>
     </Row>
   )
 }

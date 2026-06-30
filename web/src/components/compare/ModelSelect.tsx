@@ -1,4 +1,5 @@
 import { useModels } from "@/api/models"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem, SelectGroup, SelectLabel } from "@/components/ui/select"
 import { EMPTY_SEL, type Sel } from "@/components/compare/util"
 
 export function ModelSelect({
@@ -28,16 +29,20 @@ export function ModelSelect({
   return (
     <div className="flex-1">
       <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</label>
-      <select value={value.endpointId + "::" + value.model} onChange={(e) => onPick(e.target.value)} className="h-9 w-full rounded-md border bg-background px-2 text-sm outline-none focus-visible:border-ring">
-        {(allowEmpty || !value.model) && <option value="::">{emptyLabel}</option>}
-        {items.map((ep) => (
-          <optgroup key={ep.endpoint_id} label={ep.endpoint_name || ep.url}>
-            {[...(ep.models || []), ...(ep.models_extra || [])].map((m) => (
-              <option key={ep.endpoint_id + m} value={ep.endpoint_id + "::" + m}>{m}</option>
-            ))}
-          </optgroup>
-        ))}
-      </select>
+      <Select value={value.endpointId + "::" + value.model} onValueChange={onPick}>
+        <SelectTrigger className="h-9 w-full px-2"><SelectValue placeholder={emptyLabel} /></SelectTrigger>
+        <SelectContent>
+          {(allowEmpty || !value.model) && <SelectItem value="::">{emptyLabel}</SelectItem>}
+          {items.map((ep) => (
+            <SelectGroup key={ep.endpoint_id}>
+              <SelectLabel>{ep.endpoint_name || ep.url}</SelectLabel>
+              {[...(ep.models || []), ...(ep.models_extra || [])].map((m) => (
+                <SelectItem key={ep.endpoint_id + m} value={ep.endpoint_id + "::" + m}>{m}</SelectItem>
+              ))}
+            </SelectGroup>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   )
 }
