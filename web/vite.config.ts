@@ -35,8 +35,18 @@ export default defineConfig({
         // (the markdown/math/highlight stack is large and changes rarely).
         manualChunks(id) {
           if (!id.includes('node_modules')) return
-          if (/katex|highlight\.js|lowlight|react-markdown|rehype|remark|hast|mdast|micromark|unist|property-information|space-separated|comma-separated|character-entities|decode-named|html-url|trim-lines|web-namespaces|zwitch|bail|trough|vfile|devlop|estree|ccount|markdown-table|longest-streak|escape-string-regexp|mathml-tag-names/.test(id)) return 'markdown'
+          // katex + highlight.js get their OWN chunks (each was lumped into the
+          // big "markdown" chunk that itself exceeded 500kB).
+          if (id.includes('katex')) return 'katex'
+          if (/highlight\.js|lowlight/.test(id)) return 'highlight'
+          if (/react-markdown|rehype|remark|hast|mdast|micromark|unist|property-information|space-separated|comma-separated|character-entities|decode-named|html-url|trim-lines|web-namespaces|zwitch|bail|trough|vfile|devlop|estree|ccount|markdown-table|longest-streak|escape-string-regexp|mathml-tag-names/.test(id)) return 'markdown'
+          // recharts (+ its bundled d3 / victory-vendor) only loads on the lazy
+          // Finance route — keep it out of the shared chunks.
+          if (id.includes('recharts') || /node_modules\/(d3-|victory-vendor|internmap)/.test(id)) return 'charts'
           if (id.includes('react-router')) return 'router'
+          // react-table must NOT ride the eager `query` chunk (react-query is
+          // imported synchronously by App) — give it its own async chunk.
+          if (id.includes('@tanstack/react-table')) return 'table'
           if (id.includes('@tanstack')) return 'query'
           if (id.includes('framer-motion') || /node_modules\/motion/.test(id)) return 'motion'
           if (id.includes('react-dom') || /node_modules\/react\//.test(id) || id.includes('scheduler')) return 'react'

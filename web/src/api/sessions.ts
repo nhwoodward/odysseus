@@ -88,27 +88,6 @@ export async function bulkArchiveSessions(ids: string[]): Promise<void> {
   await Promise.all(ids.map((id) => archiveSession(id)))
 }
 
-// Archived sessions come from a dedicated paginated endpoint with a slimmer
-// shape than the active-session list, so it gets its own local type.
-export interface ArchivedSession {
-  id: string
-  name: string
-  model: string
-  message_count: number
-  created_at: string | null
-  updated_at: string | null
-  is_important: boolean
-}
-export function useArchivedSessions(enabled = true) {
-  return useQuery({
-    queryKey: ["sessions", "archived"],
-    enabled,
-    queryFn: () =>
-      apiJson<{ sessions: ArchivedSession[]; total: number }>(
-        "/api/sessions/archived?limit=200",
-      ),
-  })
-}
 export function useSessionMutations() {
   const qc = useQueryClient()
   // Invalidate both the active list and the archived browser so a session
