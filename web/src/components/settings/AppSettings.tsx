@@ -1,4 +1,4 @@
-import { useRef, useState, type KeyboardEvent } from "react"
+import { useId, useRef, useState, type KeyboardEvent } from "react"
 import { Plus, Trash2, Pencil, Copy, Check, X, Upload } from "lucide-react"
 import { useSettings, useSaveSettings, type Settings } from "@/api/settings"
 import { useModels } from "@/api/models"
@@ -12,6 +12,7 @@ import { useBuiltinTools, useSetBuiltinTools } from "@/api/tools"
 import { Button } from "@/components/ui/button"
 import { IconButton } from "@/components/ui/IconButton"
 import { cn } from "@/lib/utils"
+import { inputClass } from "@/components/ui/input"
 import { SectionCard, Row, FieldRow, SettingSwitch, SettingSelect, SettingText, SettingNumber, SettingTextarea, StringListEditor } from "./fields"
 
 interface ModelRef { endpoint_id: string; model: string }
@@ -23,10 +24,11 @@ function useModelsWithEndpoint(): ModelRef[] {
 // Ordered model fallback-chain editor (default/utility/vision). Stores
 // [{endpoint_id, model}] — the shape the backend dispatch retries through.
 function ModelFallbackEditor({ label, value, choices, onChange }: { label: string; value: ModelRef[]; choices: ModelRef[]; onChange: (v: ModelRef[]) => void }) {
+  const id = useId()
   const [sel, setSel] = useState("")
   const add = () => { if (!sel) return; const m = choices.find((c) => c.model === sel); onChange([...value, { model: sel, endpoint_id: m?.endpoint_id || "" }]); setSel("") }
   return (
-    <FieldRow label={label} hint="Tried in order if the primary fails">
+    <FieldRow label={label} hint="Tried in order if the primary fails" htmlFor={id}>
       <div className="space-y-1.5">
         {value.map((f, i) => (
           <div key={i} className="flex items-center gap-2">
@@ -35,7 +37,7 @@ function ModelFallbackEditor({ label, value, choices, onChange }: { label: strin
           </div>
         ))}
         <div className="flex gap-2">
-          <select value={sel} onChange={(e) => setSel(e.target.value)} className="h-9 flex-1 rounded-md border bg-background px-2 text-sm outline-none focus-visible:border-ring"><option value="">Add fallback…</option>{choices.map((c) => <option key={c.endpoint_id + c.model} value={c.model}>{c.model}</option>)}</select>
+          <select id={id} value={sel} onChange={(e) => setSel(e.target.value)} className={cn(inputClass, "w-auto flex-1 px-2")}><option value="">Add fallback…</option>{choices.map((c) => <option key={c.endpoint_id + c.model} value={c.model}>{c.model}</option>)}</select>
           <IconButton icon={<Plus />} label="Add fallback" onClick={add} disabled={!sel} className="text-muted-foreground transition-colors disabled:opacity-40" />
         </div>
       </div>
@@ -477,8 +479,8 @@ export function KeybindsSection() {
       <h2 className={H}>Keyboard shortcuts <span className="normal-case text-muted-foreground/70">(admin)</span></h2>
       <SectionCard>
         {Object.keys(DEFAULT_KEYBINDS).map((action) => (
-          <FieldRow key={action} label={KEYBIND_LABELS[action] || action}>
-            <div className="w-full"><input value={kb[action]} readOnly onKeyDown={(event) => capture(event, action)} onFocus={(event) => event.currentTarget.select()} placeholder="Press a shortcut" title="Focus, then press the desired key combination" className={cn("h-9 w-full rounded-md border bg-background px-3 font-mono text-sm outline-none focus-visible:border-ring", (conflicts[kb[action]]?.length || 0) > 1 && "border-destructive")} />
+          <FieldRow key={action} label={KEYBIND_LABELS[action] || action} htmlFor={`kb-${action}`}>
+            <div className="w-full"><input id={`kb-${action}`} value={kb[action]} readOnly onKeyDown={(event) => capture(event, action)} onFocus={(event) => event.currentTarget.select()} placeholder="Press a shortcut" title="Focus, then press the desired key combination" className={cn(inputClass, "font-mono", (conflicts[kb[action]]?.length || 0) > 1 && "border-destructive")} />
               {(conflicts[kb[action]]?.length || 0) > 1 && <p className="mt-1 text-label text-destructive">Also used by {conflicts[kb[action]].filter((item) => item !== action).map((item) => KEYBIND_LABELS[item] || item).join(", ")}</p>}
             </div>
           </FieldRow>
