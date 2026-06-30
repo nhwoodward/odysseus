@@ -500,7 +500,11 @@ def setup_mcp_routes(mcp_manager: McpManager):
                 "The MCP server is connecting. You can close this window and return to Odysseus.",
                 success=True,
             ))
-        # Legacy Google path: state is the server_id
+        # Legacy Google path: state is the server_id of an ADMIN-managed server.
+        # Require admin so a non-admin can't complete/override OAuth for it by
+        # passing its id as `state` (the generic per-user connector path above
+        # stays require_user). (audit)
+        require_admin(request)
         return await _exchange_and_connect(state, code, request)
 
     @router.post("/oauth/exchange/{server_id}")
