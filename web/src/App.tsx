@@ -7,6 +7,7 @@ import { AppShell } from "@/components/shell/AppShell"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
 import { Toaster } from "@/components/ui/sonner"
 import { OnboardingDialog } from "@/components/onboarding/OnboardingDialog"
+import { ConfirmProvider } from "@/components/ui/confirm"
 import { ChatConsole } from "@/routes/ChatConsole" // eager — the default landing route
 import { useUi } from "@/stores/ui"
 import { normalizeAccent, accentForeground } from "@/lib/accent"
@@ -77,8 +78,9 @@ function ThemedApp() {
     root.style.fontSize = DENSITY_PX[density] || "16px"
   }, [accent, font, density])
   return (
-    <AppShell>
-      <ErrorBoundary key={routeKey}>
+    <ConfirmProvider>
+      <AppShell>
+        <ErrorBoundary key={routeKey}>
         <Suspense fallback={<RouteFallback />}>
           <Routes>
             <Route path="/" element={<Navigate to="/chat" replace />} />
@@ -105,7 +107,8 @@ function ThemedApp() {
         </Suspense>
       </ErrorBoundary>
       <OnboardingDialog />
-    </AppShell>
+      </AppShell>
+    </ConfirmProvider>
   )
 }
 
