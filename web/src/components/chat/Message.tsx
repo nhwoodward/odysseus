@@ -9,6 +9,7 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/comp
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
 import { Attachment, AttachmentMedia, AttachmentContent, AttachmentTitle, AttachmentDescription, AttachmentTrigger } from "@/components/ui/attachment"
+import { Message as MessageRoot, MessageContent, MessageFooter } from "@/components/ui/message"
 import { IconButton } from "@/components/ui/IconButton"
 import { StreamingMarkdown, Markdown } from "./Markdown"
 import { ToolThread } from "./ToolThread"
@@ -310,21 +311,23 @@ export function Message({ m, onRegenerate, onEdit, onDelete, onFork, onRewrite, 
   if (m.role === "user") {
     if (editing) return <MessageEditor initial={m.content} onSubmit={onEditSubmit} onCancel={onEditCancel} />
     return (
-      <div className="group flex flex-col items-end gap-2 animate-msg-in">
-        {!!m.attachments?.length && <Attachments items={m.attachments} />}
-        {m.content && (
-          <Bubble variant="secondary" align="end" className="max-w-[75%]">
-            <BubbleContent className="whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-subhead leading-normal">{m.content}</BubbleContent>
-          </Bubble>
-        )}
-        <TooltipProvider delayDuration={0}>
-        <div className="mt-0.5 flex items-center gap-0.5 text-label opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100">
-          <CopyButton text={m.content} />
-          {onEdit && <Tip label="Edit & resend"><IconButton label="Edit & resend" title="" onClick={onEdit} icon={<Pencil className="size-3.5" />} /></Tip>}
-          <MessageActions assistant={false} onDelete={onDelete} onFork={onFork} />
-        </div>
-        </TooltipProvider>
-      </div>
+      <MessageRoot align="end" className="animate-msg-in">
+        <MessageContent className="gap-2">
+          {!!m.attachments?.length && <Attachments items={m.attachments} />}
+          {m.content && (
+            <Bubble variant="secondary" align="end" className="max-w-[75%]">
+              <BubbleContent className="whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-subhead leading-normal">{m.content}</BubbleContent>
+            </Bubble>
+          )}
+          <TooltipProvider delayDuration={0}>
+          <MessageFooter className="mt-0.5 gap-0.5 px-0 text-label opacity-100 transition-opacity md:opacity-0 md:group-hover/message:opacity-100">
+            <CopyButton text={m.content} />
+            {onEdit && <Tip label="Edit & resend"><IconButton label="Edit & resend" title="" onClick={onEdit} icon={<Pencil className="size-3.5" />} /></Tip>}
+            <MessageActions assistant={false} onDelete={onDelete} onFork={onFork} />
+          </MessageFooter>
+          </TooltipProvider>
+        </MessageContent>
+      </MessageRoot>
     )
   }
   const mt = m.metrics
@@ -344,7 +347,9 @@ export function Message({ m, onRegenerate, onEdit, onDelete, onFork, onRewrite, 
   const bodyText = useRounds ? cleaned!.map((c) => c.display).filter(Boolean).join("\n\n") : display
   const hasBody = useRounds ? cleaned!.some((c) => c.display || c.tools.length > 0) : !!display
   return (
-    <div className="space-y-3 animate-msg-in">
+    <MessageRoot className="animate-msg-in">
+      <MessageContent className="gap-3">
+      <div className="space-y-3">
       {m.groupName && (
         <div className="inline-flex items-center rounded-full border bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
           {m.groupName}
@@ -420,9 +425,10 @@ export function Message({ m, onRegenerate, onEdit, onDelete, onFork, onRewrite, 
       {m.streaming && (
         <ThinkingBar m={m} hasBody={hasBody} doc={!!doc} hasReasoning={!!m.reasoning} hasResearch={!!m.research} hasTools={!!m.tools?.length} />
       )}
+      </div>
       {!m.streaming && (m.model || mt || m.content) && (
         <TooltipProvider delayDuration={0}>
-        <div className="flex flex-wrap items-center gap-2 pt-0.5 text-label text-muted-foreground">
+        <MessageFooter className="flex-wrap gap-2 px-0 pt-0.5 text-label text-muted-foreground">
           {bodyText && <CopyButton text={bodyText} />}
           {(bodyText || doc) && onRegenerate && <Tip label="Regenerate"><IconButton label="Regenerate" title="" onClick={onRegenerate} icon={<RotateCcw className="size-3.5" />} /></Tip>}
           {bodyText && <SpeakButton text={bodyText} />}
@@ -443,9 +449,10 @@ export function Message({ m, onRegenerate, onEdit, onDelete, onFork, onRewrite, 
           {mt?.prep_seconds != null && <span>· prep {Number(mt.prep_seconds).toFixed(1)}s</span>}
           {mt?.model_wait_seconds != null && <span>· wait {Number(mt.model_wait_seconds).toFixed(1)}s</span>}
           {mt?.response_seconds != null && <span>· {Number(mt.response_seconds).toFixed(1)}s</span>}
-        </div>
+        </MessageFooter>
         </TooltipProvider>
       )}
-    </div>
+      </MessageContent>
+    </MessageRoot>
   )
 }
