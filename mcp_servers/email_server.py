@@ -1243,9 +1243,14 @@ def _create_email_draft_document(
 def _draft_reply_to_email(uid, body, folder="INBOX", reply_all=False, account=None, title=None):
     """Create a threaded Odysseus reply draft document. Does not send."""
     conn = _imap_connect(account)
-    conn.select(_q(folder), readonly=True)
-    status, msg_data = conn.uid("FETCH", _b(uid), "(BODY.PEEK[])")
-    conn.logout()
+    try:
+        conn.select(_q(folder), readonly=True)
+        status, msg_data = conn.uid("FETCH", _b(uid), "(BODY.PEEK[])")
+    finally:
+        try:
+            conn.logout()
+        except Exception:
+            pass
     if status != "OK" or not msg_data or not msg_data[0]:
         return {"error": f"Failed to fetch email UID {uid}"}
     raw = msg_data[0][1]
@@ -1447,9 +1452,9 @@ def _reply_to_email(uid, body, folder="INBOX", reply_all=False, account=None):
 def _set_flag(uid, folder, flag, add=True, account=None):
     """Add or remove an IMAP flag (e.g. \\Seen, \\Answered, \\Deleted)."""
     conn = _imap_connect(account)
-    conn.select(_q(folder))
     op = "+FLAGS" if add else "-FLAGS"
     try:
+        conn.select(_q(folder))
         status, data = conn.uid("STORE", _b(uid), op, flag)
         if add and flag == "\\Deleted":
             conn.expunge()
@@ -1540,8 +1545,8 @@ def _search_uids(folder="INBOX", criteria="UNSEEN", account=None):
 def _move_message(uid, source_folder, dest_folder, account=None, role: str = ""):
     """Move a message between folders. Tries IMAP MOVE, falls back to copy+delete."""
     conn = _imap_connect(account)
-    conn.select(_q(source_folder))
     try:
+        conn.select(_q(source_folder))
         dest_folder = _resolve_folder(conn, dest_folder, role or _folder_role_from_name(dest_folder))
         try:
             status, data = conn.uid("FETCH", _b(uid), "(UID)")

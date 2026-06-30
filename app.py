@@ -473,7 +473,11 @@ async def serve_generated_image(filename: str, request: Request):
     except HTTPException:
         raise
     except Exception as _e:
+        # Fail CLOSED — a DB/lookup hiccup must not serve a possibly-private
+        # image. 404 (don't confirm existence). The row-less "allow" case is
+        # handled inside the try, so only genuine errors reach here. (audit)
         logger.warning("Image ownership verification failed for %r", filename, exc_info=_e)
+        raise HTTPException(status_code=404, detail="Image not found")
     ext = filename.rsplit('.', 1)[-1].lower()
     mime = {
         "png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg",

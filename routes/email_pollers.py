@@ -599,12 +599,15 @@ async def _auto_summarize_pass_single(days_back: int = 1, account_id: str | None
                                 # ── M3 guardrail ──────────────────────────────
                                 # The email body is UNTRUSTED. Only honour
                                 # destructive ops (cancel/update of existing
-                                # events) when the message is trusted: composed
-                                # by the user (Sent folder) or sent from the
-                                # account's own address. Untrusted inbound mail
-                                # may only CREATE new events.
+                                # events) when the message was composed by the
+                                # user — i.e. it physically lives in the Sent
+                                # folder (`is_sent`). The From address is NOT a
+                                # trust signal: it is trivially spoofable, so a
+                                # forged `From: <self>` on inbound mail must not
+                                # re-enable destructive calendar ops (audit M3).
+                                # Untrusted inbound mail may only CREATE events.
                                 if isinstance(ops, list) and ops:
-                                    _cal_trusted = bool(is_sent or _is_self_mail)
+                                    _cal_trusted = bool(is_sent)
                                     ops, _dropped_ops = _filter_email_calendar_ops(ops, trusted=_cal_trusted)
                                     if _dropped_ops:
                                         logger.warning(
